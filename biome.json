@@ -1,0 +1,384 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": ["**", "!**/dist", "!**/.turbo", "!**/pnpm-lock.yaml"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "suspicious": {
+        "noExplicitAny": "error",
+        "noImplicitAnyLet": "error"
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "trailingCommas": "all",
+      "semicolons": "always"
+    },
+    "parser": {
+      "unsafeParameterDecoratorsEnabled": true
+    }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["apps/api/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useImportType": "off"
+          },
+          "nursery": {
+            "noFloatingPromises": "error"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/src/app/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/pages/*/**", "@/features/*/**", "@/entities/*/**"],
+                    "message": "FSD: 슬라이스 내부 파일을 직접 import 할 수 없습니다. Public API(index.ts)를 통해 import 하세요. (예: @/entities/user)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/src/pages/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/app", "@/app/**", "../**/app", "../**/app/**"],
+                    "message": "FSD: pages 레이어는 상위 레이어(app)를 import 할 수 없습니다. (app → pages → features → entities → shared)"
+                  },
+                  {
+                    "group": ["@/pages", "@/pages/**"],
+                    "message": "FSD: 같은 레이어(pages)의 다른 슬라이스를 import 할 수 없습니다. 같은 슬라이스 내부는 상대경로를 사용하세요."
+                  },
+                  {
+                    "group": [
+                      "../../*",
+                      "../../*/**",
+                      "!../../ui",
+                      "!../../ui/**",
+                      "!../../api",
+                      "!../../api/**",
+                      "!../../model",
+                      "!../../model/**",
+                      "!../../lib",
+                      "!../../lib/**",
+                      "!../../config",
+                      "!../../config/**",
+                      "!../../../ui",
+                      "!../../../ui/**",
+                      "!../../../api",
+                      "!../../../api/**",
+                      "!../../../model",
+                      "!../../../model/**",
+                      "!../../../lib",
+                      "!../../../lib/**",
+                      "!../../../config",
+                      "!../../../config/**"
+                    ],
+                    "message": "FSD: 상대경로로 슬라이스 밖을 import 할 수 없습니다. 다른 레이어는 @/ 별칭(Public API)으로 import 하세요."
+                  },
+                  {
+                    "group": ["@/pages/*/**", "@/features/*/**", "@/entities/*/**"],
+                    "message": "FSD: 슬라이스 내부 파일을 직접 import 할 수 없습니다. Public API(index.ts)를 통해 import 하세요. (예: @/entities/user)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/src/features/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/app", "@/app/**", "../**/app", "../**/app/**"],
+                    "message": "FSD: features 레이어는 상위 레이어(app)를 import 할 수 없습니다. (app → pages → features → entities → shared)"
+                  },
+                  {
+                    "group": ["@/pages", "@/pages/**", "../**/pages", "../**/pages/**"],
+                    "message": "FSD: features 레이어는 상위 레이어(pages)를 import 할 수 없습니다. (app → pages → features → entities → shared)"
+                  },
+                  {
+                    "group": ["@/features", "@/features/**"],
+                    "message": "FSD: 같은 레이어(features)의 다른 슬라이스를 import 할 수 없습니다. 같은 슬라이스 내부는 상대경로를 사용하세요."
+                  },
+                  {
+                    "group": [
+                      "../../*",
+                      "../../*/**",
+                      "!../../ui",
+                      "!../../ui/**",
+                      "!../../api",
+                      "!../../api/**",
+                      "!../../model",
+                      "!../../model/**",
+                      "!../../lib",
+                      "!../../lib/**",
+                      "!../../config",
+                      "!../../config/**",
+                      "!../../../ui",
+                      "!../../../ui/**",
+                      "!../../../api",
+                      "!../../../api/**",
+                      "!../../../model",
+                      "!../../../model/**",
+                      "!../../../lib",
+                      "!../../../lib/**",
+                      "!../../../config",
+                      "!../../../config/**"
+                    ],
+                    "message": "FSD: 상대경로로 슬라이스 밖을 import 할 수 없습니다. 다른 레이어는 @/ 별칭(Public API)으로 import 하세요."
+                  },
+                  {
+                    "group": ["@/pages/*/**", "@/features/*/**", "@/entities/*/**"],
+                    "message": "FSD: 슬라이스 내부 파일을 직접 import 할 수 없습니다. Public API(index.ts)를 통해 import 하세요. (예: @/entities/user)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/src/entities/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/app", "@/app/**", "../**/app", "../**/app/**"],
+                    "message": "FSD: entities 레이어는 상위 레이어(app)를 import 할 수 없습니다. (app → pages → features → entities → shared)"
+                  },
+                  {
+                    "group": ["@/pages", "@/pages/**", "../**/pages", "../**/pages/**"],
+                    "message": "FSD: entities 레이어는 상위 레이어(pages)를 import 할 수 없습니다. (app → pages → features → entities → shared)"
+                  },
+                  {
+                    "group": ["@/features", "@/features/**", "../**/features", "../**/features/**"],
+                    "message": "FSD: entities 레이어는 상위 레이어(features)를 import 할 수 없습니다. (app → pages → features → entities → shared)"
+                  },
+                  {
+                    "group": ["@/entities", "@/entities/**"],
+                    "message": "FSD: 같은 레이어(entities)의 다른 슬라이스를 import 할 수 없습니다. 같은 슬라이스 내부는 상대경로를 사용하세요."
+                  },
+                  {
+                    "group": [
+                      "../../*",
+                      "../../*/**",
+                      "!../../ui",
+                      "!../../ui/**",
+                      "!../../api",
+                      "!../../api/**",
+                      "!../../model",
+                      "!../../model/**",
+                      "!../../lib",
+                      "!../../lib/**",
+                      "!../../config",
+                      "!../../config/**",
+                      "!../../../ui",
+                      "!../../../ui/**",
+                      "!../../../api",
+                      "!../../../api/**",
+                      "!../../../model",
+                      "!../../../model/**",
+                      "!../../../lib",
+                      "!../../../lib/**",
+                      "!../../../config",
+                      "!../../../config/**"
+                    ],
+                    "message": "FSD: 상대경로로 슬라이스 밖을 import 할 수 없습니다. 다른 레이어는 @/ 별칭(Public API)으로 import 하세요."
+                  },
+                  {
+                    "group": ["@/pages/*/**", "@/features/*/**", "@/entities/*/**"],
+                    "message": "FSD: 슬라이스 내부 파일을 직접 import 할 수 없습니다. Public API(index.ts)를 통해 import 하세요. (예: @/entities/user)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/src/shared/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/app", "@/app/**", "../**/app", "../**/app/**"],
+                    "message": "FSD: shared 레이어는 상위 레이어(app)를 import 할 수 없습니다. (app → pages → features → entities → shared)"
+                  },
+                  {
+                    "group": ["@/pages", "@/pages/**", "../**/pages", "../**/pages/**"],
+                    "message": "FSD: shared 레이어는 상위 레이어(pages)를 import 할 수 없습니다. (app → pages → features → entities → shared)"
+                  },
+                  {
+                    "group": ["@/features", "@/features/**", "../**/features", "../**/features/**"],
+                    "message": "FSD: shared 레이어는 상위 레이어(features)를 import 할 수 없습니다. (app → pages → features → entities → shared)"
+                  },
+                  {
+                    "group": ["@/entities", "@/entities/**", "../**/entities", "../**/entities/**"],
+                    "message": "FSD: shared 레이어는 상위 레이어(entities)를 import 할 수 없습니다. (app → pages → features → entities → shared)"
+                  },
+                  {
+                    "group": ["@/pages/*/**", "@/features/*/**", "@/entities/*/**"],
+                    "message": "FSD: 슬라이스 내부 파일을 직접 import 할 수 없습니다. Public API(index.ts)를 통해 import 하세요. (예: @/entities/user)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/src/shared/ui/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useImportType": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/api/src/modules/**/*.controller.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["**/*.repository"],
+                    "message": "계층 위반: controller 는 repository 를 직접 사용할 수 없습니다. (controller → service → repository)"
+                  },
+                  {
+                    "group": ["typeorm", "typeorm/**", "@nestjs/typeorm"],
+                    "message": "계층 위반: controller 에서 TypeORM 을 사용할 수 없습니다. 데이터 접근은 service → repository 로 위임하세요."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/api/src/modules/**/*.service.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["**/*.controller"],
+                    "message": "계층 위반: service 는 controller 를 import 할 수 없습니다. (controller → service → repository)"
+                  },
+                  {
+                    "group": ["@nestjs/typeorm"],
+                    "message": "계층 위반: TypeORM Repository 주입(@InjectRepository)은 repository 계층에서만 사용하세요."
+                  },
+                  {
+                    "group": ["../*/**/*.repository"],
+                    "message": "모듈 경계: 다른 모듈의 repository 를 직접 import 할 수 없습니다. 해당 모듈이 export 한 service 를 주입받으세요."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/api/src/modules/**/*.repository.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["**/*.service", "**/*.controller"],
+                    "message": "계층 위반: repository 는 상위 계층(service, controller)을 import 할 수 없습니다. (controller → service → repository)"
+                  },
+                  {
+                    "group": ["../*/**/*.repository"],
+                    "message": "모듈 경계: 다른 모듈의 repository 를 직접 import 할 수 없습니다. 해당 모듈이 export 한 service 를 주입받으세요."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

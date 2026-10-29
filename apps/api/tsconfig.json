@@ -1,0 +1,9 @@
+{
+  "extends": "@haedalpoint/typescript-config/nestjs.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": ".",
+    "types": ["node", "jest"]
+  },
+  "include": ["src"]
+}
