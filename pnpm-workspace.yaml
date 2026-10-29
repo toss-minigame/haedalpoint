@@ -1,0 +1,8 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# 설치 스크립트 실행 허용 목록 (prebuilt 바이너리를 쓰는 패키지는 false)
+allowBuilds:
+  "@parcel/watcher": false
+  unrs-resolver: false
