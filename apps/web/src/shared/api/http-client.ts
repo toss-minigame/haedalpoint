@@ -1,5 +1,6 @@
 import type { ApiErrorResponse, ApiResponse } from '@haedalpoint/shared';
 import { env } from '@/shared/config/env';
+import { getDevUserId } from '@/shared/lib/dev-user-id';
 
 export class ApiError extends Error {
   readonly statusCode: number;
@@ -11,10 +12,16 @@ export class ApiError extends Error {
   }
 }
 
+// 임시: 토스 로그인 연동 시 인증 헤더 주입 방식으로 교체
+function authHeaders(): Record<string, string> {
+  const userId = getDevUserId();
+  return userId ? { 'X-User-Id': userId } : {};
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${env.apiBaseUrl}${path}`, {
     ...init,
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
+    headers: { 'Content-Type': 'application/json', ...authHeaders(), ...init?.headers },
     credentials: 'include',
   });
 
