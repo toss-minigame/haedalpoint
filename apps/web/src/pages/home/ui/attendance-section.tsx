@@ -3,20 +3,8 @@ import { AttendanceStamps, attendanceQueries } from '@/entities/attendance';
 import { AdBonusButton, CheckInButton } from '@/features/check-in';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card';
 
-type Props = {
-  hasUserId: boolean;
-};
-
-export function AttendanceSection({ hasUserId }: Props) {
-  const {
-    data: status,
-    isPending,
-    isError,
-    error,
-  } = useQuery({
-    ...attendanceQueries.me(),
-    enabled: hasUserId,
-  });
+export function AttendanceSection() {
+  const { data: status, isPending, isError, error } = useQuery(attendanceQueries.me());
 
   const description = status
     ? `연속 ${status.currentStreakDay}일째 · 7일 연속 출석하면 해달 친구가 함께 채굴해요`
@@ -32,10 +20,7 @@ export function AttendanceSection({ hasUserId }: Props) {
           <CardDescription>{description}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          {!hasUserId && (
-            <p className="text-sm text-muted-foreground">테스트용 userId 를 먼저 입력해주세요.</p>
-          )}
-          {hasUserId && isPending && <p className="text-muted-foreground">불러오는 중...</p>}
+          {isPending && <p className="text-muted-foreground">불러오는 중...</p>}
           {isError && <p className="text-destructive">{error.message}</p>}
           {status && (
             <>
