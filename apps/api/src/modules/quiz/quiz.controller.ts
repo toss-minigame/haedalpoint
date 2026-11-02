@@ -2,6 +2,7 @@ import type {
   AnswerQuizResponse,
   ClaimQuizRewardResponse,
   TodayQuizResponse,
+  UnlockQuizRetryResponse,
 } from '@haedalpoint/shared';
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import { CurrentUserId } from '../../common/decorators/current-user-id.decorator';
@@ -28,6 +29,16 @@ export class QuizController {
     return this.quizService.answer(userId, quizId, dto.answer);
   }
 
+  // 오답 후 광고 시청 완료 (`userEarnedReward` 수신 후에만 호출)
+  @Post(':quizId/ad-retry')
+  unlockRetry(
+    @CurrentUserId() userId: string,
+    @Param('quizId', ParseUUIDPipe) quizId: string,
+  ): Promise<UnlockQuizRetryResponse> {
+    return this.quizService.unlockRetry(userId, quizId);
+  }
+
+  // 정답 후 광고 시청 완료 (`userEarnedReward` 수신 후에만 호출)
   @Post(':quizId/ad-reward')
   claimAdReward(
     @CurrentUserId() userId: string,

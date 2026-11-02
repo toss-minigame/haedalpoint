@@ -14,6 +14,7 @@ const TODAY = '2026-11-02';
 const ACTIVE_IDS = ['q1', 'q2', 'q3', 'q4', 'q5'];
 const TODAY_IDS = selectDailyQuizIds(TODAY, ACTIVE_IDS, QUIZ_POLICY.DAILY_QUIZ_COUNT);
 const NOT_TODAY_ID = ACTIVE_IDS.find((id) => !TODAY_IDS.includes(id)) as string;
+const [QUIZ_ID] = TODAY_IDS;
 
 function quiz(id: string, answer = true) {
   return { id, question: `${id} 문제`, answer, explanation: `${id} 해설`, active: true };
@@ -27,11 +28,16 @@ function attempt(quizId: string, overrides: Record<string, unknown> = {}) {
     quizId,
     userAnswer: true,
     isCorrect: true,
+    wrongCount: 0,
+    retryUnlocked: false,
     rewardAmount: null,
     rewardClaimedAt: null,
     ...overrides,
   };
 }
+
+const WRONG = { userAnswer: false, isCorrect: false, wrongCount: 1, retryUnlocked: false };
+const RETRY_READY = { ...WRONG, retryUnlocked: true };
 
 describe('QuizService', () => {
   let service: QuizService;
@@ -42,6 +48,8 @@ describe('QuizService', () => {
     findAttemptsByUserAndDate: jest.fn(),
     findAttempt: jest.fn(),
     createAttempt: jest.fn(),
+    reanswer: jest.fn(),
+    unlockRetry: jest.fn(),
     claimReward: jest.fn(),
   };
   const usersService = { findById: jest.fn() };
@@ -58,6 +66,8 @@ describe('QuizService', () => {
     jest.resetAllMocks();
     usersService.findById.mockResolvedValue({ id: USER_ID });
     repo.findActiveQuizIds.mockResolvedValue(ACTIVE_IDS);
+    repo.findQuizById.mockResolvedValue(quiz(QUIZ_ID, true));
+    repo.findAttempt.mockResolvedValue(null);
     repo.createAttempt.mockImplementation(async (data: object) => ({ id: 'attempt-1', ...data }));
 
     const moduleRef = await Test.createTestingModule({
@@ -86,41 +96,28 @@ describe('QuizService', () => {
       });
     });
 
-    it('does not expose the answer of unanswered quizzes', async () => {
+    it('reveals the answer only for solved quizzes', async () => {
+      const [solved, wrong] = TODAY_IDS;
       repo.findQuizzesByIds.mockResolvedValue(TODAY_IDS.map((id) => quiz(id)));
-      repo.findAttemptsByUserAndDate.mockResolvedValue([]);
-
-      const result = await service.getToday(USER_ID);
-
-      for (const item of result.items) {
-        expect(item).not.toHaveProperty('answer');
-        expect(item.attempt).toBeNull();
-      }
-    });
-
-    it('includes the result of answered quizzes', async () => {
-      const [first] = TODAY_IDS;
-      repo.findQuizzesByIds.mockResolvedValue(TODAY_IDS.map((id) => quiz(id, false)));
       repo.findAttemptsByUserAndDate.mockResolvedValue([
-        attempt(first, {
-          userAnswer: true,
-          isCorrect: false,
-          rewardAmount: 10,
-          rewardClaimedAt: new Date(),
-        }),
+        attempt(solved, { rewardAmount: 10, rewardClaimedAt: new Date() }),
+        attempt(wrong, WRONG),
       ]);
 
-      const result = await service.getToday(USER_ID);
+      const { items } = await service.getToday(USER_ID);
 
-      expect(result.items[0].attempt).toEqual({
-        userAnswer: true,
-        isCorrect: false,
-        correctAnswer: false,
-        explanation: `${first} 해설`,
-        rewardAmount: 10,
+      expect(items[0].attempt).toMatchObject({
+        status: 'CORRECT',
+        correctAnswer: true,
+        explanation: `${solved} 해설`,
         rewardClaimed: true,
       });
-      expect(result.items[1].attempt).toBeNull();
+      expect(items[1].attempt).toMatchObject({
+        status: 'WRONG',
+        correctAnswer: null,
+        explanation: null,
+      });
+      expect(items[2].attempt).toBeNull();
     });
 
     it('returns no items when there is no active quiz', async () => {
@@ -138,32 +135,44 @@ describe('QuizService', () => {
     });
   });
 
-  describe('answer', () => {
-    const [quizId] = TODAY_IDS;
-
-    it.each([
-      [true, true, true],
-      [false, true, false],
-      [false, false, true],
-    ])('answer=%p for correct=%p → isCorrect=%p', async (userAnswer, correct, isCorrect) => {
-      repo.findQuizById.mockResolvedValue(quiz(quizId, correct));
-
-      await expect(service.answer(USER_ID, quizId, userAnswer)).resolves.toEqual({
-        quizId,
-        userAnswer,
-        isCorrect,
-        correctAnswer: correct,
-        explanation: `${quizId} 해설`,
+  describe('answer — first attempt', () => {
+    it('records a correct answer and reveals the answer', async () => {
+      await expect(service.answer(USER_ID, QUIZ_ID, true)).resolves.toEqual({
+        quizId: QUIZ_ID,
+        status: 'CORRECT',
+        userAnswer: true,
+        isCorrect: true,
+        wrongCount: 0,
+        correctAnswer: true,
+        explanation: `${QUIZ_ID} 해설`,
         rewardAmount: null,
         rewardClaimed: false,
       });
       expect(repo.createAttempt).toHaveBeenCalledWith({
         userId: USER_ID,
         attemptedDate: TODAY,
-        quizId,
-        userAnswer,
-        isCorrect,
+        quizId: QUIZ_ID,
+        userAnswer: true,
+        isCorrect: true,
+        wrongCount: 0,
       });
+    });
+
+    it('records a wrong answer and hides the answer', async () => {
+      await expect(service.answer(USER_ID, QUIZ_ID, false)).resolves.toEqual({
+        quizId: QUIZ_ID,
+        status: 'WRONG',
+        userAnswer: false,
+        isCorrect: false,
+        wrongCount: 1,
+        correctAnswer: null,
+        explanation: null,
+        rewardAmount: null,
+        rewardClaimed: false,
+      });
+      expect(repo.createAttempt).toHaveBeenCalledWith(
+        expect.objectContaining({ isCorrect: false, wrongCount: 1 }),
+      );
     });
 
     it("throws NotFoundException for a quiz outside today's set", async () => {
@@ -174,79 +183,175 @@ describe('QuizService', () => {
     it('throws NotFoundException when the quiz row is missing', async () => {
       repo.findQuizById.mockResolvedValue(null);
 
-      await expect(service.answer(USER_ID, quizId, true)).rejects.toThrow(NotFoundException);
+      await expect(service.answer(USER_ID, QUIZ_ID, true)).rejects.toThrow(NotFoundException);
       expect(repo.createAttempt).not.toHaveBeenCalled();
     });
 
-    it('converts a unique violation (23505) into ConflictException', async () => {
-      repo.findQuizById.mockResolvedValue(quiz(quizId));
+    it('converts a concurrent first answer (23505) into ConflictException', async () => {
       repo.createAttempt.mockRejectedValue(
         Object.assign(new Error('duplicate key'), { code: '23505' }),
       );
 
-      await expect(service.answer(USER_ID, quizId, true)).rejects.toThrow(ConflictException);
+      await expect(service.answer(USER_ID, QUIZ_ID, true)).rejects.toThrow(ConflictException);
     });
 
     it('rethrows other database errors', async () => {
-      repo.findQuizById.mockResolvedValue(quiz(quizId));
       const dbError = Object.assign(new Error('connection lost'), { code: '08006' });
       repo.createAttempt.mockRejectedValue(dbError);
 
-      await expect(service.answer(USER_ID, quizId, true)).rejects.toBe(dbError);
+      await expect(service.answer(USER_ID, QUIZ_ID, true)).rejects.toBe(dbError);
     });
 
     it('throws NotFoundException for an unknown user', async () => {
       usersService.findById.mockRejectedValue(new NotFoundException());
 
-      await expect(service.answer(USER_ID, quizId, true)).rejects.toThrow(NotFoundException);
+      await expect(service.answer(USER_ID, QUIZ_ID, true)).rejects.toThrow(NotFoundException);
       expect(repo.createAttempt).not.toHaveBeenCalled();
     });
   });
 
-  describe('claimAdReward', () => {
-    const [quizId] = TODAY_IDS;
+  describe('answer — retry', () => {
+    it('accepts a retry after the ad unlocked it and reveals the answer when correct', async () => {
+      repo.findAttempt.mockResolvedValue(attempt(QUIZ_ID, RETRY_READY));
+      repo.reanswer.mockResolvedValue(true);
 
-    it('records the reward and returns the amount', async () => {
-      repo.findAttempt.mockResolvedValue(attempt(quizId));
+      await expect(service.answer(USER_ID, QUIZ_ID, true)).resolves.toMatchObject({
+        status: 'CORRECT',
+        isCorrect: true,
+        wrongCount: 1,
+        correctAnswer: true,
+      });
+      expect(repo.reanswer).toHaveBeenCalledWith(`attempt-${QUIZ_ID}`, true, true);
+      expect(repo.createAttempt).not.toHaveBeenCalled();
+    });
+
+    it('locks the retry again when the retry is wrong too', async () => {
+      repo.findAttempt.mockResolvedValue(attempt(QUIZ_ID, RETRY_READY));
+      repo.reanswer.mockResolvedValue(true);
+
+      await expect(service.answer(USER_ID, QUIZ_ID, false)).resolves.toMatchObject({
+        status: 'WRONG',
+        wrongCount: 2,
+        correctAnswer: null,
+      });
+    });
+
+    it('throws ConflictException when the retry was not unlocked by an ad', async () => {
+      repo.findAttempt.mockResolvedValue(attempt(QUIZ_ID, WRONG));
+
+      await expect(service.answer(USER_ID, QUIZ_ID, true)).rejects.toThrow(ConflictException);
+      expect(repo.reanswer).not.toHaveBeenCalled();
+    });
+
+    it('throws ConflictException when already solved', async () => {
+      repo.findAttempt.mockResolvedValue(attempt(QUIZ_ID));
+
+      await expect(service.answer(USER_ID, QUIZ_ID, true)).rejects.toThrow(ConflictException);
+      expect(repo.reanswer).not.toHaveBeenCalled();
+    });
+
+    it('throws ConflictException when a concurrent retry consumed the chance first', async () => {
+      repo.findAttempt.mockResolvedValue(attempt(QUIZ_ID, RETRY_READY));
+      repo.reanswer.mockResolvedValue(false);
+
+      await expect(service.answer(USER_ID, QUIZ_ID, true)).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('unlockRetry', () => {
+    it('unlocks a retry for a wrong answer', async () => {
+      repo.findAttempt.mockResolvedValue(attempt(QUIZ_ID, WRONG));
+      repo.unlockRetry.mockResolvedValue(true);
+
+      await expect(service.unlockRetry(USER_ID, QUIZ_ID)).resolves.toEqual({
+        quizId: QUIZ_ID,
+        status: 'RETRY_READY',
+      });
+      expect(repo.findAttempt).toHaveBeenCalledWith(USER_ID, TODAY, QUIZ_ID);
+      expect(repo.unlockRetry).toHaveBeenCalledWith(`attempt-${QUIZ_ID}`);
+    });
+
+    it('throws NotFoundException when the quiz was not answered today', async () => {
+      await expect(service.unlockRetry(USER_ID, QUIZ_ID)).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws ConflictException when already solved', async () => {
+      repo.findAttempt.mockResolvedValue(attempt(QUIZ_ID));
+
+      await expect(service.unlockRetry(USER_ID, QUIZ_ID)).rejects.toThrow(ConflictException);
+      expect(repo.unlockRetry).not.toHaveBeenCalled();
+    });
+
+    it('throws ConflictException when the retry is already unlocked', async () => {
+      repo.findAttempt.mockResolvedValue(attempt(QUIZ_ID, RETRY_READY));
+
+      await expect(service.unlockRetry(USER_ID, QUIZ_ID)).rejects.toThrow(ConflictException);
+      expect(repo.unlockRetry).not.toHaveBeenCalled();
+    });
+
+    it('throws ConflictException when a concurrent request unlocked it first', async () => {
+      repo.findAttempt.mockResolvedValue(attempt(QUIZ_ID, WRONG));
+      repo.unlockRetry.mockResolvedValue(false);
+
+      await expect(service.unlockRetry(USER_ID, QUIZ_ID)).rejects.toThrow(ConflictException);
+    });
+
+    it('throws NotFoundException for an unknown user', async () => {
+      usersService.findById.mockRejectedValue(new NotFoundException());
+
+      await expect(service.unlockRetry(USER_ID, QUIZ_ID)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('claimAdReward', () => {
+    it('records the reward for a solved quiz', async () => {
+      repo.findAttempt.mockResolvedValue(attempt(QUIZ_ID));
       repo.claimReward.mockResolvedValue(true);
 
-      await expect(service.claimAdReward(USER_ID, quizId)).resolves.toEqual({
-        quizId,
+      await expect(service.claimAdReward(USER_ID, QUIZ_ID)).resolves.toEqual({
+        quizId: QUIZ_ID,
         rewardAmount: QUIZ_POLICY.REWARD_PER_QUIZ,
       });
-      expect(repo.findAttempt).toHaveBeenCalledWith(USER_ID, TODAY, quizId);
       expect(repo.claimReward).toHaveBeenCalledWith(
-        `attempt-${quizId}`,
+        `attempt-${QUIZ_ID}`,
         QUIZ_POLICY.REWARD_PER_QUIZ,
         NOW,
       );
     });
 
     it('throws NotFoundException when the quiz was not answered today', async () => {
-      repo.findAttempt.mockResolvedValue(null);
+      await expect(service.claimAdReward(USER_ID, QUIZ_ID)).rejects.toThrow(NotFoundException);
+      expect(repo.claimReward).not.toHaveBeenCalled();
+    });
 
-      await expect(service.claimAdReward(USER_ID, quizId)).rejects.toThrow(NotFoundException);
+    it.each([
+      ['wrong', WRONG],
+      ['retry ready', RETRY_READY],
+    ])('throws ConflictException when the quiz is not solved (%s)', async (_label, state) => {
+      repo.findAttempt.mockResolvedValue(attempt(QUIZ_ID, state));
+
+      await expect(service.claimAdReward(USER_ID, QUIZ_ID)).rejects.toThrow(ConflictException);
       expect(repo.claimReward).not.toHaveBeenCalled();
     });
 
     it('throws ConflictException when the reward was already claimed', async () => {
-      repo.findAttempt.mockResolvedValue(attempt(quizId, { rewardClaimedAt: new Date() }));
+      repo.findAttempt.mockResolvedValue(attempt(QUIZ_ID, { rewardClaimedAt: new Date() }));
 
-      await expect(service.claimAdReward(USER_ID, quizId)).rejects.toThrow(ConflictException);
+      await expect(service.claimAdReward(USER_ID, QUIZ_ID)).rejects.toThrow(ConflictException);
       expect(repo.claimReward).not.toHaveBeenCalled();
     });
 
     it('throws ConflictException when a concurrent request claimed it first', async () => {
-      repo.findAttempt.mockResolvedValue(attempt(quizId));
+      repo.findAttempt.mockResolvedValue(attempt(QUIZ_ID));
       repo.claimReward.mockResolvedValue(false);
 
-      await expect(service.claimAdReward(USER_ID, quizId)).rejects.toThrow(ConflictException);
+      await expect(service.claimAdReward(USER_ID, QUIZ_ID)).rejects.toThrow(ConflictException);
     });
 
     it('throws NotFoundException for an unknown user', async () => {
       usersService.findById.mockRejectedValue(new NotFoundException());
 
-      await expect(service.claimAdReward(USER_ID, quizId)).rejects.toThrow(NotFoundException);
+      await expect(service.claimAdReward(USER_ID, QUIZ_ID)).rejects.toThrow(NotFoundException);
     });
   });
 });

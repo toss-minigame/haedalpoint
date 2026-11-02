@@ -9,6 +9,7 @@ describe('QuizController', () => {
   const service = {
     getToday: jest.fn(),
     answer: jest.fn(),
+    unlockRetry: jest.fn(),
     claimAdReward: jest.fn(),
   };
 
@@ -33,6 +34,13 @@ describe('QuizController', () => {
 
     await expect(controller.answer(USER_ID, QUIZ_ID, { answer: false })).resolves.toBe('result');
     expect(service.answer).toHaveBeenCalledWith(USER_ID, QUIZ_ID, false);
+  });
+
+  it('unlockRetry delegates with the user id and quiz id', async () => {
+    service.unlockRetry.mockResolvedValue('result');
+
+    await expect(controller.unlockRetry(USER_ID, QUIZ_ID)).resolves.toBe('result');
+    expect(service.unlockRetry).toHaveBeenCalledWith(USER_ID, QUIZ_ID);
   });
 
   it('claimAdReward delegates with the user id and quiz id', async () => {

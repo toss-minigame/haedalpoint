@@ -52,15 +52,18 @@
 ```
 퀴즈 화면 진입
  → GET 오늘의 퀴즈 (정답 미포함)
- → O 또는 X 선택 → POST 답변 → 정답 여부·해설 표시
- → [광고 보고 물고기 받기] 버튼
-     → loadFullScreenAd → showFullScreenAd
-     → userEarnedReward 이벤트 수신 시에만 POST 보상 요청
-     → 지급 결과 표시
- → 다음 퀴즈 (하루 한도 도달 시 "내일 다시 참여" 안내)
+ → O 또는 X 선택 → POST 답변 → 서버가 정답 판정
+     ├─ 정답(CORRECT): 정답·해설 표시
+     │    → [광고 보고 물고기 받기] → userEarnedReward → POST ad-reward → 지급 결과 표시
+     └─ 오답(WRONG): 정답·해설 숨김
+          → [광고 보고 다시 풀기] → userEarnedReward → POST ad-retry (RETRY_READY)
+          → 다시 답변 → (맞힐 때까지 반복, 횟수 제한 없음)
+ → 다음 퀴즈 (오늘 세트를 다 풀면 "내일 다시 참여" 안내)
 ```
 
-- 광고 시청을 거부하거나 중간에 닫으면(`userEarnedReward` 없이 `dismissed`) 보상을 요청하지 않는다.
+- **보상은 정답을 맞힌 경우에만** 지급하며, 정답을 맞혀도 광고를 봐야 받는다.
+- **오답이면 정답·해설을 노출하지 않는다.** O/X는 보기가 둘뿐이라 정답을 보여주면 재도전이 의미가 없어진다.
+- 광고 시청을 거부하거나 중간에 닫으면(`userEarnedReward` 없이 `dismissed`) 재도전·보상 요청을 하지 않는다.
 - 광고 로드 실패·미지원 환경(`loadFullScreenAd.isSupported() === false`)이면 버튼을 비활성화하고 안내한다.
 
 ## 4. API 설계 (`apps/api`)
@@ -69,11 +72,21 @@
 
 | Method | Path | 설명 | 주요 응답 |
 |---|---|---|---|
-| GET | `/quiz/today` | 오늘의 퀴즈 목록과 내 참여 현황 | 퀴즈(id, 문제), 답변 여부, 보상 수령 여부, 남은 참여 횟수 |
-| POST | `/quiz/:quizId/answer` | O/X 답변 제출, 서버가 정답 판정 | 정답 여부, 정답, 해설 |
-| POST | `/quiz/:quizId/ad-reward` | 광고 시청 완료 후 물고기 보상 요청 | 지급한 물고기 수 |
+| GET | `/quiz/today` | 오늘의 퀴즈 목록과 내 도전 현황, 퀴즈당 보상량 | 퀴즈(id, 문제), 도전 상태(`status`), 보상 수령 여부 |
+| POST | `/quiz/:quizId/answer` | 첫 답변 또는 재도전 답변. 서버가 정답 판정 | `status`, 정답 여부, 틀린 횟수, 정답·해설(맞혔을 때만) |
+| POST | `/quiz/:quizId/ad-retry` | 오답 후 광고 시청 완료 → 재도전 기회 열기 | `status: RETRY_READY` |
+| POST | `/quiz/:quizId/ad-reward` | 정답 후 광고 시청 완료 → 물고기 보상 | 지급한 물고기 수 |
 
-- 정답은 **서버에서만 판정**한다. `GET /quiz/today` 응답에는 정답을 포함하지 않는다.
+도전 상태(`status`):
+
+| 상태 | 의미 | 가능한 다음 행동 |
+|---|---|---|
+| (없음) | 아직 도전 안 함 | 답변 |
+| `WRONG` | 틀림 | 재도전 광고 시청(`ad-retry`) |
+| `RETRY_READY` | 재도전 기회 받음 | 다시 답변 |
+| `CORRECT` | 맞힘 | 보상 광고 시청(`ad-reward`, 1회) |
+
+- 정답은 **서버에서만 판정**한다. 정답·해설은 `CORRECT` 상태에서만 응답에 포함한다.
 - 요청 DTO는 `class-validator`로 검증한다 (`answer: boolean` 등).
 
 ### 에러 처리
@@ -81,10 +94,13 @@
 | 상황 | 응답 |
 |---|---|
 | 존재하지 않거나 오늘의 퀴즈가 아님 | 404 |
-| 이미 답변한 퀴즈에 다시 답변 | 409 |
-| 답변하지 않은 퀴즈에 보상 요청 | 409 |
+| 답변하지 않은 퀴즈에 재도전·보상 요청 | 404 |
+| 재도전 광고 없이 다시 답변 (`WRONG`) | 409 |
+| 이미 맞힌 퀴즈에 답변·재도전 요청 | 409 |
+| 이미 재도전 기회를 받았는데 또 요청 (`RETRY_READY`) | 409 |
+| 맞히지 않은 퀴즈에 보상 요청 | 409 |
 | 이미 보상을 받은 퀴즈에 다시 요청 | 409 |
-| 하루 참여 한도 초과 | 409 (또는 429, 구현 시 결정) |
+| 첫 답변이 동시에 두 번 들어옴 | 409 (유니크 제약) |
 
 ## 5. 데이터 모델
 
@@ -107,30 +123,39 @@
 | user_id | uuid | `users.id` 참조 (관계 미설정) |
 | quiz_id | uuid | `quizzes.id` |
 | attempted_date | date | KST 기준 `YYYY-MM-DD` (출석체크의 `kst-date` 유틸 재사용) |
-| user_answer | boolean | 사용자 답변 |
-| is_correct | boolean | 정답 여부 |
+| user_answer | boolean | 마지막 답변 |
+| is_correct | boolean | 마지막 답변의 정답 여부 (true가 되면 더 이상 답변 불가) |
+| wrong_count | int, default 0 | 틀린 횟수 (재도전 광고 노출 분석용) |
+| retry_unlocked | boolean, default false | 오답 후 광고로 재도전 기회를 받았는지. 재답변하면 다시 false |
 | reward_amount | int, nullable | 지급한 물고기 수 |
-| ad_reward_claimed_at | timestamptz, nullable | 광고 보상 수령 시각 |
+| reward_claimed_at | timestamptz, nullable | 광고 보상 수령 시각 |
+
+- 한 행 = 사용자가 그날 한 퀴즈에 도전한 기록. 재도전하면 새 행을 만들지 않고 같은 행을 갱신한다.
 
 - 유니크 제약 `(user_id, attempted_date, quiz_id)`: 같은 날 같은 퀴즈를 두 번 답변하거나 연타해도 중복 기록되지 않는다. 출석체크의 `is-unique-violation` 처리 패턴을 재사용한다.
   - 퀴즈는 날짜별로 순환 출제되므로 같은 퀴즈가 다른 날 다시 나올 수 있다. 그래서 `attempted_date`를 유니크 키에 포함한다. (초안의 `(user_id, quiz_id)`에서 변경)
   - 선두 컬럼 `(user_id, attempted_date)`가 "오늘 내 답변 목록" 조회 인덱스 역할도 하므로 별도 인덱스는 두지 않는다.
-- 보상 중복 방지: `ad_reward_claimed_at IS NULL` 조건부 UPDATE로 한 번만 수령되게 한다.
+- 상태 변경은 모두 **현재 상태 조건부 UPDATE**로 처리해 연타·동시 요청에도 한 번만 반영된다.
+  - 재도전 열기: `is_correct = false AND retry_unlocked = false`
+  - 재답변: `is_correct = false AND retry_unlocked = true` (또 틀리면 `wrong_count + 1`을 DB에서 원자적으로 계산)
+  - 보상: `is_correct = true AND reward_claimed_at IS NULL`
 
 ### 물고기 지급
 
-물고기 지갑(`fish-wallet`) 모듈은 아직 없다. 우선 `quiz_attempts.reward_amount` / `ad_reward_claimed_at`에 지급 내역을 기록하고,
+물고기 지갑(`fish-wallet`) 모듈은 아직 없다. 우선 `quiz_attempts.reward_amount` / `reward_claimed_at`에 지급 내역을 기록하고,
 지갑 모듈이 생기면 서비스에서 지갑 적립을 호출하도록 연결한다 (출석체크의 `reward_applied_at` TODO와 같은 방식).
 
 ## 6. 보상·참여 정책
 
-정책 값은 `modules/quiz/lib/quiz-reward.policy.ts` 한 곳에서 관리한다 (출석체크의 `attendance-reward.policy.ts`와 동일한 구조).
+정책값은 **api 안의 `apps/api/src/common/globals/quiz.policy.ts` 한 곳에서만** 관리한다.
+web은 값을 따로 갖지 않고 API 응답(`rewardPerQuiz`, `items` 개수)으로만 받는다. 값을 바꿀 때는 api만 재배포하면 되고, 미니앱 번들 재빌드·재출시가 필요 없다.
 
-| 항목 | 초기값 | 비고 |
+| 항목 | 상수 | 임시값 |
 |---|---|---|
-| 하루 퀴즈 수 | 미정 | 결정 필요 |
-| 퀴즈당 물고기 보상 | 미정 | 결정 필요 |
-| 정답 여부에 따른 보상 차등 | 미정 | 아래 '결정 필요' 참고 |
+| 하루 퀴즈 수 | `QUIZ_POLICY.DAILY_QUIZ_COUNT` | 3 |
+| 퀴즈당 물고기 보상 (정답 + 광고 시청 시) | `QUIZ_POLICY.REWARD_PER_QUIZ` | 10 |
+| 오답 시 재도전 횟수 | — | 제한 없음 (맞힐 때까지, 매번 광고 시청) |
+| 오답 보상 | — | 없음 |
 
 ### 정책 제약 (앱인토스)
 
@@ -170,8 +195,10 @@ src/
 
 ## 9. 알려진 한계
 
-- **광고 시청 완료를 서버가 직접 확인할 수 없다.** `userEarnedReward`는 클라이언트 이벤트이므로 조작된 클라이언트가 광고 없이 보상 API를 호출할 수 있다.
-  - 완화: 퀴즈당 1회, 하루 한도, 답변한 퀴즈에만 보상
+- **광고 시청 완료를 서버가 직접 확인할 수 없다.** `userEarnedReward`는 클라이언트 이벤트이므로 조작된 클라이언트가 광고 없이 `ad-retry`·`ad-reward`를 호출할 수 있다.
+  - 완화: 보상은 맞힌 퀴즈에 1회만, 하루 세트(3문제) 한도
+  - 재도전은 횟수 제한이 없어 광고 없이 무한 재도전이 가능하지만, 보상량에는 영향이 없다 (O/X라 어차피 두 번 안에 맞힘)
+- **O/X는 보기가 둘이라 재도전하면 사실상 정답을 맞힌다.** 재도전은 "광고를 보면 정답 처리"에 가깝게 동작한다. 의도된 동작으로 받아들였다.
   - 확인 필요: 앱인토스가 서버 측 광고 시청 검증 수단을 제공하는지 문의
 - **임시 사용자 식별은 사칭이 가능하다.** 운영 배포 전 교체한다 (2장).
 
@@ -179,8 +206,8 @@ src/
 
 | 항목 | 상태 |
 |---|---|
-| PR #2 (출석체크): `@CurrentUserId`, `users` 마이그레이션, `kst-date` 유틸 | 열림. 대상 브랜치를 `dev`로 변경 후 머지 필요 |
-| PR #4 (앱인토스 SDK 연동): 광고 API, devtools mock | 열림 |
+| PR #2 (출석체크): `@CurrentUserId`, `users` 마이그레이션, `kst-date` 유틸 | 완료 (`dev` 머지) |
+| PR #4 (앱인토스 SDK 연동): 광고 API, devtools mock | 완료 (`dev` 머지) |
 | 콘솔 보상형 광고 그룹 생성 (`adGroupId`) | 미진행. 로컬 개발은 mock으로 가능 |
 
 ## 11. 구현 순서
@@ -199,9 +226,9 @@ src/
 
 ## 12. 결정 필요
 
-- [ ] 하루 퀴즈 수, 퀴즈당 물고기 보상량
-- [ ] 정답일 때만 보상할지, 참여만 해도 보상할지 (오답 시 보상 축소 등)
-- [ ] 광고 시청이 보상의 필수 조건인지, 광고 없이 기본 보상 + 광고 시 추가 보상인지
+- [ ] 하루 퀴즈 수, 퀴즈당 물고기 보상량 (현재 임시값 3문제·10마리)
+- [x] 보상 조건: 정답을 맞힌 경우에만, 광고 시청 후 지급
+- [x] 오답 처리: 정답·해설 숨김 → 광고 시청 후 재도전 (맞힐 때까지 제한 없음)
 - [ ] 퀴즈 출제 방식: 전체 사용자 동일 문제 / 사용자별 랜덤 / 날짜별 고정 세트
 - [ ] 퀴즈 데이터 관리 방식: 마이그레이션 시드 / 운영자 API / 외부 시트
 - [ ] ADR-0005(보상을 물고기로 지급) 확정 여부
