@@ -1,4 +1,4 @@
-// 출석 "하루" 는 KST(Asia/Seoul, UTC+9, DST 없음) 00:00 기준.
+// 서비스의 "하루"(출석·퀴즈 등)는 KST(Asia/Seoul, UTC+9, DST 없음) 00:00 기준.
 // 서버/DB 타임존에 의존하지 않도록 UTC epoch 에 오프셋을 더해 계산한다.
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
