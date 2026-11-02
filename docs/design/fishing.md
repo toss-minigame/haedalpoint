@@ -3,6 +3,7 @@
 - 상태: 1차 구현 (토스 포인트 전환·해먹 가득 푸시는 후속 작업)
 - 작성일: 2026-11-02
 - 관련 ADR: [ADR-0007 낚시 경제](../adr/0007-fishing-economy.md), [ADR-0003 재화 이름](../adr/0003-in-app-currency-name.md)
+- 데이터 시퀀스: [fishing-sequence.md](./fishing-sequence.md)
 
 ## 1. 개요
 

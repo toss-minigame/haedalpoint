@@ -106,8 +106,7 @@ export class AttendanceService {
     const claimed = await this.attendanceRepository.claimAdBonus(todayLog.id, new Date());
     if (!claimed) throw new ConflictException(AD_BONUS_ALREADY_CLAIMED);
 
-    // TODO(fishing): bonusReward 를 낚시에 적용 (ENHANCE_BONUS → FishingService.enhanceRod).
-    //   OTTER_FRIEND 를 두 번 받을 때의 효과(속도·용량 추가 여부)는 기획 확정 필요 (ADR-0007)
+    // TODO(enhancement/otter-friend): 강화·동료 모듈이 생기면 bonusReward 만큼 추가 적립
     return {
       checkedDate: today,
       bonusReward: { type: todayLog.rewardType, amount: todayLog.rewardAmount },

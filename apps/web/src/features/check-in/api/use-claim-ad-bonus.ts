@@ -17,7 +17,7 @@ function shouldRetry(failureCount: number, error: Error): boolean {
 function bonusMessage(reward: AttendanceReward): string {
   return reward.type === 'OTTER_FRIEND'
     ? '해달 친구가 한 명 더 합류했어요'
-    : '낚싯대 강화를 한 번 더 받았어요';
+    : `강화 보너스 +${reward.amount}를 한 번 더 받았어요`;
 }
 
 /** 출석 후 광고 시청 완료 → 오늘 출석 보상을 한 번 더 받기 */
