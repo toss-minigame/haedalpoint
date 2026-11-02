@@ -3,6 +3,7 @@
 //    (api 재배포만 필요, web 은 API 응답으로 값을 받음).
 // 값만 둔다. 계산 로직은 modules/fishing/lib 에 둔다.
 // 값을 바꾸면 fishing-budget.spec.ts 가 월 예산(MONTHLY_TOSS_POINT_BUDGET) 초과 여부를 검사한다.
+// 속도 값을 바꿔 배포하면 각 사용자의 마지막 정산 이후 시간도 새 속도로 계산된다 (해먹 용량 이내).
 export const FISHING_POLICY = {
   /** 토스 포인트 1원으로 바꾸는 데 필요한 물고기 수 (확정, 매월 콘솔 보고 대상) */
   FISH_PER_TOSS_POINT: 500,

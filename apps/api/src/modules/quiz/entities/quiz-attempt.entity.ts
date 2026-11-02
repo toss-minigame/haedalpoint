@@ -38,6 +38,7 @@ export class QuizAttempt extends BaseEntity {
   retryUnlocked: boolean;
 
   // 정답 후 광고를 보고 낚싯대 강화 보상을 받은 시각
+  // (이전의 reward_amount 컬럼은 엔티티에서 뺐다. DB 컬럼 삭제는 배포 후 별도 마이그레이션 — docs/design/fishing.md 7장)
   @Column({ type: 'timestamptz', name: 'reward_claimed_at', nullable: true })
   rewardClaimedAt: Date | null;
 }

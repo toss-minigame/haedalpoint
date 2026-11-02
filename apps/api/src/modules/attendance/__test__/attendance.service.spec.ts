@@ -85,7 +85,7 @@ describe('AttendanceService', () => {
       await service.checkIn(USER_ID);
 
       expect(dataSource.transaction).toHaveBeenCalledTimes(1);
-      expect(fishingService.enhanceRod).toHaveBeenCalledWith(USER_ID, 1, manager);
+      expect(fishingService.enhanceRod).toHaveBeenCalledWith(USER_ID, 1, manager, NOW);
       expect(fishingService.summonOtterFriend).not.toHaveBeenCalled();
     });
 
@@ -94,7 +94,7 @@ describe('AttendanceService', () => {
 
       await service.checkIn(USER_ID);
 
-      expect(fishingService.summonOtterFriend).toHaveBeenCalledWith(USER_ID, manager);
+      expect(fishingService.summonOtterFriend).toHaveBeenCalledWith(USER_ID, manager, NOW);
       expect(fishingService.enhanceRod).not.toHaveBeenCalled();
     });
 

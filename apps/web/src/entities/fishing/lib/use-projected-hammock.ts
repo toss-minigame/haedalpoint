@@ -13,7 +13,8 @@ export function useProjectedHammock(status: FishingStatus, receivedAt: number) {
     return () => window.clearInterval(timer);
   }, []);
 
-  const elapsedMs = now - receivedAt;
+  // 새 응답을 받은 직후에는 now 가 receivedAt 보다 최대 1초 이를 수 있다
+  const elapsedMs = Math.max(now - receivedAt, 0);
   const fish = projectHammockFish(status, elapsedMs);
   const msUntilFull = status.hammockFullAt
     ? Date.parse(status.hammockFullAt) - Date.parse(status.serverTime) - elapsedMs

@@ -330,6 +330,7 @@ describe('QuizService', () => {
         USER_ID,
         QUIZ_POLICY.ROD_LEVELS_PER_REWARD,
         manager,
+        NOW,
       );
     });
 

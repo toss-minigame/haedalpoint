@@ -104,14 +104,21 @@ export class QuizService {
   /** 정답 후 광고 시청 완료 → 보상 기록 + 낚싯대 강화 (한 트랜잭션, ADR-0007) */
   async claimAdReward(userId: string, quizId: string): Promise<ClaimQuizRewardResponse> {
     await this.usersService.findById(userId);
-    const attempt = await this.findTodayAttempt(userId, quizId);
+    // 퀴즈 날짜와 강화 적용 날짜가 자정 경계에서 어긋나지 않도록 한 시각을 함께 쓴다
+    const now = new Date();
+    const attempt = await this.findTodayAttempt(userId, quizId, now);
     if (!attempt.isCorrect) throw new ConflictException(NOT_CORRECT);
     if (attempt.rewardClaimedAt) throw new ConflictException(ALREADY_CLAIMED);
 
     const enhancement = await this.dataSource.transaction(async (manager) => {
-      const claimed = await this.quizRepository.claimReward(attempt.id, new Date(), manager);
+      const claimed = await this.quizRepository.claimReward(attempt.id, now, manager);
       if (!claimed) throw new ConflictException(ALREADY_CLAIMED);
-      return this.fishingService.enhanceRod(userId, QUIZ_POLICY.ROD_LEVELS_PER_REWARD, manager);
+      return this.fishingService.enhanceRod(
+        userId,
+        QUIZ_POLICY.ROD_LEVELS_PER_REWARD,
+        manager,
+        now,
+      );
     });
     return { quizId, ...enhancement };
   }
@@ -183,8 +190,12 @@ export class QuizService {
     return quiz;
   }
 
-  private async findTodayAttempt(userId: string, quizId: string): Promise<QuizAttempt> {
-    const today = toKstDateString(new Date());
+  private async findTodayAttempt(
+    userId: string,
+    quizId: string,
+    now: Date = new Date(),
+  ): Promise<QuizAttempt> {
+    const today = toKstDateString(now);
     const attempt = await this.quizRepository.findAttempt(userId, today, quizId);
     if (!attempt) throw new NotFoundException(NOT_ANSWERED);
     return attempt;

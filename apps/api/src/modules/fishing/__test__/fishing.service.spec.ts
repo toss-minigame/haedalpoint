@@ -130,7 +130,7 @@ describe('FishingService', () => {
     it("settles first, then raises today's rod level inside the caller's transaction", async () => {
       repo.lockOrCreate.mockResolvedValue(row({ rodLevel: 2, rodLevelDate: TODAY }));
 
-      const result = await service.enhanceRod(USER_ID, 1, manager);
+      const result = await service.enhanceRod(USER_ID, 1, manager, NOW);
 
       expect(dataSource.transaction).not.toHaveBeenCalled();
       expect(repo.updateState).toHaveBeenCalledWith(
@@ -146,12 +146,33 @@ describe('FishingService', () => {
       expect(result).toEqual({ rodLevel: 3, rodSpeedBonusPercent: 30 });
     });
 
+    it('applies the boost to the later day when another server already settled past midnight', async () => {
+      // 시계가 빠른 서버가 KST 11-03 00:00:01 에 정산해 둔 상태에서, 정상 시계(11-02 12:00)로 강화 요청
+      const settledTomorrow = new Date('2026-11-02T15:00:01Z');
+      repo.lockOrCreate.mockResolvedValue(
+        row({ settledAt: settledTomorrow, rodLevel: 2, rodLevelDate: '2026-11-03' }),
+      );
+
+      const result = await service.enhanceRod(USER_ID, 1, manager, NOW);
+
+      expect(repo.updateState).toHaveBeenCalledWith(
+        manager,
+        'state-1',
+        expect.objectContaining({
+          settledAt: settledTomorrow,
+          rodLevel: 3,
+          rodLevelDate: '2026-11-03',
+        }),
+      );
+      expect(result.rodLevel).toBe(3);
+    });
+
     it('stops at the max level', async () => {
       repo.lockOrCreate.mockResolvedValue(
         row({ rodLevel: ROD_POLICY.MAX_LEVEL, rodLevelDate: TODAY }),
       );
 
-      await expect(service.enhanceRod(USER_ID, 1, manager)).resolves.toMatchObject({
+      await expect(service.enhanceRod(USER_ID, 1, manager, NOW)).resolves.toMatchObject({
         rodLevel: ROD_POLICY.MAX_LEVEL,
       });
     });
@@ -161,7 +182,7 @@ describe('FishingService', () => {
     it('settles first, then activates the otter friend for today', async () => {
       repo.lockOrCreate.mockResolvedValue(row());
 
-      await service.summonOtterFriend(USER_ID, manager);
+      await service.summonOtterFriend(USER_ID, manager, NOW);
 
       expect(repo.updateState).toHaveBeenCalledWith(
         manager,

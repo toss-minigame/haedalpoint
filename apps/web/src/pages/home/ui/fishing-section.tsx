@@ -73,7 +73,8 @@ export function FishingSection() {
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {isPending && <p className="text-muted-foreground">불러오는 중...</p>}
-          {isError && <p className="text-destructive">{error.message}</p>}
+          {/* 주기적 재조회가 실패해도 이전 값이 있으면 그대로 보여준다 */}
+          {isError && !status && <p className="text-destructive">{error.message}</p>}
           {status && <FishingContent status={status} receivedAt={dataUpdatedAt} />}
         </CardContent>
       </Card>

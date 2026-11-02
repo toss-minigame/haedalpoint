@@ -114,16 +114,31 @@ settled_at ──[그날 속도·용량]── 다음 자정 ──[기본 속�
 |---|---|
 | 퀴즈 `ad-reward` | 물고기 지급 → 낚싯대 강화. 응답 `{ quizId, rodLevel, rodSpeedBonusPercent }` |
 | `TodayQuizResponse.rewardPerQuiz` | → `rewardSpeedBonusPercent` (퀴즈 광고 1회당 +몇 %) |
-| `quiz_attempts.reward_amount` | 컬럼 삭제 (`reward_claimed_at`은 유지) |
+| `quiz_attempts.reward_amount` | 엔티티에서 제거 (`reward_claimed_at`은 유지). DB 컬럼 삭제는 배포 후 별도 마이그레이션 (7장) |
 | 출석 체크인 | 1~6일차 강화 +1단계, 7일차 해달 친구. `reward_applied_at` 기록 |
 
 ## 6. 화면
 
 - 홈: 해먹 게이지(N / 용량), 가득 차기까지 남은 시간, 창고 수량, 낚싯대 +X%, 해달 친구 표시, **창고에 저장** 버튼
 - 해먹 수량은 응답을 받은 시각부터 속도로 화면에서만 늘려 보여준다 (`entities/fishing/lib/project-hammock.ts`). 실제 수량은 서버 값이다.
-- 자정(`boostsResetAt`)이 지나면 다시 조회해 기본 속도로 맞춘다.
+- 60초마다 다시 조회한다. 자정(`boostsResetAt`) 이후는 속도가 바뀌므로 화면에서 늘리지 않고 다음 조회 값으로 맞춘다 (적게 보일 수는 있어도 많게 보이지 않는다).
 
-## 7. 후속 작업: 해먹 가득 푸시
+## 7. 배포 순서
+
+이전 코드는 `quiz_attempts.reward_amount`를 조회하고, 새 코드는 `fishing_states`가 있어야 출석·퀴즈 보상이 동작한다.
+그래서 한 번에 처리하지 않는다.
+
+1. 마이그레이션 `CreateFishing` 실행 (새 테이블만 추가 → 이전 코드에 영향 없음)
+2. api와 web을 **함께** 배포 (응답 타입이 바뀌어 이전 web 번들은 퀴즈 보상 문구가 깨진다)
+3. 배포가 끝난 뒤 `quiz_attempts.reward_amount` 컬럼 삭제 마이그레이션을 별도 PR로 추가·실행 (nullable 이라 남아 있어도 새 코드는 문제없다)
+
+## 8. 운영 시 주의
+
+- 속도 관련 정책값(`BASE_MONTHLY_TOSS_POINTS`, 보너스 %)을 바꿔 배포하면, 각 사용자의 마지막 정산 이후 시간도 새 속도로 계산된다.
+  해먹 용량 이상은 쌓이지 않으므로 영향은 사용자당 해먹 1회분 이내다.
+- 강화·해달 친구 날짜는 보상을 기록한 요청 시각 하나로 정한다. 자정 직전 출석·퀴즈 보상이 다음 날로 넘어가지 않는다.
+
+## 9. 후속 작업: 해먹 가득 푸시
 
 앱인토스 정책(2026-11-02 확인):
 

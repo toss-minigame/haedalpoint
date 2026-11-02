@@ -32,7 +32,9 @@ export class AttendanceService {
 
   async checkIn(userId: string): Promise<CheckInResponse> {
     await this.usersService.findById(userId);
-    const today = toKstDateString(new Date());
+    // 출석 날짜와 보상(낚시) 적용 날짜가 자정 경계에서 어긋나지 않도록 한 시각을 함께 쓴다
+    const now = new Date();
+    const today = toKstDateString(now);
 
     const [latest] = await this.attendanceRepository.findRecentByUserId(userId, 1);
     if (latest?.checkedDate === today) throw new ConflictException(ALREADY_CHECKED_IN);
@@ -53,11 +55,11 @@ export class AttendanceService {
             rewardType: reward.type,
             rewardAmount: reward.amount,
             cycleCompleted,
-            rewardAppliedAt: new Date(),
+            rewardAppliedAt: now,
           },
           manager,
         );
-        await this.applyReward(userId, reward, manager);
+        await this.applyReward(userId, reward, manager, now);
       });
     } catch (error) {
       if (isUniqueViolation(error)) throw new ConflictException(ALREADY_CHECKED_IN);
@@ -82,12 +84,13 @@ export class AttendanceService {
     userId: string,
     reward: AttendanceReward,
     manager: EntityManager,
+    now: Date,
   ): Promise<void> {
     if (reward.type === 'OTTER_FRIEND') {
-      await this.fishingService.summonOtterFriend(userId, manager);
+      await this.fishingService.summonOtterFriend(userId, manager, now);
       return;
     }
-    await this.fishingService.enhanceRod(userId, reward.amount, manager);
+    await this.fishingService.enhanceRod(userId, reward.amount, manager, now);
   }
 
   /**
