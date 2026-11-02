@@ -18,7 +18,7 @@ pnpm install
 cp apps/api/.env.example apps/api/.env   # DATABASE_URL, JWT_SECRET 입력 (생성 명령은 파일 주석 참고)
 cp apps/web/.env.example apps/web/.env
 
-pnpm --filter @haedalpoint/api dev:fake-partner   # 로컬용 가짜 앱인토스 파트너 API (별도 터미널)
+pnpm dev:fake-partner         # 로컬용 가짜 앱인토스 파트너 API (별도 터미널)
 pnpm dev                      # web: http://localhost:5173, api: http://localhost:3000/api
 ```
 
