@@ -14,3 +14,10 @@ export function addDays(date: string, days: number): string {
   const base = Date.parse(`${date}T00:00:00Z`);
   return new Date(base + days * DAY_MS).toISOString().slice(0, ISO_DATE_LENGTH);
 }
+
+/** `at` 이후 처음 오는 KST 00:00 (정확히 자정이면 다음 날 자정) */
+export function nextKstMidnight(at: Date): Date {
+  const kstMs = at.getTime() + KST_OFFSET_MS;
+  const nextKstDayStart = (Math.floor(kstMs / DAY_MS) + 1) * DAY_MS;
+  return new Date(nextKstDayStart - KST_OFFSET_MS);
+}

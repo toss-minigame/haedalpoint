@@ -1,4 +1,4 @@
-import { addDays, toKstDateString } from '../kst-date.js';
+import { addDays, nextKstMidnight, toKstDateString } from '../kst-date.js';
 
 describe('toKstDateString', () => {
   it('treats UTC 14:59 as the same KST day', () => {
@@ -24,5 +24,25 @@ describe('addDays', () => {
     ['2026-10-30', 0, '2026-10-30'],
   ])('%s %+d → %s', (date, days, expected) => {
     expect(addDays(date, days)).toBe(expected);
+  });
+});
+
+describe('nextKstMidnight', () => {
+  it('returns the coming KST 00:00 (UTC 15:00 of the same UTC day)', () => {
+    expect(nextKstMidnight(new Date('2026-11-02T03:00:00Z'))).toEqual(
+      new Date('2026-11-02T15:00:00Z'),
+    );
+  });
+
+  it('returns the next day when called exactly at KST midnight', () => {
+    expect(nextKstMidnight(new Date('2026-11-02T15:00:00Z'))).toEqual(
+      new Date('2026-11-03T15:00:00Z'),
+    );
+  });
+
+  it('handles the minute before KST midnight', () => {
+    expect(nextKstMidnight(new Date('2026-11-02T14:59:59.999Z'))).toEqual(
+      new Date('2026-11-02T15:00:00Z'),
+    );
   });
 });
