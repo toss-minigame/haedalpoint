@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { validateEnv } from './config/env.validation';
 import { DatabaseModule } from './database/database.module';
+import { AttendanceModule } from './modules/attendance/attendance.module';
 import { HealthModule } from './modules/health/health.module';
 import { UsersModule } from './modules/users/users.module';
 
@@ -12,6 +13,7 @@ import { UsersModule } from './modules/users/users.module';
     // 도메인 모듈
     HealthModule,
     UsersModule,
+    AttendanceModule,
   ],
 })
 export class AppModule {}
