@@ -1,14 +1,10 @@
 import type {
+  AdBonusResponse,
   AttendanceReward,
   AttendanceStatusResponse,
   CheckInResponse,
 } from '@haedalpoint/shared';
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-  NotImplementedException,
-} from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource, type EntityManager } from 'typeorm';
 import { isUniqueViolation } from '../../common/utils/is-unique-violation.js';
 import { toKstDateString } from '../../common/utils/kst-date.js';
@@ -19,6 +15,7 @@ import { ATTENDANCE_CYCLE_DAYS, AttendanceRewardPolicy } from './lib/attendance-
 import { buildAttendanceStatus } from './lib/attendance-status.js';
 
 const ALREADY_CHECKED_IN = '이미 오늘 출석했습니다';
+const AD_BONUS_ALREADY_CLAIMED = '이미 광고 보너스를 받았습니다';
 
 // 비즈니스 로직 계층
 @Injectable()
@@ -94,18 +91,26 @@ export class AttendanceService {
   }
 
   /**
-   * "광고 보고 2배 받기" — 뼈대만 존재.
-   * 토스 보상형 광고 SDK 연동 시: 클라이언트가 `userEarnedReward` 이벤트를 받은 뒤 호출.
-   * `dismissed` 만으로 호출 금지. 서버는 여기서 `ad_bonus_claimed_at` 기록 + 강화 보너스 2배 적립.
+   * "광고 보고 2배 받기": 클라이언트가 보상형 광고의 `userEarnedReward` 를 받은 뒤에만 호출한다.
+   * 오늘 출석 보상과 같은 종류·수량을 한 번 더 지급한다 (7일차 해달 친구 포함).
+   * 하루 1회이며, 조건부 UPDATE 로 연타·동시 요청에도 한 번만 반영된다.
    */
-  async claimAdBonus(userId: string): Promise<never> {
+  async claimAdBonus(userId: string): Promise<AdBonusResponse> {
     await this.usersService.findById(userId);
     const today = toKstDateString(new Date());
 
     const todayLog = await this.attendanceRepository.findByUserIdAndDate(userId, today);
     if (!todayLog) throw new NotFoundException('오늘 출석 기록이 없습니다');
-    if (todayLog.adBonusClaimedAt) throw new ConflictException('이미 광고 보너스를 받았습니다');
+    if (todayLog.adBonusClaimedAt) throw new ConflictException(AD_BONUS_ALREADY_CLAIMED);
 
-    throw new NotImplementedException('광고 보너스는 준비 중입니다');
+    const claimed = await this.attendanceRepository.claimAdBonus(todayLog.id, new Date());
+    if (!claimed) throw new ConflictException(AD_BONUS_ALREADY_CLAIMED);
+
+    // TODO(fishing): bonusReward 를 낚시에 적용 (ENHANCE_BONUS → FishingService.enhanceRod).
+    //   OTTER_FRIEND 를 두 번 받을 때의 효과(속도·용량 추가 여부)는 기획 확정 필요 (ADR-0007)
+    return {
+      checkedDate: today,
+      bonusReward: { type: todayLog.rewardType, amount: todayLog.rewardAmount },
+    };
   }
 }

@@ -23,6 +23,13 @@ export interface CheckInResponse {
   cycleCompleted: boolean;
 }
 
+// POST /api/attendance/ad-bonus
+// 보상형 광고를 끝까지 봤을 때 오늘 출석 보상과 같은 종류·수량을 한 번 더 받는다 (7일차 해달 친구 포함)
+export interface AdBonusResponse {
+  checkedDate: string; // 'YYYY-MM-DD' (KST)
+  bonusReward: AttendanceReward;
+}
+
 // GET /api/attendance/me
 export interface AttendanceStatusResponse {
   today: string; // 'YYYY-MM-DD' (KST)

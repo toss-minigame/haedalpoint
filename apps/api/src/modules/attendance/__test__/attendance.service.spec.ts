@@ -1,4 +1,4 @@
-import { ConflictException, NotFoundException, NotImplementedException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { DataSource, type EntityManager } from 'typeorm';
 import { FishingService } from '../../fishing/fishing.service.js';
@@ -21,6 +21,7 @@ describe('AttendanceService', () => {
     findRecentByUserId: jest.fn(),
     findByUserIdAndDate: jest.fn(),
     create: jest.fn(),
+    claimAdBonus: jest.fn(),
   };
   const usersService = { findById: jest.fn() };
   const manager = { name: 'tx-manager' } as unknown as EntityManager;
@@ -211,10 +212,35 @@ describe('AttendanceService', () => {
       expect(repo.findByUserIdAndDate).toHaveBeenCalledWith(USER_ID, TODAY);
     });
 
-    it('throws NotImplementedException otherwise', async () => {
-      repo.findByUserIdAndDate.mockResolvedValue(log(TODAY, 1));
+    function todayLog(rewardType: 'ENHANCE_BONUS' | 'OTTER_FRIEND', rewardAmount: number) {
+      return { ...log(TODAY, 1), id: 'log-today', rewardType, rewardAmount };
+    }
 
-      await expect(service.claimAdBonus(USER_ID)).rejects.toThrow(NotImplementedException);
+    it('grants the same reward again and records the claim', async () => {
+      repo.findByUserIdAndDate.mockResolvedValue(todayLog('ENHANCE_BONUS', 3));
+      repo.claimAdBonus.mockResolvedValue(true);
+
+      await expect(service.claimAdBonus(USER_ID)).resolves.toEqual({
+        checkedDate: TODAY,
+        bonusReward: { type: 'ENHANCE_BONUS', amount: 3 },
+      });
+      expect(repo.claimAdBonus).toHaveBeenCalledWith('log-today', NOW);
+    });
+
+    it('includes the day 7 otter friend', async () => {
+      repo.findByUserIdAndDate.mockResolvedValue(todayLog('OTTER_FRIEND', 1));
+      repo.claimAdBonus.mockResolvedValue(true);
+
+      await expect(service.claimAdBonus(USER_ID)).resolves.toMatchObject({
+        bonusReward: { type: 'OTTER_FRIEND', amount: 1 },
+      });
+    });
+
+    it('throws ConflictException when a concurrent request claimed it first', async () => {
+      repo.findByUserIdAndDate.mockResolvedValue(todayLog('ENHANCE_BONUS', 1));
+      repo.claimAdBonus.mockResolvedValue(false);
+
+      await expect(service.claimAdBonus(USER_ID)).rejects.toThrow(ConflictException);
     });
   });
 });

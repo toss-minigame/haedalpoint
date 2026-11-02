@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { EntityManager, Repository } from 'typeorm';
+import { type EntityManager, IsNull, type Repository } from 'typeorm';
 import { AttendanceLog } from './entities/attendance-log.entity.js';
 
 export type CreateAttendanceLogData = Pick<
@@ -34,5 +34,17 @@ export class AttendanceRepository {
   create(data: CreateAttendanceLogData, manager?: EntityManager): Promise<AttendanceLog> {
     const repo = manager ? manager.getRepository(AttendanceLog) : this.repo;
     return repo.save(repo.create(data));
+  }
+
+  /**
+   * 광고 보너스 수령 기록. 아직 받지 않은 경우에만 반영되는 조건부 UPDATE (연타·동시 요청 방어)
+   * @returns 반영됐으면 true
+   */
+  async claimAdBonus(logId: string, claimedAt: Date): Promise<boolean> {
+    const result = await this.repo.update(
+      { id: logId, adBonusClaimedAt: IsNull() },
+      { adBonusClaimedAt: claimedAt },
+    );
+    return result.affected === 1;
   }
 }
