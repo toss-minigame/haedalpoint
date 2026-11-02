@@ -2,6 +2,8 @@ import { createServer, type IncomingMessage, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { createPartnerTransport } from '../toss-partner.transport';
 
+const noCredentials = () => null;
+
 interface Captured {
   method?: string;
   url?: string;
@@ -42,7 +44,11 @@ describe('createPartnerTransport', () => {
 
   it('sends JSON to the path and parses the JSON response', async () => {
     reply = { status: 200, body: JSON.stringify({ resultType: 'SUCCESS', success: { a: 1 } }) };
-    const transport = createPartnerTransport({ baseUrl, timeoutMs: 1000 });
+    const transport = createPartnerTransport({
+      baseUrl,
+      loadCredentials: noCredentials,
+      timeoutMs: 1000,
+    });
 
     const response = await transport({ method: 'POST', path: '/x/y', body: { code: 'c' } });
 
@@ -57,7 +63,11 @@ describe('createPartnerTransport', () => {
 
   it('returns body null for a non-JSON response', async () => {
     reply = { status: 502, body: '<html>bad gateway</html>' };
-    const transport = createPartnerTransport({ baseUrl, timeoutMs: 1000 });
+    const transport = createPartnerTransport({
+      baseUrl,
+      loadCredentials: noCredentials,
+      timeoutMs: 1000,
+    });
 
     await expect(transport({ method: 'GET', path: '/x' })).resolves.toEqual({
       status: 502,
@@ -68,6 +78,7 @@ describe('createPartnerTransport', () => {
   it('refuses https calls when the mTLS certificate is not configured', async () => {
     const transport = createPartnerTransport({
       baseUrl: 'https://apps-in-toss-api.toss.im',
+      loadCredentials: noCredentials,
       timeoutMs: 1000,
     });
 
