@@ -5,12 +5,23 @@ import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
+// 쉼표로 구분한 정확한 origin 목록 ('*' 로 열지 않는다)
+function parseCorsOrigins(raw: string | undefined): string[] {
+  return (raw ?? '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
 
   app.setGlobalPrefix('api');
-  app.enableCors({ origin: config.get<string>('CORS_ORIGIN'), credentials: true });
+  app.enableCors({
+    origin: parseCorsOrigins(config.get<string>('CORS_ORIGIN')),
+    credentials: true,
+  });
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
   );

@@ -26,7 +26,7 @@ const NOT_CORRECT = '정답을 맞혀야 보상을 받을 수 있어요';
 const ALREADY_CLAIMED = '이미 보상을 받은 퀴즈입니다';
 
 // 비즈니스 로직 계층
-// 사용자는 userId(users.id)로만 다룬다. 식별 방식(X-User-Id, 토스 로그인 등)은 @CurrentUserId 가 담당.
+// 사용자는 userId(users.id)로만 다룬다. 식별(익명키 인증)은 전역 인증 Guard 와 @CurrentUserId 가 담당.
 //
 // ⚠️ 서버는 광고 시청 여부를 직접 검증할 수 없다. ad-retry·ad-reward 는 클라이언트가 SDK
 // `userEarnedReward` 이벤트를 받은 뒤에만 호출해야 하며, `dismissed` 만으로 호출하면 안 된다.
