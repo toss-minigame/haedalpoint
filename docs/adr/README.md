@@ -39,3 +39,4 @@
 | [0003](0003-in-app-currency-name.md) | 앱 내 재화 이름을 '물고기'로 정한다 | Accepted |
 | [0004](0004-user-identification-anonymous-key.md) | 사용자 식별에 익명키를 사용한다 | Accepted |
 | [0005](0005-quiz-reward-in-app-currency.md) | O/X 퀴즈 보상을 앱 내 재화로 지급하고 토스 포인트로 전환한다 | Proposed |
+| [0006](0006-server-side-user-authentication.md) | 서버는 일회용 코드 교환으로 사용자를 확인하고 자체 토큰을 발급한다 | Proposed |
