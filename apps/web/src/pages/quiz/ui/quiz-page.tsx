@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import { quizQueries, type TodayQuizResponse } from '@/entities/quiz';
 import { env } from '@/shared/config/env';
-import { getDevUserId } from '@/shared/lib/dev-user-id';
 import { type RewardedAd, useRewardedAd } from '@/shared/lib/rewarded-ad';
 import { Button } from '@/shared/ui/button';
 import { QuizItem } from './quiz-item';
@@ -40,14 +39,7 @@ function QuizList({ today, ad }: { today: TodayQuizResponse; ad: RewardedAd }) {
 }
 
 export function QuizPage() {
-  // 임시: 토스 로그인/익명키 인증 연동 전 테스트용 userId (홈에서 입력)
-  const hasUserId = getDevUserId() !== null;
-  const {
-    data: today,
-    isPending,
-    isError,
-    error,
-  } = useQuery({ ...quizQueries.today(), enabled: hasUserId });
+  const { data: today, isPending, isError, error } = useQuery(quizQueries.today());
   // 화면 진입 시 보상형 광고를 미리 불러온다 (버튼을 누를 때 불러오지 않는다)
   const rewardedAd = useRewardedAd(env.rewardedAdGroupId);
 
@@ -60,12 +52,7 @@ export function QuizPage() {
         </p>
       </header>
 
-      {!hasUserId && (
-        <p className="text-base text-muted-foreground">
-          홈에서 테스트용 userId 를 먼저 입력해주세요.
-        </p>
-      )}
-      {hasUserId && isPending && <p className="text-muted-foreground">불러오는 중...</p>}
+      {isPending && <p className="text-muted-foreground">불러오는 중...</p>}
       {isError && <p className="text-destructive">{error.message}</p>}
       {today && <QuizList today={today} ad={rewardedAd} />}
 

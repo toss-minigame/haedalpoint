@@ -15,11 +15,15 @@ nvm use                       # Node 24 (.nvmrc)
 corepack enable               # pnpm (package.json 의 packageManager 버전 사용)
 pnpm install
 
-cp apps/api/.env.example apps/api/.env   # DATABASE_URL 에 Supabase 연결 문자열 입력
+cp apps/api/.env.example apps/api/.env   # DATABASE_URL, JWT_SECRET 입력 (생성 명령은 파일 주석 참고)
 cp apps/web/.env.example apps/web/.env
 
+pnpm --filter @haedalpoint/api dev:fake-partner   # 로컬용 가짜 앱인토스 파트너 API (별도 터미널)
 pnpm dev                      # web: http://localhost:5173, api: http://localhost:3000/api
 ```
+
+사용자 인증(ADR-0006): 화면 진입 시 SDK 일회용 코드 → `POST /api/auth/anon` → 서버가 파트너 API로 익명키 교환 → 자체 토큰(JWT) 발급.
+로컬에서는 devtools mock 코드를 가짜 파트너 API가 `FAKE_ANON_KEY` 익명키로 바꿔준다. 값을 바꾸고 가짜 서버를 다시 띄우면 다른 테스트 사용자가 된다.
 
 | 명령                                                                               | 설명                                   |
 | ---------------------------------------------------------------------------------- | -------------------------------------- |

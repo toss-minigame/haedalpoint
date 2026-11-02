@@ -5,6 +5,7 @@
   "scripts": {
     "build": "nest build",
     "dev": "nest start --watch",
+    "dev:fake-partner": "node --env-file-if-exists=.env scripts/fake-toss-partner.mjs",
     "start": "node dist/main",
     "start:prod": "node dist/main",
     "lint": "biome lint .",
@@ -21,6 +22,7 @@
     "@nestjs/common": "^12.3.2",
     "@nestjs/config": "^12.0.1",
     "@nestjs/core": "^12.3.2",
+    "@nestjs/jwt": "^12.0.3",
     "@nestjs/platform-express": "^12.3.2",
     "@nestjs/typeorm": "^12.0.2",
     "class-transformer": "^0.5.1",
