@@ -1,0 +1,5 @@
+{
+  "framework": "nestjs",
+  "buildCommand": "cd ../.. && pnpm turbo run build --filter=@haedalpoint/api",
+  "regions": ["dub1"]
+}
