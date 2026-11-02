@@ -3,6 +3,7 @@
 - 상태: 초안
 - 작성일: 2026-11-02
 - 관련 ADR: [ADR-0003 재화 이름(물고기)](../adr/0003-in-app-currency-name.md), [ADR-0004 사용자 식별](../adr/0004-user-identification-anonymous-key.md), [ADR-0005 퀴즈 보상 방식(Proposed)](../adr/0005-quiz-reward-in-app-currency.md)
+- 데이터 시퀀스: [ox-quiz-sequence.md](./ox-quiz-sequence.md)
 
 ## 1. 개요
 
