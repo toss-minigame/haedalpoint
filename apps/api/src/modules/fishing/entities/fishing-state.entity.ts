@@ -1,6 +1,6 @@
 import { Check, Column, Entity, Unique } from 'typeorm';
-import { bigintNumberTransformer } from '../../../common/entities/bigint-number.transformer.js';
 import { BaseEntity } from '../../../common/entities/base.entity.js';
+import { bigintNumberTransformer } from '../../../common/entities/bigint-number.transformer.js';
 
 // 사용자당 한 행. users 와 TypeORM 관계를 걸지 않고 user_id 컬럼으로만 참조 (모듈 경계 유지)
 // 해먹 수량은 settled_at 시점 값이다. 지금 수량은 lib/settle-hammock.ts 로 계산한다 (docs/design/fishing.md 3장).

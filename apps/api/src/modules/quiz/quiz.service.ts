@@ -6,9 +6,11 @@ import type {
   UnlockQuizRetryResponse,
 } from '@haedalpoint/shared';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { QUIZ_POLICY } from '../../common/globals/index.js';
+import { DataSource } from 'typeorm';
+import { QUIZ_POLICY, ROD_POLICY } from '../../common/globals/index.js';
 import { isUniqueViolation } from '../../common/utils/is-unique-violation.js';
 import { toKstDateString } from '../../common/utils/kst-date.js';
+import { FishingService } from '../fishing/fishing.service.js';
 import { UsersService } from '../users/users.service.js';
 import type { Quiz } from './entities/quiz.entity.js';
 import type { QuizAttempt } from './entities/quiz-attempt.entity.js';
@@ -24,6 +26,8 @@ const RETRY_LOCKED = '광고를 보고 다시 도전할 수 있어요';
 const RETRY_ALREADY_UNLOCKED = '이미 재도전 기회를 받았어요';
 const NOT_CORRECT = '정답을 맞혀야 보상을 받을 수 있어요';
 const ALREADY_CLAIMED = '이미 보상을 받은 퀴즈입니다';
+const REWARD_SPEED_BONUS_PERCENT =
+  QUIZ_POLICY.ROD_LEVELS_PER_REWARD * ROD_POLICY.SPEED_BONUS_PERCENT_PER_LEVEL;
 
 // 비즈니스 로직 계층
 // 사용자는 userId(users.id)로만 다룬다. 식별(익명키 인증)은 전역 인증 Guard 와 @CurrentUserId 가 담당.
@@ -36,6 +40,8 @@ export class QuizService {
   constructor(
     private readonly quizRepository: QuizRepository,
     private readonly usersService: UsersService,
+    private readonly fishingService: FishingService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async getToday(userId: string): Promise<TodayQuizResponse> {
@@ -64,7 +70,7 @@ export class QuizService {
       ];
     });
 
-    return { date: today, items, rewardPerQuiz: QUIZ_POLICY.REWARD_PER_QUIZ };
+    return { date: today, items, rewardSpeedBonusPercent: REWARD_SPEED_BONUS_PERCENT };
   }
 
   /** 첫 답변 또는 (재도전 기회를 연 뒤) 재답변 */
@@ -95,19 +101,19 @@ export class QuizService {
     return { quizId, status: 'RETRY_READY' };
   }
 
-  /** 정답 후 광고 시청 완료 → 물고기 보상 기록 */
+  /** 정답 후 광고 시청 완료 → 보상 기록 + 낚싯대 강화 (한 트랜잭션, ADR-0007) */
   async claimAdReward(userId: string, quizId: string): Promise<ClaimQuizRewardResponse> {
     await this.usersService.findById(userId);
     const attempt = await this.findTodayAttempt(userId, quizId);
     if (!attempt.isCorrect) throw new ConflictException(NOT_CORRECT);
     if (attempt.rewardClaimedAt) throw new ConflictException(ALREADY_CLAIMED);
 
-    const rewardAmount = QUIZ_POLICY.REWARD_PER_QUIZ;
-    const claimed = await this.quizRepository.claimReward(attempt.id, rewardAmount, new Date());
-    if (!claimed) throw new ConflictException(ALREADY_CLAIMED);
-
-    // TODO(fish-wallet): 물고기 지갑 모듈 생기면 여기서 적립 호출
-    return { quizId, rewardAmount };
+    const enhancement = await this.dataSource.transaction(async (manager) => {
+      const claimed = await this.quizRepository.claimReward(attempt.id, new Date(), manager);
+      if (!claimed) throw new ConflictException(ALREADY_CLAIMED);
+      return this.fishingService.enhanceRod(userId, QUIZ_POLICY.ROD_LEVELS_PER_REWARD, manager);
+    });
+    return { quizId, ...enhancement };
   }
 
   private async firstAnswer(
@@ -138,7 +144,6 @@ export class QuizService {
       isCorrect,
       wrongCount,
       retryUnlocked: false,
-      rewardAmount: null,
       rewardClaimedAt: null,
     };
   }

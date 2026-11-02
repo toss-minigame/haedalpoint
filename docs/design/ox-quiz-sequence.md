@@ -65,12 +65,13 @@ sequenceDiagram
     A->>D: INSERT quiz_attempts (is_correct=true)
     A-->>W: CORRECT + 정답·해설
 
-    U->>W: [광고 보고 물고기 받기]
+    U->>W: [광고 보고 낚싯대 강화하기]
     W->>S: 보상형 광고 load → show
     S-->>W: userEarnedReward
     W->>A: POST /quiz/{id}/ad-reward
-    A->>D: UPDATE ... WHERE is_correct=true AND reward_claimed_at IS NULL
-    A-->>W: rewardAmount: 10
+    A->>D: (트랜잭션) UPDATE ... WHERE is_correct=true AND reward_claimed_at IS NULL
+    A->>D: fishing_states 정산 후 rod_level + 1
+    A-->>W: rodLevel, rodSpeedBonusPercent
 ```
 
 ## 4. 오답 → 광고 → 재도전

@@ -4,7 +4,7 @@ import type { QuizAttempt } from '../entities/quiz-attempt.entity.js';
 
 export type AttemptState = Pick<
   QuizAttempt,
-  'userAnswer' | 'isCorrect' | 'wrongCount' | 'retryUnlocked' | 'rewardAmount' | 'rewardClaimedAt'
+  'userAnswer' | 'isCorrect' | 'wrongCount' | 'retryUnlocked' | 'rewardClaimedAt'
 >;
 
 function toStatus({ isCorrect, retryUnlocked }: AttemptState): QuizAttemptStatus {
@@ -26,7 +26,6 @@ export function toAttemptResult(attempt: AttemptState, quiz: Quiz): QuizAttemptR
     wrongCount: attempt.wrongCount,
     correctAnswer: revealed ? quiz.answer : null,
     explanation: revealed ? (quiz.explanation ?? null) : null,
-    rewardAmount: attempt.rewardAmount ?? null,
     rewardClaimed: attempt.rewardClaimedAt != null,
   };
 }

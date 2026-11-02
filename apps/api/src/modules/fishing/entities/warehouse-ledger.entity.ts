@@ -1,6 +1,6 @@
 import { Check, Column, Entity, Index } from 'typeorm';
-import { bigintNumberTransformer } from '../../../common/entities/bigint-number.transformer.js';
 import { BaseEntity } from '../../../common/entities/base.entity.js';
+import { bigintNumberTransformer } from '../../../common/entities/bigint-number.transformer.js';
 
 // STORE: 해먹 → 창고 저장. (후속) CONVERT: 창고 → 토스 포인트 전환
 export type WarehouseLedgerType = 'STORE';
