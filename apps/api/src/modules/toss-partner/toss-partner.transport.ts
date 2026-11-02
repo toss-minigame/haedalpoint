@@ -1,6 +1,6 @@
-import { readFileSync } from 'node:fs';
 import http from 'node:http';
 import https from 'node:https';
+import type { MtlsCredentials } from './mtls-credentials';
 
 export interface PartnerRequest {
   method: 'GET' | 'POST';
@@ -21,8 +21,8 @@ export const PARTNER_TRANSPORT = Symbol('PARTNER_TRANSPORT');
 
 export interface PartnerTransportConfig {
   baseUrl: string;
-  certPath?: string;
-  keyPath?: string;
+  /** 첫 https 호출 때 한 번 부른다. 인증서가 설정되지 않았으면 null */
+  loadCredentials: () => MtlsCredentials | null;
   timeoutMs: number;
 }
 
@@ -44,14 +44,13 @@ export function createPartnerTransport(config: PartnerTransportConfig): PartnerT
 
   const getMtlsAgent = (): https.Agent => {
     if (mtlsAgent) return mtlsAgent;
-    if (!config.certPath || !config.keyPath) {
-      throw new Error('TOSS_MTLS_CERT_PATH, TOSS_MTLS_KEY_PATH 가 설정되지 않았습니다');
+    const credentials = config.loadCredentials();
+    if (!credentials) {
+      throw new Error(
+        'mTLS 인증서가 설정되지 않았습니다 (TOSS_MTLS_CERT_BASE64·TOSS_MTLS_KEY_BASE64 또는 TOSS_MTLS_CERT_PATH·TOSS_MTLS_KEY_PATH)',
+      );
     }
-    mtlsAgent = new https.Agent({
-      cert: readFileSync(config.certPath),
-      key: readFileSync(config.keyPath),
-      keepAlive: true,
-    });
+    mtlsAgent = new https.Agent({ ...credentials, keepAlive: true });
     return mtlsAgent;
   };
 
