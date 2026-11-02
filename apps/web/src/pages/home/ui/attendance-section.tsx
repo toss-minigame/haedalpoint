@@ -7,8 +7,8 @@ export function AttendanceSection() {
   const { data: status, isPending, isError, error } = useQuery(attendanceQueries.me());
 
   const description = status
-    ? `연속 ${status.currentStreakDay}일째 · 7일 연속 출석하면 해달 친구가 함께 채굴해요`
-    : '매일 출석하고 무기 강화 보너스를 받아요';
+    ? `연속 ${status.currentStreakDay}일째 · 7일 연속 출석하면 해달 친구가 함께 낚시해요`
+    : '매일 출석하고 그날 낚싯대를 강화해요';
 
   return (
     <section aria-labelledby="attendance-heading">

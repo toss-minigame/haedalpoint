@@ -1,5 +1,6 @@
 import { type QueryClient, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { fishingQueries } from '@/entities/fishing';
 import { patchTodayAttempt, quizApi, quizQueries } from '@/entities/quiz';
 import { ApiError } from '@/shared/api';
 
@@ -40,24 +41,26 @@ export function useUnlockQuizRetry() {
   });
 }
 
-/** 정답 후 광고 시청 완료 → 물고기 보상 */
+/** 정답 후 광고 시청 완료 → 낚싯대 강화 */
 export function useClaimQuizReward() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (quizId: string) => quizApi.claimReward(quizId),
     retry: shouldRetry,
-    onSuccess: ({ quizId, rewardAmount }) => {
-      toast.success(`물고기 ${rewardAmount}마리를 받았어요`);
+    onSuccess: ({ quizId, rodSpeedBonusPercent }) => {
+      toast.success(`낚싯대를 강화했어요 · 오늘 낚시 속도 +${rodSpeedBonusPercent}%`);
       queryClient.setQueryData(quizQueries.today().queryKey, (today) =>
         patchTodayAttempt(
           today,
           quizId,
-          (attempt) => attempt && { ...attempt, rewardAmount, rewardClaimed: true },
+          (attempt) => attempt && { ...attempt, rewardClaimed: true },
         ),
       );
+      // 낚시 속도가 바뀌었으니 홈 화면의 해먹 현황을 다시 받는다
+      return queryClient.invalidateQueries({ queryKey: fishingQueries.all() });
     },
     onError: (error) =>
-      handleError(queryClient, error, '물고기를 받지 못했어요. 잠시 후 다시 시도해 주세요.'),
+      handleError(queryClient, error, '낚싯대를 강화하지 못했어요. 잠시 후 다시 시도해 주세요.'),
   });
 }

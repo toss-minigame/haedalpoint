@@ -30,7 +30,12 @@ function QuizList({ today, ad }: { today: TodayQuizResponse; ad: RewardedAd }) {
       <ol className="flex flex-col gap-4">
         {today.items.map((item, index) => (
           <li key={item.quizId}>
-            <QuizItem order={index + 1} item={item} rewardPerQuiz={today.rewardPerQuiz} ad={ad} />
+            <QuizItem
+              order={index + 1}
+              item={item}
+              rewardSpeedBonusPercent={today.rewardSpeedBonusPercent}
+              ad={ad}
+            />
           </li>
         ))}
       </ol>
@@ -48,7 +53,7 @@ export function QuizPage() {
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold">오늘의 O/X 퀴즈</h1>
         <p className="text-base text-muted-foreground">
-          맞히고 광고를 보면 물고기를 받아요. 틀려도 광고를 보면 다시 풀 수 있어요.
+          맞히고 광고를 보면 오늘 낚싯대가 강화돼요. 틀려도 광고를 보면 다시 풀 수 있어요.
         </p>
       </header>
 
