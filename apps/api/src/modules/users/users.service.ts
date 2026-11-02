@@ -1,5 +1,5 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { isUniqueViolation } from '../../common/utils/is-unique-violation';
 import { User } from './entities/user.entity';
 import { UsersRepository } from './users.repository';
 
@@ -8,20 +8,25 @@ import { UsersRepository } from './users.repository';
 export class UsersService {
   constructor(private readonly usersRepository: UsersRepository) {}
 
-  findAll(): Promise<User[]> {
-    return this.usersRepository.findAll();
-  }
-
   async findById(id: string): Promise<User> {
     const user = await this.usersRepository.findById(id);
     if (!user) throw new NotFoundException(`User ${id} not found`);
     return user;
   }
 
-  async create(dto: CreateUserDto): Promise<User> {
-    if (await this.usersRepository.findByEmail(dto.email)) {
-      throw new ConflictException('Email already exists');
+  /** 익명키로 회원을 찾고, 처음 들어온 사용자면 만든다 */
+  async findOrCreateByAnonKey(anonKey: string): Promise<User> {
+    const existing = await this.usersRepository.findByAnonKey(anonKey);
+    if (existing) return existing;
+
+    try {
+      return await this.usersRepository.create({ anonKey });
+    } catch (error) {
+      // 같은 사용자의 첫 요청이 동시에 들어와 다른 쪽이 먼저 만든 경우
+      if (!isUniqueViolation(error)) throw error;
+      const created = await this.usersRepository.findByAnonKey(anonKey);
+      if (!created) throw error;
+      return created;
     }
-    return this.usersRepository.create(dto);
   }
 }
