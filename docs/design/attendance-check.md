@@ -2,7 +2,8 @@
 
 - 상태: 구현 완료 (출석·광고 2배 보너스). 강화·동료 모듈로의 실제 적립은 후속 작업
 - 작성일: 2026-11-02
-- 구현: PR #2 (`attendance-check`)
+- 구현: PR #2 (`attendance-check`), 광고 2배 PR #16
+- 시퀀스: [출석체크 데이터 시퀀스](./attendance-sequence.md)
 - 관련 ADR: [ADR-0002 비게임 카테고리](../adr/0002-console-category-non-game.md), [ADR-0004 사용자 식별](../adr/0004-user-identification-anonymous-key.md), [ADR-0006 서버 측 사용자 인증(Proposed)](../adr/0006-server-side-user-authentication.md)
 
 ## 1. 개요
@@ -22,23 +23,26 @@
 | 하루 1회 제한 (DB 유니크 제약) | 운영용 사용자 식별 (ADR-0006) |
 | 출석 위젯 (web 홈 화면) | |
 
-## 2. 사용자 식별: 임시 방식 사용
+## 2. 사용자 식별
 
-운영용 사용자 식별이 정해지기 전까지 **임시 식별 방식**을 쓴다. 이 방식은 출석체크에서 처음 도입했고, O/X 퀴즈도 그대로 사용한다.
+익명키 교환 기반 인증(ADR-0006)을 쓴다. 흐름은 [사용자 인증 시퀀스](./user-auth-sequence.md)를 본다.
 
 ```
-[web] localStorage의 userId(users.id) → X-User-Id 헤더 (shared/api/http-client.ts)
-[api] @CurrentUserId() 데코레이터가 헤더를 읽어 userId(uuid) 반환
+[web] 진입 시 User.createAnonymousKeyAuthCode() → POST /auth/anon → 자체 access token
+      이후 모든 요청에 Authorization: Bearer (shared/api/http-client.ts, 401 이면 한 번 재발급)
+[api] 전역 인증 Guard 가 토큰을 검증해 request.userId 를 붙이고, @CurrentUserId() 가 꺼낸다
 ```
+
+> 처음에는 임시 식별(`X-User-Id` 헤더)로 구현했고, 아래 원칙 덕분에 출석 모듈의 컨트롤러·서비스를 고치지 않고 교체했다.
 
 ### 원칙: 데코레이터만 바꾸면 되도록 구현했다
 
 - 컨트롤러는 사용자 정보를 **`@CurrentUserId() userId: string`으로만** 받는다. API에서 헤더를 직접 읽는 곳은 데코레이터 파일 하나뿐이다.
 - 서비스·리포지토리는 `userId`(= `users.id`)만 다룬다. 식별 방식(헤더, 토큰, 익명키)을 알지 못한다.
 - `attendance_logs`는 `users`와 TypeORM 관계를 걸지 않고 `user_id` 컬럼으로만 참조한다 (모듈 경계 유지).
-- 헤더 파싱은 순수 함수 `extractUserId`로 분리해 단위 테스트했다.
+- 값 꺼내기는 순수 함수 `extractUserId`로 분리해 단위 테스트했다.
 
-### 운영용 식별(ADR-0006)로 교체할 때 바뀌는 곳
+### 운영용 식별(ADR-0006)로 교체하면서 바뀐 곳 (완료)
 
 | 위치 | 변경 내용 |
 |---|---|
@@ -49,9 +53,7 @@
 | `AttendanceService`의 `usersService.findById` 호출 | Guard가 회원 존재를 보장하면 제거 가능 |
 | `dev-user-id.ts`, `dev-user-id-input.tsx` | 삭제 |
 
-출석 모듈의 컨트롤러·서비스 로직·리포지토리는 **변경하지 않는다.**
-
-> ⚠️ 임시 방식은 아무 uuid로 다른 사용자를 사칭할 수 있으므로 **운영 배포 전 반드시 교체**한다.
+출석 모듈의 컨트롤러·서비스 로직·리포지토리는 **변경하지 않았다.** (`usersService.findById` 호출은 그대로 둠)
 
 ## 3. 사용자 흐름
 
@@ -88,7 +90,7 @@
 
 | 상황 | 응답 |
 |---|---|
-| `X-User-Id` 헤더가 없거나 uuid가 아님 | 401 |
+| 토큰이 없거나 위조·만료됨 (웹이 한 번 재발급 후 재시도) | 401 |
 | 존재하지 않는 사용자 | 404 |
 | 오늘 이미 출석함 (조회 시점 확인 + 동시 요청은 유니크 위반 23505로 판정) | 409 |
 | 광고 보너스: 오늘 출석 기록 없음 | 404 |
