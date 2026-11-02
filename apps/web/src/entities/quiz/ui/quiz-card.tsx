@@ -15,7 +15,7 @@ export function QuizCard({ order, question, children }: Props) {
     <section aria-labelledby={headingId}>
       <Card>
         <CardHeader>
-          <p className="text-xs font-medium text-muted-foreground">문제 {order}</p>
+          <p className="text-sm font-medium text-muted-foreground">문제 {order}</p>
           <CardTitle id={headingId} className="text-lg leading-relaxed font-bold">
             {question}
           </CardTitle>

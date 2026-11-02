@@ -25,7 +25,7 @@ function QuizAction({ quizId, attempt, rewardPerQuiz }: QuizActionProps) {
       return <AnswerButtons quizId={quizId} />;
     case 'CORRECT':
       return attempt.rewardClaimed ? (
-        <p className="text-center text-sm font-medium text-muted-foreground">
+        <p className="text-center text-base font-medium text-muted-foreground">
           물고기 {attempt.rewardAmount ?? rewardPerQuiz}마리를 받았어요
         </p>
       ) : (

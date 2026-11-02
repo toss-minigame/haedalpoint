@@ -38,11 +38,17 @@ export function AnswerResult({ attempt }: Props) {
   return (
     <div
       role="status"
-      className={cn('rounded-lg px-4 py-3', isCorrect ? 'bg-primary/10' : 'bg-muted')}
+      className={cn(
+        'rounded-lg px-4 py-3 text-base',
+        // 정답은 초록 틴트로 오답(중립)과 구분
+        isCorrect ? 'bg-emerald-50 dark:bg-emerald-950/40' : 'bg-muted',
+      )}
     >
-      <p className="font-bold">{title}</p>
-      <p className="mt-1 text-sm text-muted-foreground">{detail}</p>
-      {isCorrect && attempt.explanation && <p className="mt-2 text-sm">{attempt.explanation}</p>}
+      <p className={cn('font-bold', isCorrect && 'text-emerald-700 dark:text-emerald-300')}>
+        {title}
+      </p>
+      <p className="mt-1 text-muted-foreground">{detail}</p>
+      {isCorrect && attempt.explanation && <p className="mt-2">{attempt.explanation}</p>}
     </div>
   );
 }

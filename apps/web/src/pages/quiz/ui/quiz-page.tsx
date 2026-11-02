@@ -21,7 +21,7 @@ function QuizList({ today }: { today: TodayQuizResponse }) {
 
   return (
     <>
-      <p className="text-sm text-muted-foreground">
+      <p className="text-base text-muted-foreground">
         {isAllSolved
           ? '오늘 퀴즈를 모두 맞혔어요. 내일 새 퀴즈로 만나요!'
           : `${today.items.length}문제 중 ${solved}문제를 맞혔어요`}
@@ -51,13 +51,13 @@ export function QuizPage() {
     <main className="mx-auto flex max-w-xl flex-col gap-6 p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold">오늘의 O/X 퀴즈</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-base text-muted-foreground">
           맞히고 광고를 보면 물고기를 받아요. 틀려도 광고를 보면 다시 풀 수 있어요.
         </p>
       </header>
 
       {!hasUserId && (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-base text-muted-foreground">
           홈에서 테스트용 userId 를 먼저 입력해주세요.
         </p>
       )}
@@ -65,7 +65,7 @@ export function QuizPage() {
       {isError && <p className="text-destructive">{error.message}</p>}
       {today && <QuizList today={today} />}
 
-      <Button asChild variant="ghost" className="self-start">
+      <Button asChild variant="ghost" className="h-11 self-start px-3 text-base">
         <Link to="/">홈으로</Link>
       </Button>
     </main>

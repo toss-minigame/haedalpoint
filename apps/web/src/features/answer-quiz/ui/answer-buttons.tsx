@@ -21,13 +21,13 @@ export function AnswerButtons({ quizId }: Props) {
           type="button"
           variant="outline"
           aria-label={`${label}, ${description}`}
-          className="h-20 flex-col gap-1 text-3xl font-black"
+          className="h-20 flex-col gap-1 text-3xl font-bold"
           // isPending 동안 비활성화해 연타 방어 (서버 유니크 제약·조건부 UPDATE 가 최종 방어선)
           disabled={isPending}
           onClick={() => mutate({ quizId, answer })}
         >
           <span aria-hidden>{label}</span>
-          <span aria-hidden className="text-xs font-medium text-muted-foreground">
+          <span aria-hidden className="text-sm font-medium text-muted-foreground">
             {description}
           </span>
         </Button>
