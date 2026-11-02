@@ -5,7 +5,7 @@ import { projectHammockFish } from './project-hammock';
 const TICK_MS = 1000;
 
 /** 서버 응답을 받은 시각(receivedAt)부터 1초마다 해먹 수량을 늘려 보여준다 */
-export function useProjectedHammock(status: FishingStatus, receivedAt: number) {
+export function useProjectedHammock(status: FishingStatus, receivedAt: number): number {
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -14,11 +14,5 @@ export function useProjectedHammock(status: FishingStatus, receivedAt: number) {
   }, []);
 
   // 새 응답을 받은 직후에는 now 가 receivedAt 보다 최대 1초 이를 수 있다
-  const elapsedMs = Math.max(now - receivedAt, 0);
-  const fish = projectHammockFish(status, elapsedMs);
-  const msUntilFull = status.hammockFullAt
-    ? Date.parse(status.hammockFullAt) - Date.parse(status.serverTime) - elapsedMs
-    : 0;
-
-  return { fish, isFull: fish >= status.hammockCapacity, msUntilFull: Math.max(msUntilFull, 0) };
+  return projectHammockFish(status, Math.max(now - receivedAt, 0));
 }
