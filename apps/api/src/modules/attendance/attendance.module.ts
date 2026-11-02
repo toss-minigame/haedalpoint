@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { UsersModule } from '../users/users.module';
-import { AttendanceController } from './attendance.controller';
-import { AttendanceRepository } from './attendance.repository';
-import { AttendanceService } from './attendance.service';
-import { AttendanceLog } from './entities/attendance-log.entity';
+import { UsersModule } from '../users/users.module.js';
+import { AttendanceController } from './attendance.controller.js';
+import { AttendanceRepository } from './attendance.repository.js';
+import { AttendanceService } from './attendance.service.js';
+import { AttendanceLog } from './entities/attendance-log.entity.js';
 
 @Module({
   imports: [TypeOrmModule.forFeature([AttendanceLog]), UsersModule],

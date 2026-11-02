@@ -1,5 +1,5 @@
 import { UnauthorizedException } from '@nestjs/common';
-import { extractUserId } from '../current-user-id.decorator';
+import { extractUserId } from '../current-user-id.decorator.js';
 
 describe('extractUserId', () => {
   const VALID = '00000000-0000-4000-8000-000000000001';

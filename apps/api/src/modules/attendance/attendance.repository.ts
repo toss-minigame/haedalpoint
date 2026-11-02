@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { AttendanceLog } from './entities/attendance-log.entity';
+import { AttendanceLog } from './entities/attendance-log.entity.js';
 
 export type CreateAttendanceLogData = Pick<
   AttendanceLog,

@@ -1,6 +1,6 @@
 import http from 'node:http';
 import https from 'node:https';
-import type { MtlsCredentials } from './mtls-credentials';
+import type { MtlsCredentials } from './mtls-credentials.js';
 
 export interface PartnerRequest {
   method: 'GET' | 'POST';

@@ -1,6 +1,6 @@
 // Nest 없이 class-transformer 를 쓰므로 데코레이터 메타데이터를 직접 로드한다
 import 'reflect-metadata';
-import { TOSS_PARTNER_API_OFFICIAL_URL, validateEnv } from '../env.validation';
+import { TOSS_PARTNER_API_OFFICIAL_URL, validateEnv } from '../env.validation.js';
 
 const BASE = {
   DATABASE_URL: 'postgresql://localhost/test',

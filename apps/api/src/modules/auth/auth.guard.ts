@@ -2,9 +2,9 @@ import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { isUUID } from 'class-validator';
-import type { AuthenticatedRequest } from '../../common/decorators/current-user-id.decorator';
-import { IS_PUBLIC_KEY } from '../../common/decorators/public.decorator';
-import type { AccessTokenPayload } from './auth.service';
+import type { AuthenticatedRequest } from '../../common/decorators/current-user-id.decorator.js';
+import { IS_PUBLIC_KEY } from '../../common/decorators/public.decorator.js';
+import type { AccessTokenPayload } from './auth.service.js';
 
 const BEARER_PREFIX = 'Bearer ';
 

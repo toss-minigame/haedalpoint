@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { AttendanceRepository } from '../attendance.repository';
-import { AttendanceLog } from '../entities/attendance-log.entity';
+import { AttendanceRepository } from '../attendance.repository.js';
+import { AttendanceLog } from '../entities/attendance-log.entity.js';
 
 describe('AttendanceRepository', () => {
   const USER_ID = '00000000-0000-4000-8000-000000000001';

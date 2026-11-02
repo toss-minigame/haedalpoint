@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
-import { AttendanceController } from '../attendance.controller';
-import { AttendanceService } from '../attendance.service';
+import { AttendanceController } from '../attendance.controller.js';
+import { AttendanceService } from '../attendance.service.js';
 
 describe('AttendanceController', () => {
   const USER_ID = '00000000-0000-4000-8000-000000000001';

@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { createPartnerTransport } from '../toss-partner.transport';
+import { createPartnerTransport } from '../toss-partner.transport.js';
 
 const noCredentials = () => null;
 

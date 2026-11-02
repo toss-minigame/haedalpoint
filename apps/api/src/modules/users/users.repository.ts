@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User } from './entities/user.entity';
+import { User } from './entities/user.entity.js';
 
 // 데이터 접근 계층: TypeORM 의존성은 이 계층 안에만 둡니다.
 @Injectable()

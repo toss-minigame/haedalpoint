@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { PARTNER_TRANSPORT, type PartnerTransport } from './toss-partner.transport';
+import { PARTNER_TRANSPORT, type PartnerTransport } from './toss-partner.transport.js';
 
 export const ANON_KEY_EXCHANGE_PATH = '/api-partner/v1/apps-in-toss/users/anon-key/exchange';
 

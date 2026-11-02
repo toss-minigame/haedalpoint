@@ -1,5 +1,5 @@
 import { Column, Entity, Unique } from 'typeorm';
-import { BaseEntity } from '../../../common/entities/base.entity';
+import { BaseEntity } from '../../../common/entities/base.entity.js';
 
 // 다른 모듈은 users.id(uuid)만 참조한다. 토스 식별자(anon_key)는 이 모듈 밖으로 내보내지 않는다.
 @Entity('users')

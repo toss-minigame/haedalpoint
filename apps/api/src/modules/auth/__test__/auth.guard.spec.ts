@@ -1,8 +1,8 @@
 import { type ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
-import type { AuthenticatedRequest } from '../../../common/decorators/current-user-id.decorator';
-import { AuthGuard } from '../auth.guard';
+import type { AuthenticatedRequest } from '../../../common/decorators/current-user-id.decorator.js';
+import { AuthGuard } from '../auth.guard.js';
 
 const USER_ID = '00000000-0000-4000-8000-000000000001';
 const SECRET = 'test-secret-test-secret-test-secret!!';

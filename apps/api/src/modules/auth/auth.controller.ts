@@ -1,8 +1,8 @@
 import type { AuthTokenResponse } from '@haedalpoint/shared';
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { Public } from '../../common/decorators/public.decorator';
-import { AuthService } from './auth.service';
-import { AnonLoginDto } from './dto/anon-login.dto';
+import { Public } from '../../common/decorators/public.decorator.js';
+import { AuthService } from './auth.service.js';
+import { AnonLoginDto } from './dto/anon-login.dto.js';
 
 // 표현 계층: HTTP 요청/응답만 다루고 로직은 서비스에 위임
 @Controller('auth')

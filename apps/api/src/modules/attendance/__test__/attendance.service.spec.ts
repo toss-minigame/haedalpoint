@@ -1,8 +1,8 @@
 import { ConflictException, NotFoundException, NotImplementedException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { UsersService } from '../../users/users.service';
-import { AttendanceRepository } from '../attendance.repository';
-import { AttendanceService } from '../attendance.service';
+import { UsersService } from '../../users/users.service.js';
+import { AttendanceRepository } from '../attendance.repository.js';
+import { AttendanceService } from '../attendance.service.js';
 
 const USER_ID = '00000000-0000-4000-8000-000000000001';
 // KST 2026-10-30 12:00

@@ -2,12 +2,12 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
-import type { Env } from '../../config/env.validation';
-import { TossPartnerModule } from '../toss-partner/toss-partner.module';
-import { UsersModule } from '../users/users.module';
-import { AuthController } from './auth.controller';
-import { AuthGuard } from './auth.guard';
-import { AuthService } from './auth.service';
+import type { Env } from '../../config/env.validation.js';
+import { TossPartnerModule } from '../toss-partner/toss-partner.module.js';
+import { UsersModule } from '../users/users.module.js';
+import { AuthController } from './auth.controller.js';
+import { AuthGuard } from './auth.guard.js';
+import { AuthService } from './auth.service.js';
 
 @Module({
   imports: [

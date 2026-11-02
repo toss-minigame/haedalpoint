@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { UsersModule } from '../users/users.module';
-import { Quiz } from './entities/quiz.entity';
-import { QuizAttempt } from './entities/quiz-attempt.entity';
-import { QuizController } from './quiz.controller';
-import { QuizRepository } from './quiz.repository';
-import { QuizService } from './quiz.service';
+import { UsersModule } from '../users/users.module.js';
+import { Quiz } from './entities/quiz.entity.js';
+import { QuizAttempt } from './entities/quiz-attempt.entity.js';
+import { QuizController } from './quiz.controller.js';
+import { QuizRepository } from './quiz.repository.js';
+import { QuizService } from './quiz.service.js';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Quiz, QuizAttempt]), UsersModule],

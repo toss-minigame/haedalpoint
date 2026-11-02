@@ -1,9 +1,9 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { In, IsNull } from 'typeorm';
-import { Quiz } from '../entities/quiz.entity';
-import { QuizAttempt } from '../entities/quiz-attempt.entity';
-import { QuizRepository } from '../quiz.repository';
+import { Quiz } from '../entities/quiz.entity.js';
+import { QuizAttempt } from '../entities/quiz-attempt.entity.js';
+import { QuizRepository } from '../quiz.repository.js';
 
 describe('QuizRepository', () => {
   const USER_ID = '00000000-0000-4000-8000-000000000001';

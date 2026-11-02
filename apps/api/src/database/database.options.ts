@@ -11,6 +11,6 @@ export function buildDataSourceOptions(env: {
     url: env.DATABASE_URL,
     ssl: env.DB_SSL ? { rejectUnauthorized: false } : false,
     synchronize: false,
-    migrations: [join(__dirname, 'migrations', '*.{ts,js}')],
+    migrations: [join(import.meta.dirname, 'migrations', '*.{ts,js}')],
   };
 }

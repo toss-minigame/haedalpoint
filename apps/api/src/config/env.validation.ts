@@ -11,7 +11,7 @@ import {
   MinLength,
   validateSync,
 } from 'class-validator';
-import { isPemBase64 } from '../modules/toss-partner/mtls-credentials';
+import { isPemBase64 } from '../modules/toss-partner/mtls-credentials.js';
 
 enum NodeEnv {
   Development = 'development',

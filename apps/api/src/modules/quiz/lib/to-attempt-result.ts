@@ -1,6 +1,6 @@
 import type { QuizAttemptResult, QuizAttemptStatus } from '@haedalpoint/shared';
-import type { Quiz } from '../entities/quiz.entity';
-import type { QuizAttempt } from '../entities/quiz-attempt.entity';
+import type { Quiz } from '../entities/quiz.entity.js';
+import type { QuizAttempt } from '../entities/quiz-attempt.entity.js';
 
 export type AttemptState = Pick<
   QuizAttempt,

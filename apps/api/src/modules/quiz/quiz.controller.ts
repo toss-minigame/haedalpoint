@@ -5,9 +5,9 @@ import type {
   UnlockQuizRetryResponse,
 } from '@haedalpoint/shared';
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post } from '@nestjs/common';
-import { CurrentUserId } from '../../common/decorators/current-user-id.decorator';
-import { AnswerQuizDto } from './dto/answer-quiz.dto';
-import { QuizService } from './quiz.service';
+import { CurrentUserId } from '../../common/decorators/current-user-id.decorator.js';
+import { AnswerQuizDto } from './dto/answer-quiz.dto.js';
+import { QuizService } from './quiz.service.js';
 
 // 표현 계층: HTTP 요청/응답만 다루고 로직은 서비스에 위임
 // 사용자는 @CurrentUserId() 로만 받는다 (운영용 식별 도입 시 데코레이터만 교체)

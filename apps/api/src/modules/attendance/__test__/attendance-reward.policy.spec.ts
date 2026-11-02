@@ -1,4 +1,4 @@
-import { AttendanceRewardPolicy } from '../lib/attendance-reward.policy';
+import { AttendanceRewardPolicy } from '../lib/attendance-reward.policy.js';
 
 describe('AttendanceRewardPolicy', () => {
   describe('rewardFor', () => {
