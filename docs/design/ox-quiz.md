@@ -112,8 +112,9 @@
 | reward_amount | int, nullable | 지급한 물고기 수 |
 | ad_reward_claimed_at | timestamptz, nullable | 광고 보상 수령 시각 |
 
-- 유니크 제약 `(user_id, quiz_id)`: 같은 퀴즈를 두 번 답변하거나 연타해도 중복 기록되지 않는다. 출석체크의 `is-unique-violation` 처리 패턴을 재사용한다.
-- 인덱스 `(user_id, attempted_date)`: 하루 참여 횟수 조회용.
+- 유니크 제약 `(user_id, attempted_date, quiz_id)`: 같은 날 같은 퀴즈를 두 번 답변하거나 연타해도 중복 기록되지 않는다. 출석체크의 `is-unique-violation` 처리 패턴을 재사용한다.
+  - 퀴즈는 날짜별로 순환 출제되므로 같은 퀴즈가 다른 날 다시 나올 수 있다. 그래서 `attempted_date`를 유니크 키에 포함한다. (초안의 `(user_id, quiz_id)`에서 변경)
+  - 선두 컬럼 `(user_id, attempted_date)`가 "오늘 내 답변 목록" 조회 인덱스 역할도 하므로 별도 인덱스는 두지 않는다.
 - 보상 중복 방지: `ad_reward_claimed_at IS NULL` 조건부 UPDATE로 한 번만 수령되게 한다.
 
 ### 물고기 지급
