@@ -82,14 +82,18 @@ ADR-0004는 클라이언트가 `getAnonymousKey()`로 받은 hash를 서버로 �
   개인 키는 저장소에 올리지 않고 환경 변수나 시크릿으로 관리한다.
   만료 전에 재발급해서 교체해야 한다.
 - 로컬 개발 환경에서는 devtools mock이 가짜 코드를 주므로 실제 교환 API를 호출할 수 없다.
-  `NODE_ENV=development`에서만 켜지는 개발용 교환 경로가 필요하다.
-  이 경로는 production에서 켜지면 안 되며, 서버 시작 시 이를 검사해 켜져 있으면 기동을 실패시킨다.
+  서버 코드에 고정 사용자를 돌려주는 우회 분기는 두지 않는다 (설정이 잘못 들어가면 누구나 그 사용자가 되고,
+  우회로는 교환·봉투 처리 코드가 한 번도 돌지 않는다).
+  대신 파트너 API 주소(`TOSS_PARTNER_API_BASE_URL`)를 환경 변수로 받고, 로컬에서는 별도 프로세스인
+  가짜 파트너 API(`apps/api/scripts/fake-toss-partner.mjs`)를 가리킨다.
+  production은 env 검증에서 공식 주소(`https://apps-in-toss-api.toss.im`)와 mTLS 인증서 경로가 아니면 기동을 실패시킨다.
 - 교환 API는 앱당 분당 3,000회 제한이 있다. 진입할 때와 토큰 만료 시에만 교환한다.
 
 후속 작업
 
 - 마이그레이션: `users`에서 `email`과 `name`을 제거하고 `anon_key`(NOT NULL, UNIQUE)를 추가한다.
-  2026-11-02 기준 DB에 테이블이 없으므로 기존 마이그레이션을 고쳐도 된다.
+  공용 DB에 기존 마이그레이션이 이미 적용돼 있으므로 새 마이그레이션(`UsersAnonKey`)으로 추가한다.
+  익명키 도입 전 테스트 사용자는 `legacy:<id>`로 채워 출석·퀴즈 기록의 연결을 유지한다.
 - `auth` 모듈 신설: 코드 교환, 토큰 발급과 검증, `CurrentUserId` 데코레이터 구현 교체.
 - 임시 식별 제거: `X-User-Id` 헤더, 웹의 `dev-user-id`와 userId 입력란,
   사용자 생성 폼, 인증 없이 열린 `GET/POST /api/users`.
