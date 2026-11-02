@@ -2,8 +2,8 @@
 
 [O/X 퀴즈 설계](./ox-quiz.md)의 구현(`apps/api/src/modules/quiz`)을 바탕으로 데이터 흐름을 단순화해 그린 문서다.
 
-- API 쪽은 구현 기준이다. Web·광고 SDK 쪽은 이후 PR(② 퀴즈 화면, ③ 보상형 광고)에서 구현할 예정이다.
-- 모든 요청에는 임시 사용자 식별 헤더 `X-User-Id`가 붙는다. 다이어그램에서는 생략한다.
+- API·Web·광고 SDK 모두 구현 기준이다 (퀴즈 화면, 보상형 광고 포함).
+- 모든 요청에는 자체 access token(`Authorization: Bearer`)이 붙는다. 다이어그램에서는 생략한다. 인증 흐름은 [사용자 인증 시퀀스](./user-auth-sequence.md)를 본다.
 - "하루"는 KST 기준이다.
 
 ## 1. 도전 상태
