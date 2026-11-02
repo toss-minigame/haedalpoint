@@ -2,8 +2,8 @@ import {
   ANON_KEY_EXCHANGE_PATH,
   TossPartnerClient,
   TossPartnerError,
-} from '../toss-partner.client';
-import type { PartnerResponse } from '../toss-partner.transport';
+} from '../toss-partner.client.js';
+import type { PartnerResponse } from '../toss-partner.transport.js';
 
 describe('TossPartnerClient.exchangeAnonAuthCode', () => {
   const transport = jest.fn<Promise<PartnerResponse>, [unknown]>();

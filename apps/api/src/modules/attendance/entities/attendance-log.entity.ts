@@ -1,6 +1,6 @@
 import type { AttendanceRewardType } from '@haedalpoint/shared';
 import { Check, Column, Entity, Index, Unique } from 'typeorm';
-import { BaseEntity } from '../../../common/entities/base.entity';
+import { BaseEntity } from '../../../common/entities/base.entity.js';
 
 // users 와 TypeORM 관계를 걸지 않고 userId 컬럼으로만 참조 (모듈 경계 유지)
 @Entity('attendance_logs')

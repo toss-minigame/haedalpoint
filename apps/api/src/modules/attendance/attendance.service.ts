@@ -5,12 +5,12 @@ import {
   NotFoundException,
   NotImplementedException,
 } from '@nestjs/common';
-import { isUniqueViolation } from '../../common/utils/is-unique-violation';
-import { toKstDateString } from '../../common/utils/kst-date';
-import { UsersService } from '../users/users.service';
-import { AttendanceRepository } from './attendance.repository';
-import { ATTENDANCE_CYCLE_DAYS, AttendanceRewardPolicy } from './lib/attendance-reward.policy';
-import { buildAttendanceStatus } from './lib/attendance-status';
+import { isUniqueViolation } from '../../common/utils/is-unique-violation.js';
+import { toKstDateString } from '../../common/utils/kst-date.js';
+import { UsersService } from '../users/users.service.js';
+import { AttendanceRepository } from './attendance.repository.js';
+import { ATTENDANCE_CYCLE_DAYS, AttendanceRewardPolicy } from './lib/attendance-reward.policy.js';
+import { buildAttendanceStatus } from './lib/attendance-status.js';
 
 const ALREADY_CHECKED_IN = '이미 오늘 출석했습니다';
 

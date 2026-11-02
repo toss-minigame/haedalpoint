@@ -1,7 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { UsersRepository } from '../users.repository';
-import { UsersService } from '../users.service';
+import { UsersRepository } from '../users.repository.js';
+import { UsersService } from '../users.service.js';
 
 const USER = { id: '00000000-0000-4000-8000-000000000001', anonKey: 'anon-1' };
 

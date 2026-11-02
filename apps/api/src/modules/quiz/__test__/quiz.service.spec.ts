@@ -1,10 +1,10 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { QUIZ_POLICY } from '../../../common/globals';
-import { UsersService } from '../../users/users.service';
-import { selectDailyQuizIds } from '../lib/select-daily-quizzes';
-import { QuizRepository } from '../quiz.repository';
-import { QuizService } from '../quiz.service';
+import { QUIZ_POLICY } from '../../../common/globals/index.js';
+import { UsersService } from '../../users/users.service.js';
+import { selectDailyQuizIds } from '../lib/select-daily-quizzes.js';
+import { QuizRepository } from '../quiz.repository.js';
+import { QuizService } from '../quiz.service.js';
 
 const USER_ID = '00000000-0000-4000-8000-000000000001';
 // KST 2026-11-02 12:00

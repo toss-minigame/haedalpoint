@@ -1,5 +1,5 @@
 import { Column, Entity } from 'typeorm';
-import { BaseEntity } from '../../../common/entities/base.entity';
+import { BaseEntity } from '../../../common/entities/base.entity.js';
 
 export const QUIZ_QUESTION_MAX_LENGTH = 200;
 export const QUIZ_EXPLANATION_MAX_LENGTH = 500;

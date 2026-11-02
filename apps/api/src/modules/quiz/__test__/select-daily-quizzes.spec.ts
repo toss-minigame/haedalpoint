@@ -1,4 +1,4 @@
-import { selectDailyQuizIds } from '../lib/select-daily-quizzes';
+import { selectDailyQuizIds } from '../lib/select-daily-quizzes.js';
 
 const IDS = ['q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7'];
 

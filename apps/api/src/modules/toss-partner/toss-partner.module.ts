@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { Env } from '../../config/env.validation';
-import { loadMtlsCredentials } from './mtls-credentials';
-import { TossPartnerClient } from './toss-partner.client';
-import { createPartnerTransport, PARTNER_TRANSPORT } from './toss-partner.transport';
+import type { Env } from '../../config/env.validation.js';
+import { loadMtlsCredentials } from './mtls-credentials.js';
+import { TossPartnerClient } from './toss-partner.client.js';
+import { createPartnerTransport, PARTNER_TRANSPORT } from './toss-partner.transport.js';
 
 const PARTNER_TIMEOUT_MS = 5000;
 

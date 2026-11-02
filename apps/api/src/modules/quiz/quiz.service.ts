@@ -6,15 +6,15 @@ import type {
   UnlockQuizRetryResponse,
 } from '@haedalpoint/shared';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { QUIZ_POLICY } from '../../common/globals';
-import { isUniqueViolation } from '../../common/utils/is-unique-violation';
-import { toKstDateString } from '../../common/utils/kst-date';
-import { UsersService } from '../users/users.service';
-import type { Quiz } from './entities/quiz.entity';
-import type { QuizAttempt } from './entities/quiz-attempt.entity';
-import { selectDailyQuizIds } from './lib/select-daily-quizzes';
-import { type AttemptState, toAttemptResult } from './lib/to-attempt-result';
-import { QuizRepository } from './quiz.repository';
+import { QUIZ_POLICY } from '../../common/globals/index.js';
+import { isUniqueViolation } from '../../common/utils/is-unique-violation.js';
+import { toKstDateString } from '../../common/utils/kst-date.js';
+import { UsersService } from '../users/users.service.js';
+import type { Quiz } from './entities/quiz.entity.js';
+import type { QuizAttempt } from './entities/quiz-attempt.entity.js';
+import { selectDailyQuizIds } from './lib/select-daily-quizzes.js';
+import { type AttemptState, toAttemptResult } from './lib/to-attempt-result.js';
+import { QuizRepository } from './quiz.repository.js';
 
 const QUIZ_NOT_FOUND = '오늘의 퀴즈가 아닙니다';
 const ALREADY_ANSWERED = '이미 답변한 퀴즈입니다';

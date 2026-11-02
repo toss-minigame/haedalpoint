@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from './entities/user.entity';
-import { UsersRepository } from './users.repository';
-import { UsersService } from './users.service';
+import { User } from './entities/user.entity.js';
+import { UsersRepository } from './users.repository.js';
+import { UsersService } from './users.service.js';
 
 // HTTP 엔드포인트 없음: 회원 생성은 인증(auth) 모듈이 익명키 교환 후에만 한다
 @Module({

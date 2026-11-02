@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Repository } from 'typeorm';
-import { Quiz } from './entities/quiz.entity';
-import { QuizAttempt } from './entities/quiz-attempt.entity';
+import { Quiz } from './entities/quiz.entity.js';
+import { QuizAttempt } from './entities/quiz-attempt.entity.js';
 
 export type CreateQuizAttemptData = Pick<
   QuizAttempt,

@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { isPemBase64, loadMtlsCredentials } from '../mtls-credentials';
+import { isPemBase64, loadMtlsCredentials } from '../mtls-credentials.js';
 
 // 테스트용 가짜 PEM (실제 인증서 아님)
 const CERT_PEM = '-----BEGIN CERTIFICATE-----\nAAAA\n-----END CERTIFICATE-----\n';

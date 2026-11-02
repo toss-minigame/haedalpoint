@@ -2,13 +2,13 @@ import type { AuthTokenResponse } from '@haedalpoint/shared';
 import { BadGatewayException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import type { Env } from '../../config/env.validation';
+import type { Env } from '../../config/env.validation.js';
 import {
   ANON_AUTH_CODE_INVALID,
   TossPartnerClient,
   TossPartnerError,
-} from '../toss-partner/toss-partner.client';
-import { UsersService } from '../users/users.service';
+} from '../toss-partner/toss-partner.client.js';
+import { UsersService } from '../users/users.service.js';
 
 /** access token 에는 내부 사용자 ID 만 담는다 (토스 식별자는 넣지 않는다) */
 export interface AccessTokenPayload {

@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
-import { QuizController } from '../quiz.controller';
-import { QuizService } from '../quiz.service';
+import { QuizController } from '../quiz.controller.js';
+import { QuizService } from '../quiz.service.js';
 
 describe('QuizController', () => {
   const USER_ID = '00000000-0000-4000-8000-000000000001';

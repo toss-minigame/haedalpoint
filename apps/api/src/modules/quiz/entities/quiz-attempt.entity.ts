@@ -1,5 +1,5 @@
 import { Column, Entity, Unique } from 'typeorm';
-import { BaseEntity } from '../../../common/entities/base.entity';
+import { BaseEntity } from '../../../common/entities/base.entity.js';
 
 // users·quizzes 와 TypeORM 관계를 걸지 않고 id 컬럼으로만 참조 (모듈 경계 유지)
 // 같은 퀴즈가 날짜를 바꿔 다시 출제될 수 있으므로 유니크 키에 attempted_date 를 포함한다.

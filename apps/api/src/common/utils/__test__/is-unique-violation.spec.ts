@@ -1,4 +1,4 @@
-import { isUniqueViolation } from '../is-unique-violation';
+import { isUniqueViolation } from '../is-unique-violation.js';
 
 describe('isUniqueViolation', () => {
   it('returns true for a pg unique violation (code 23505)', () => {

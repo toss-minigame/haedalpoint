@@ -1,6 +1,6 @@
 import { Controller, Get, Post } from '@nestjs/common';
-import { CurrentUserId } from '../../common/decorators/current-user-id.decorator';
-import { AttendanceService } from './attendance.service';
+import { CurrentUserId } from '../../common/decorators/current-user-id.decorator.js';
+import { AttendanceService } from './attendance.service.js';
 
 // 표현 계층: HTTP 요청/응답만 다루고 로직은 서비스에 위임
 @Controller('attendance')

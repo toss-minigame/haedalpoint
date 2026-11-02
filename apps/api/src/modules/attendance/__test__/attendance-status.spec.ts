@@ -1,4 +1,4 @@
-import { type AttendanceLogSnapshot, buildAttendanceStatus } from '../lib/attendance-status';
+import { type AttendanceLogSnapshot, buildAttendanceStatus } from '../lib/attendance-status.js';
 
 const TODAY = '2026-10-30';
 

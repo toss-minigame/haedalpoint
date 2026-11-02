@@ -1,4 +1,4 @@
-import { addDays, toKstDateString } from '../kst-date';
+import { addDays, toKstDateString } from '../kst-date.js';
 
 describe('toKstDateString', () => {
   it('treats UTC 14:59 as the same KST day', () => {

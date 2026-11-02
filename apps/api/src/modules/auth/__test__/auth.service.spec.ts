@@ -2,9 +2,9 @@ import { BadGatewayException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
-import { TossPartnerClient, TossPartnerError } from '../../toss-partner/toss-partner.client';
-import { UsersService } from '../../users/users.service';
-import { AuthService } from '../auth.service';
+import { TossPartnerClient, TossPartnerError } from '../../toss-partner/toss-partner.client.js';
+import { UsersService } from '../../users/users.service.js';
+import { AuthService } from '../auth.service.js';
 
 const USER_ID = '00000000-0000-4000-8000-000000000001';
 const SECRET = 'test-secret-test-secret-test-secret!!';

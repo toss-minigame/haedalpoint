@@ -3,12 +3,12 @@ import type {
   AttendanceStatusResponse,
   AttendanceStreakDay,
 } from '@haedalpoint/shared';
-import { addDays } from '../../../common/utils/kst-date';
+import { addDays } from '../../../common/utils/kst-date.js';
 import {
   ATTENDANCE_CYCLE_DAYS,
   AttendanceRewardPolicy,
   type LastAttendance,
-} from './attendance-reward.policy';
+} from './attendance-reward.policy.js';
 
 export interface AttendanceLogSnapshot extends LastAttendance {
   adBonusClaimedAt: Date | null;

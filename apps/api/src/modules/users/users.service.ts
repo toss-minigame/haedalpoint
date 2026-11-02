@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { isUniqueViolation } from '../../common/utils/is-unique-violation';
-import { User } from './entities/user.entity';
-import { UsersRepository } from './users.repository';
+import { isUniqueViolation } from '../../common/utils/is-unique-violation.js';
+import { User } from './entities/user.entity.js';
+import { UsersRepository } from './users.repository.js';
 
 // 비즈니스 로직 계층
 @Injectable()
