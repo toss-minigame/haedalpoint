@@ -2,6 +2,7 @@
 export { quizApi } from './api/quiz-api';
 export { quizQueries } from './api/quiz-queries';
 export { formatAnswer } from './lib/format-answer';
+export { patchTodayAttempt } from './lib/patch-today-attempt';
 export type {
   AnswerQuizResponse,
   QuizAttemptResult,

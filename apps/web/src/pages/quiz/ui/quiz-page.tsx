@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import { quizQueries, type TodayQuizResponse } from '@/entities/quiz';
+import { env } from '@/shared/config/env';
 import { getDevUserId } from '@/shared/lib/dev-user-id';
+import { type RewardedAd, useRewardedAd } from '@/shared/lib/rewarded-ad';
 import { Button } from '@/shared/ui/button';
 import { QuizItem } from './quiz-item';
 
@@ -9,7 +11,7 @@ function countSolved({ items }: TodayQuizResponse): number {
   return items.filter((item) => item.attempt?.status === 'CORRECT').length;
 }
 
-function QuizList({ today }: { today: TodayQuizResponse }) {
+function QuizList({ today, ad }: { today: TodayQuizResponse; ad: RewardedAd }) {
   if (today.items.length === 0) {
     return (
       <p className="text-muted-foreground">오늘은 준비된 퀴즈가 없어요. 내일 다시 와 주세요.</p>
@@ -29,7 +31,7 @@ function QuizList({ today }: { today: TodayQuizResponse }) {
       <ol className="flex flex-col gap-4">
         {today.items.map((item, index) => (
           <li key={item.quizId}>
-            <QuizItem order={index + 1} item={item} rewardPerQuiz={today.rewardPerQuiz} />
+            <QuizItem order={index + 1} item={item} rewardPerQuiz={today.rewardPerQuiz} ad={ad} />
           </li>
         ))}
       </ol>
@@ -46,6 +48,8 @@ export function QuizPage() {
     isError,
     error,
   } = useQuery({ ...quizQueries.today(), enabled: hasUserId });
+  // 화면 진입 시 보상형 광고를 미리 불러온다 (버튼을 누를 때 불러오지 않는다)
+  const rewardedAd = useRewardedAd(env.rewardedAdGroupId);
 
   return (
     <main className="mx-auto flex max-w-xl flex-col gap-6 p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
@@ -63,7 +67,7 @@ export function QuizPage() {
       )}
       {hasUserId && isPending && <p className="text-muted-foreground">불러오는 중...</p>}
       {isError && <p className="text-destructive">{error.message}</p>}
-      {today && <QuizList today={today} />}
+      {today && <QuizList today={today} ad={rewardedAd} />}
 
       <Button asChild variant="ghost" className="h-11 self-start px-3 text-base">
         <Link to="/">홈으로</Link>
