@@ -4,11 +4,11 @@ describe('AttendanceRewardPolicy', () => {
   describe('rewardFor', () => {
     it.each([
       [1, 'ENHANCE_BONUS', 1],
-      [2, 'ENHANCE_BONUS', 2],
-      [3, 'ENHANCE_BONUS', 3],
-      [4, 'ENHANCE_BONUS', 4],
-      [5, 'ENHANCE_BONUS', 5],
-      [6, 'ENHANCE_BONUS', 6],
+      [2, 'ENHANCE_BONUS', 1],
+      [3, 'ENHANCE_BONUS', 1],
+      [4, 'ENHANCE_BONUS', 1],
+      [5, 'ENHANCE_BONUS', 1],
+      [6, 'ENHANCE_BONUS', 1],
       [7, 'OTTER_FRIEND', 1],
     ] as const)('day %d → %s x%d', (day, type, amount) => {
       expect(AttendanceRewardPolicy.rewardFor(day)).toEqual({ type, amount });

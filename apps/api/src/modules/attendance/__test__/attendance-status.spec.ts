@@ -55,7 +55,7 @@ describe('buildAttendanceStatus', () => {
     expect(status.checkedToday).toBe(false);
     expect(status.currentStreakDay).toBe(3);
     expect(status.nextStreakDay).toBe(4);
-    expect(status.nextReward).toEqual({ type: 'ENHANCE_BONUS', amount: 4 });
+    expect(status.nextReward).toEqual({ type: 'ENHANCE_BONUS', amount: 1 });
     expect(status.cycle.slice(0, 4)).toEqual([
       { day: 1, checked: true, checkedDate: '2026-10-27' },
       { day: 2, checked: true, checkedDate: '2026-10-28' },

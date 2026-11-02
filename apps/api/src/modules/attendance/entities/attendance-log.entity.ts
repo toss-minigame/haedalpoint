@@ -27,7 +27,7 @@ export class AttendanceLog extends BaseEntity {
   @Column({ type: 'boolean', name: 'cycle_completed', default: false })
   cycleCompleted: boolean;
 
-  // 강화 모듈이 실제로 보너스를 적립한 시각 (TODO: enhancement 모듈 연동 시 기록)
+  // 보상(낚싯대 강화·해달 친구)을 낚시 모듈에 적용한 시각. 출석 기록과 같은 트랜잭션에서 기록
   @Column({ type: 'timestamptz', name: 'reward_applied_at', nullable: true })
   rewardAppliedAt: Date | null;
 

@@ -3,14 +3,16 @@ import { addDays } from '../../../common/utils/kst-date.js';
 
 export const ATTENDANCE_CYCLE_DAYS = 7;
 
-// 일차별 보상 테이블. 값은 임시 — 밸런스 조정 시 여기만 수정
+// 일차별 보상 테이블 (ADR-0007). 밸런스 조정 시 여기만 수정
+// - ENHANCE_BONUS: 그날 낚싯대 강화 amount 단계 (단계당 속도는 common/globals ROD_POLICY)
+// - OTTER_FRIEND: 그날 자정까지 해달 친구가 함께 낚시 (OTTER_FRIEND_POLICY)
 const REWARD_BY_DAY: Readonly<Record<AttendanceStreakDay, AttendanceReward>> = {
   1: { type: 'ENHANCE_BONUS', amount: 1 },
-  2: { type: 'ENHANCE_BONUS', amount: 2 },
-  3: { type: 'ENHANCE_BONUS', amount: 3 },
-  4: { type: 'ENHANCE_BONUS', amount: 4 },
-  5: { type: 'ENHANCE_BONUS', amount: 5 },
-  6: { type: 'ENHANCE_BONUS', amount: 6 },
+  2: { type: 'ENHANCE_BONUS', amount: 1 },
+  3: { type: 'ENHANCE_BONUS', amount: 1 },
+  4: { type: 'ENHANCE_BONUS', amount: 1 },
+  5: { type: 'ENHANCE_BONUS', amount: 1 },
+  6: { type: 'ENHANCE_BONUS', amount: 1 },
   7: { type: 'OTTER_FRIEND', amount: 1 },
 };
 

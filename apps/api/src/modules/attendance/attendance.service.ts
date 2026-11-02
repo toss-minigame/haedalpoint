@@ -1,12 +1,18 @@
-import type { AttendanceStatusResponse, CheckInResponse } from '@haedalpoint/shared';
+import type {
+  AttendanceReward,
+  AttendanceStatusResponse,
+  CheckInResponse,
+} from '@haedalpoint/shared';
 import {
   ConflictException,
   Injectable,
   NotFoundException,
   NotImplementedException,
 } from '@nestjs/common';
+import { DataSource, type EntityManager } from 'typeorm';
 import { isUniqueViolation } from '../../common/utils/is-unique-violation.js';
 import { toKstDateString } from '../../common/utils/kst-date.js';
+import { FishingService } from '../fishing/fishing.service.js';
 import { UsersService } from '../users/users.service.js';
 import { AttendanceRepository } from './attendance.repository.js';
 import { ATTENDANCE_CYCLE_DAYS, AttendanceRewardPolicy } from './lib/attendance-reward.policy.js';
@@ -20,6 +26,8 @@ export class AttendanceService {
   constructor(
     private readonly attendanceRepository: AttendanceRepository,
     private readonly usersService: UsersService,
+    private readonly fishingService: FishingService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async checkIn(userId: string): Promise<CheckInResponse> {
@@ -34,22 +42,28 @@ export class AttendanceService {
     const cycleCompleted = AttendanceRewardPolicy.isCycleCompleted(streakDay);
 
     try {
+      // 출석 기록과 보상 적용(낚싯대 강화·해달 친구)을 한 트랜잭션으로 처리한다.
       // 조회 → insert 사이 레이스(더블 탭)는 (user_id, checked_date) 유니크 제약이 막는다
-      await this.attendanceRepository.create({
-        userId,
-        checkedDate: today,
-        streakDay,
-        rewardType: reward.type,
-        rewardAmount: reward.amount,
-        cycleCompleted,
+      await this.dataSource.transaction(async (manager) => {
+        await this.attendanceRepository.create(
+          {
+            userId,
+            checkedDate: today,
+            streakDay,
+            rewardType: reward.type,
+            rewardAmount: reward.amount,
+            cycleCompleted,
+            rewardAppliedAt: new Date(),
+          },
+          manager,
+        );
+        await this.applyReward(userId, reward, manager);
       });
     } catch (error) {
       if (isUniqueViolation(error)) throw new ConflictException(ALREADY_CHECKED_IN);
       throw error;
     }
 
-    // TODO(enhancement): 강화 모듈 생기면 ENHANCE_BONUS 적립 후 reward_applied_at 기록
-    // TODO(otter-friend): OTTER_FRIEND(7일차) 보상 시 해달 친구 지급 모듈 호출
     return { checkedDate: today, streakDay, reward, cycleCompleted };
   }
 
@@ -61,6 +75,19 @@ export class AttendanceService {
       ATTENDANCE_CYCLE_DAYS,
     );
     return buildAttendanceStatus(today, recentLogs);
+  }
+
+  /** ENHANCE_BONUS → 그날 낚싯대 강화, OTTER_FRIEND → 그날 자정까지 해달 친구 (ADR-0007) */
+  private async applyReward(
+    userId: string,
+    reward: AttendanceReward,
+    manager: EntityManager,
+  ): Promise<void> {
+    if (reward.type === 'OTTER_FRIEND') {
+      await this.fishingService.summonOtterFriend(userId, manager);
+      return;
+    }
+    await this.fishingService.enhanceRod(userId, reward.amount, manager);
   }
 
   /**

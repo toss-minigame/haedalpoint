@@ -1,5 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import type { EntityManager } from 'typeorm';
 import { AttendanceRepository } from '../attendance.repository.js';
 import { AttendanceLog } from '../entities/attendance-log.entity.js';
 
@@ -61,5 +62,26 @@ describe('AttendanceRepository', () => {
 
     await expect(repository.create(data)).resolves.toMatchObject({ id: 'log-1' });
     expect(typeormRepo.save).toHaveBeenCalledWith(data);
+  });
+
+  it("creates a log inside the caller's transaction", async () => {
+    const data = {
+      userId: USER_ID,
+      checkedDate: '2026-10-30',
+      streakDay: 1,
+      rewardType: 'ENHANCE_BONUS' as const,
+      rewardAmount: 1,
+      cycleCompleted: false,
+    };
+    const txRepo = { create: jest.fn().mockReturnValue(data), save: jest.fn() };
+    txRepo.save.mockResolvedValue({ id: 'log-1', ...data });
+    const manager = { getRepository: jest.fn().mockReturnValue(txRepo) };
+
+    await expect(
+      repository.create(data, manager as unknown as EntityManager),
+    ).resolves.toMatchObject({ id: 'log-1' });
+    expect(manager.getRepository).toHaveBeenCalledWith(AttendanceLog);
+    expect(txRepo.save).toHaveBeenCalledWith(data);
+    expect(typeormRepo.save).not.toHaveBeenCalled();
   });
 });

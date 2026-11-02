@@ -1,5 +1,7 @@
 import { ConflictException, NotFoundException, NotImplementedException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { DataSource, type EntityManager } from 'typeorm';
+import { FishingService } from '../../fishing/fishing.service.js';
 import { UsersService } from '../../users/users.service.js';
 import { AttendanceRepository } from '../attendance.repository.js';
 import { AttendanceService } from '../attendance.service.js';
@@ -21,6 +23,9 @@ describe('AttendanceService', () => {
     create: jest.fn(),
   };
   const usersService = { findById: jest.fn() };
+  const manager = { name: 'tx-manager' } as unknown as EntityManager;
+  const fishingService = { enhanceRod: jest.fn(), summonOtterFriend: jest.fn() };
+  const dataSource = { transaction: jest.fn() };
 
   beforeAll(() => {
     jest.useFakeTimers({ now: NOW });
@@ -34,12 +39,17 @@ describe('AttendanceService', () => {
     jest.resetAllMocks();
     usersService.findById.mockResolvedValue({ id: USER_ID });
     repo.create.mockImplementation(async (data: object) => ({ id: 'log-1', ...data }));
+    dataSource.transaction.mockImplementation(async (work: (m: EntityManager) => unknown) =>
+      work(manager),
+    );
 
     const moduleRef = await Test.createTestingModule({
       providers: [
         AttendanceService,
         { provide: AttendanceRepository, useValue: repo },
         { provide: UsersService, useValue: usersService },
+        { provide: FishingService, useValue: fishingService },
+        { provide: DataSource, useValue: dataSource },
       ],
     }).compile();
     service = moduleRef.get(AttendanceService);
@@ -55,14 +65,45 @@ describe('AttendanceService', () => {
         reward: { type: 'ENHANCE_BONUS', amount: 1 },
         cycleCompleted: false,
       });
-      expect(repo.create).toHaveBeenCalledWith({
-        userId: USER_ID,
-        checkedDate: TODAY,
-        streakDay: 1,
-        rewardType: 'ENHANCE_BONUS',
-        rewardAmount: 1,
-        cycleCompleted: false,
-      });
+      expect(repo.create).toHaveBeenCalledWith(
+        {
+          userId: USER_ID,
+          checkedDate: TODAY,
+          streakDay: 1,
+          rewardType: 'ENHANCE_BONUS',
+          rewardAmount: 1,
+          cycleCompleted: false,
+          rewardAppliedAt: NOW,
+        },
+        manager,
+      );
+    });
+
+    it('enhances the rod in the same transaction on days 1-6', async () => {
+      repo.findRecentByUserId.mockResolvedValue([log('2026-10-29', 3)]);
+
+      await service.checkIn(USER_ID);
+
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(fishingService.enhanceRod).toHaveBeenCalledWith(USER_ID, 1, manager);
+      expect(fishingService.summonOtterFriend).not.toHaveBeenCalled();
+    });
+
+    it('summons the otter friend in the same transaction on day 7', async () => {
+      repo.findRecentByUserId.mockResolvedValue([log('2026-10-29', 6)]);
+
+      await service.checkIn(USER_ID);
+
+      expect(fishingService.summonOtterFriend).toHaveBeenCalledWith(USER_ID, manager);
+      expect(fishingService.enhanceRod).not.toHaveBeenCalled();
+    });
+
+    it('does not apply the reward when the log cannot be saved', async () => {
+      repo.findRecentByUserId.mockResolvedValue([]);
+      repo.create.mockRejectedValue(Object.assign(new Error('duplicate key'), { code: '23505' }));
+
+      await expect(service.checkIn(USER_ID)).rejects.toThrow(ConflictException);
+      expect(fishingService.enhanceRod).not.toHaveBeenCalled();
     });
 
     it('increments the streak when checked in yesterday', async () => {
@@ -70,7 +111,7 @@ describe('AttendanceService', () => {
 
       await expect(service.checkIn(USER_ID)).resolves.toMatchObject({
         streakDay: 4,
-        reward: { type: 'ENHANCE_BONUS', amount: 4 },
+        reward: { type: 'ENHANCE_BONUS', amount: 1 },
       });
     });
 
