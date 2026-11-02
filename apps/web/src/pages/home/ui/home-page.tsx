@@ -1,9 +1,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { attendanceQueries } from '@/entities/attendance';
+import { quizQueries } from '@/entities/quiz';
 import { UserCard, userQueries } from '@/entities/user';
 import { CreateUserForm } from '@/features/create-user';
 import { getDevUserId, setDevUserId } from '@/shared/lib/dev-user-id';
+import { Button } from '@/shared/ui/button';
 import { AttendanceSection } from './attendance-section';
 import { DevUserIdInput } from './dev-user-id-input';
 
@@ -16,8 +19,9 @@ export function HomePage() {
   const handleDevUserIdChange = (userId: string | null) => {
     setDevUserId(userId);
     setDevUserIdState(userId);
-    // 사용자 전환 시 이전 사용자의 출석 캐시를 버림
+    // 사용자 전환 시 이전 사용자의 출석·퀴즈 캐시를 버림
     queryClient.removeQueries({ queryKey: attendanceQueries.all() });
+    queryClient.removeQueries({ queryKey: quizQueries.all() });
   };
 
   return (
@@ -25,6 +29,9 @@ export function HomePage() {
       <h1 className="text-2xl font-bold">haedalpoint</h1>
       <DevUserIdInput userId={devUserId} onChange={handleDevUserIdChange} />
       <AttendanceSection hasUserId={devUserId !== null} />
+      <Button asChild size="lg" variant="outline" className="h-12 w-full text-base">
+        <Link to="/quiz">오늘의 O/X 퀴즈 풀기</Link>
+      </Button>
       <CreateUserForm />
       <section className="flex flex-col gap-3">
         {isPending && <p className="text-muted-foreground">불러오는 중...</p>}
