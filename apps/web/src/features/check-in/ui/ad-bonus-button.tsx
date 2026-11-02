@@ -1,17 +1,23 @@
-import { Button } from '@/shared/ui/button';
+import type { RewardedAd } from '@/shared/lib/rewarded-ad';
+import { RewardedAdButton } from '@/shared/ui/rewarded-ad-button';
+import { useClaimAdBonus } from '../api/use-claim-ad-bonus';
 
 type Props = {
-  isAvailable: boolean;
+  ad: RewardedAd;
 };
 
-// TODO(ad): 토스 보상형 광고 SDK 연동 시 `userEarnedReward` 수신 후 POST /attendance/ad-bonus 호출.
-// 출석 기본 보상과는 독립된 선택 행동이며, 연동 전까지는 항상 비활성 상태로 노출만 한다.
-export function AdBonusButton({ isAvailable }: Props) {
-  if (!isAvailable) return null;
+// 출석 기본 보상과는 별개인 선택 행동. 광고를 끝까지 봤을 때만 오늘 보상을 한 번 더 받는다.
+export function AdBonusButton({ ad }: Props) {
+  const { mutate, isPending } = useClaimAdBonus();
 
   return (
-    <Button type="button" variant="outline" size="lg" className="h-12 w-full" disabled>
-      광고 보고 2배 받기 · 준비 중
-    </Button>
+    <RewardedAdButton
+      ad={ad}
+      label="광고 보고 2배 받기"
+      incompleteMessage="광고를 끝까지 보면 보상을 한 번 더 받을 수 있어요"
+      variant="outline"
+      isPending={isPending}
+      onReward={() => mutate()}
+    />
   );
 }

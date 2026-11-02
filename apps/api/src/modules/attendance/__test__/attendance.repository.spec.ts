@@ -1,5 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { IsNull } from 'typeorm';
 import { AttendanceRepository } from '../attendance.repository.js';
 import { AttendanceLog } from '../entities/attendance-log.entity.js';
 
@@ -11,6 +12,7 @@ describe('AttendanceRepository', () => {
     findOneBy: jest.fn(),
     create: jest.fn(),
     save: jest.fn(),
+    update: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -62,4 +64,21 @@ describe('AttendanceRepository', () => {
     await expect(repository.create(data)).resolves.toMatchObject({ id: 'log-1' });
     expect(typeormRepo.save).toHaveBeenCalledWith(data);
   });
+
+  it.each([
+    [1, true],
+    [0, false],
+  ])(
+    'claims the ad bonus only when not yet claimed (affected=%p → %p)',
+    async (affected, expected) => {
+      const claimedAt = new Date('2026-11-02T03:00:00Z');
+      typeormRepo.update.mockResolvedValue({ affected });
+
+      await expect(repository.claimAdBonus('log-1', claimedAt)).resolves.toBe(expected);
+      expect(typeormRepo.update).toHaveBeenCalledWith(
+        { id: 'log-1', adBonusClaimedAt: IsNull() },
+        { adBonusClaimedAt: claimedAt },
+      );
+    },
+  );
 });

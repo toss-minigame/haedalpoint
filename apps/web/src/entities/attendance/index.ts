@@ -3,6 +3,7 @@ export { attendanceApi } from './api/attendance-api';
 export { attendanceQueries } from './api/attendance-queries';
 export { formatReward } from './lib/format-reward';
 export type {
+  AdBonusResponse,
   AttendanceCycleStamp,
   AttendanceReward,
   AttendanceStatus,
