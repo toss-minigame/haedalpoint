@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, IsNull, Repository } from 'typeorm';
+import { type EntityManager, In, IsNull, type Repository } from 'typeorm';
 import { Quiz } from './entities/quiz.entity.js';
 import { QuizAttempt } from './entities/quiz-attempt.entity.js';
 
@@ -82,12 +82,14 @@ export class QuizRepository {
 
   /**
    * 보상 기록: 정답이고 아직 보상을 받지 않은 상태에서만 반영한다.
+   * 낚싯대 강화와 한 트랜잭션으로 묶을 수 있도록 호출자의 EntityManager 를 받는다.
    * @returns 반영됐으면 true
    */
-  async claimReward(attemptId: string, rewardAmount: number, claimedAt: Date): Promise<boolean> {
-    const result = await this.attemptRepo.update(
+  async claimReward(attemptId: string, claimedAt: Date, manager?: EntityManager): Promise<boolean> {
+    const attempts = manager ? manager.getRepository(QuizAttempt) : this.attemptRepo;
+    const result = await attempts.update(
       { id: attemptId, isCorrect: true, rewardClaimedAt: IsNull() },
-      { rewardAmount, rewardClaimedAt: claimedAt },
+      { rewardClaimedAt: claimedAt },
     );
     return result.affected === 1;
   }

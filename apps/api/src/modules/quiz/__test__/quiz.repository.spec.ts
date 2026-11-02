@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { In, IsNull } from 'typeorm';
+import { type EntityManager, In, IsNull } from 'typeorm';
 import { Quiz } from '../entities/quiz.entity.js';
 import { QuizAttempt } from '../entities/quiz-attempt.entity.js';
 import { QuizRepository } from '../quiz.repository.js';
@@ -113,11 +113,27 @@ describe('QuizRepository', () => {
     it('claims a reward only when solved and unclaimed', async () => {
       const claimedAt = new Date('2026-11-02T03:00:00Z');
 
-      await expect(repository.claimReward('attempt-1', 10, claimedAt)).resolves.toBe(expected);
+      await expect(repository.claimReward('attempt-1', claimedAt)).resolves.toBe(expected);
       expect(attemptRepo.update).toHaveBeenCalledWith(
         { id: 'attempt-1', isCorrect: true, rewardClaimedAt: IsNull() },
-        { rewardAmount: 10, rewardClaimedAt: claimedAt },
+        { rewardClaimedAt: claimedAt },
       );
+    });
+
+    it("claims a reward inside the caller's transaction", async () => {
+      const claimedAt = new Date('2026-11-02T03:00:00Z');
+      const txAttemptRepo = { update: jest.fn().mockResolvedValue({ affected }) };
+      const manager = { getRepository: jest.fn().mockReturnValue(txAttemptRepo) };
+
+      await expect(
+        repository.claimReward('attempt-1', claimedAt, manager as unknown as EntityManager),
+      ).resolves.toBe(expected);
+      expect(manager.getRepository).toHaveBeenCalledWith(QuizAttempt);
+      expect(txAttemptRepo.update).toHaveBeenCalledWith(
+        { id: 'attempt-1', isCorrect: true, rewardClaimedAt: IsNull() },
+        { rewardClaimedAt: claimedAt },
+      );
+      expect(attemptRepo.update).not.toHaveBeenCalled();
     });
 
     it('unlocks a retry only when wrong and still locked', async () => {

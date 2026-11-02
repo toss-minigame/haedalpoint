@@ -7,7 +7,7 @@ import { BaseEntity } from '../../../common/entities/base.entity.js';
 //
 // 한 행 = 사용자가 그날 한 퀴즈에 도전한 기록. 재도전하면 같은 행을 갱신한다.
 //   오답 → (광고 시청) retry_unlocked = true → 재답변 → 정답이 될 때까지 반복
-//   정답 → (광고 시청) reward_claimed_at 기록
+//   정답 → (광고 시청) reward_claimed_at 기록 + 낚싯대 강화 (ADR-0007)
 @Entity('quiz_attempts')
 @Unique('UQ_quiz_attempts_user_id_attempted_date_quiz_id', ['userId', 'attemptedDate', 'quizId'])
 export class QuizAttempt extends BaseEntity {
@@ -37,10 +37,8 @@ export class QuizAttempt extends BaseEntity {
   @Column({ type: 'boolean', name: 'retry_unlocked', default: false })
   retryUnlocked: boolean;
 
-  // 정답 후 광고 시청으로 지급한 물고기 수 (TODO: 물고기 지갑 모듈 생기면 실제 적립과 연결)
-  @Column({ type: 'int', name: 'reward_amount', nullable: true })
-  rewardAmount: number | null;
-
+  // 정답 후 광고를 보고 낚싯대 강화 보상을 받은 시각
+  // (이전의 reward_amount 컬럼은 엔티티에서 뺐다. DB 컬럼 삭제는 배포 후 별도 마이그레이션 — docs/design/fishing.md 7장)
   @Column({ type: 'timestamptz', name: 'reward_claimed_at', nullable: true })
   rewardClaimedAt: Date | null;
 }

@@ -2,13 +2,13 @@
 // 정책값(하루 퀴즈 수, 보상량)은 api 가 응답으로 내려준다. web 에 따로 두지 않는다.
 //
 // 흐름
-//   답변 → 정답(CORRECT): 정답·해설 공개 → 광고 시청 → 물고기 보상
+//   답변 → 정답(CORRECT): 정답·해설 공개 → 광고 시청 → 낚싯대 강화 (ADR-0007)
 //        → 오답(WRONG):   정답·해설 숨김 → 광고 시청 → 재도전(RETRY_READY) → 다시 답변 (맞힐 때까지)
 
 /**
  * - WRONG: 틀림. 광고를 보면 재도전할 수 있다.
  * - RETRY_READY: 광고를 보고 재도전 기회를 얻음. 다시 답변할 수 있다.
- * - CORRECT: 맞힘. 광고를 보면 보상을 받을 수 있다.
+ * - CORRECT: 맞힘. 광고를 보면 낚싯대를 강화할 수 있다.
  */
 export type QuizAttemptStatus = 'WRONG' | 'RETRY_READY' | 'CORRECT';
 
@@ -20,8 +20,7 @@ export interface QuizAttemptResult {
   wrongCount: number;
   correctAnswer: boolean | null; // 맞히기 전에는 null
   explanation: string | null; // 맞히기 전에는 null
-  rewardAmount: number | null; // 받은 물고기 수 (아직 받지 않았으면 null)
-  rewardClaimed: boolean;
+  rewardClaimed: boolean; // 광고를 보고 낚싯대 강화 보상을 받았는지
 }
 
 export interface TodayQuizItem {
@@ -34,7 +33,7 @@ export interface TodayQuizItem {
 export interface TodayQuizResponse {
   date: string; // 'YYYY-MM-DD' (KST)
   items: TodayQuizItem[];
-  rewardPerQuiz: number; // 정답 후 광고 시청 시 퀴즈당 받는 물고기 수
+  rewardSpeedBonusPercent: number; // 정답 후 광고 시청 시 오르는 낚시 속도 (%)
 }
 
 // POST /api/quiz/:quizId/answer
@@ -55,5 +54,6 @@ export interface UnlockQuizRetryResponse {
 // POST /api/quiz/:quizId/ad-reward (정답 후 광고 시청 완료)
 export interface ClaimQuizRewardResponse {
   quizId: string;
-  rewardAmount: number;
+  rodLevel: number; // 강화 후 오늘 낚싯대 단계
+  rodSpeedBonusPercent: number; // 강화 후 낚싯대로 오른 속도 (%)
 }

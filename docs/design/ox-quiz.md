@@ -2,20 +2,22 @@
 
 - 상태: 초안
 - 작성일: 2026-11-02
-- 관련 ADR: [ADR-0003 재화 이름(물고기)](../adr/0003-in-app-currency-name.md), [ADR-0004 사용자 식별](../adr/0004-user-identification-anonymous-key.md), [ADR-0005 퀴즈 보상 방식(Proposed)](../adr/0005-quiz-reward-in-app-currency.md)
+- 관련 ADR: [ADR-0003 재화 이름(물고기)](../adr/0003-in-app-currency-name.md), [ADR-0004 사용자 식별](../adr/0004-user-identification-anonymous-key.md), [ADR-0007 낚시 경제](../adr/0007-fishing-economy.md) (ADR-0005 대체)
 - 데이터 시퀀스: [ox-quiz-sequence.md](./ox-quiz-sequence.md)
 
 ## 1. 개요
 
-사용자가 O/X 퀴즈를 풀고 보상형 광고를 끝까지 시청하면 앱 내 재화 **물고기**를 받는 기능이다.
-물고기 → 토스 포인트 전환은 이 문서의 범위가 아니다 (전환 비율 확정 후 별도 설계).
+사용자가 O/X 퀴즈를 풀고 보상형 광고를 끝까지 시청하면 **낚싯대가 강화**되는 기능이다 (그날 낚시 속도 +10%).
+퀴즈는 물고기를 직접 주지 않는다. 물고기는 해달 낚시로만 얻는다 (ADR-0007, [fishing.md](./fishing.md)).
+
+> 2026-11-02 변경: 처음에는 퀴즈 보상으로 물고기를 지급했으나(ADR-0005), 낚싯대 강화로 바뀌었다.
 
 ### 범위
 
 | 포함 | 제외 (후속 작업) |
 |---|---|
 | 오늘의 퀴즈 조회, O/X 답변 제출·서버 정답 판정 | 물고기 → 토스 포인트 전환 (프로모션 API, mTLS) |
-| 보상형 광고 시청 후 물고기 보상 기록 | 물고기 지갑(`fish-wallet`) 원장 모듈 |
+| 보상형 광고 시청 후 보상 기록 + 낚싯대 강화 | |
 | 참여 제한 (하루 횟수, 퀴즈별 1회) | 운영자용 퀴즈 등록 화면 |
 | 퀴즈 화면 (web) | 운영용 사용자 식별 (토스 로그인 / 익명키) |
 
@@ -55,7 +57,7 @@
  → GET 오늘의 퀴즈 (정답 미포함)
  → O 또는 X 선택 → POST 답변 → 서버가 정답 판정
      ├─ 정답(CORRECT): 정답·해설 표시
-     │    → [광고 보고 물고기 받기] → userEarnedReward → POST ad-reward → 지급 결과 표시
+     │    → [광고 보고 낚싯대 강화하기] → userEarnedReward → POST ad-reward → 강화 결과 표시
      └─ 오답(WRONG): 정답·해설 숨김
           → [광고 보고 다시 풀기] → userEarnedReward → POST ad-retry (RETRY_READY)
           → 다시 답변 → (맞힐 때까지 반복, 횟수 제한 없음)
@@ -73,10 +75,10 @@
 
 | Method | Path | 설명 | 주요 응답 |
 |---|---|---|---|
-| GET | `/quiz/today` | 오늘의 퀴즈 목록과 내 도전 현황, 퀴즈당 보상량 | 퀴즈(id, 문제), 도전 상태(`status`), 보상 수령 여부 |
+| GET | `/quiz/today` | 오늘의 퀴즈 목록과 내 도전 현황, 퀴즈 보상으로 오르는 속도(%) | 퀴즈(id, 문제), 도전 상태(`status`), 보상 수령 여부 |
 | POST | `/quiz/:quizId/answer` | 첫 답변 또는 재도전 답변. 서버가 정답 판정 | `status`, 정답 여부, 틀린 횟수, 정답·해설(맞혔을 때만) |
 | POST | `/quiz/:quizId/ad-retry` | 오답 후 광고 시청 완료 → 재도전 기회 열기 | `status: RETRY_READY` |
-| POST | `/quiz/:quizId/ad-reward` | 정답 후 광고 시청 완료 → 물고기 보상 | 지급한 물고기 수 |
+| POST | `/quiz/:quizId/ad-reward` | 정답 후 광고 시청 완료 → 낚싯대 강화 | 오늘 낚싯대 단계, 낚싯대로 오른 속도(%) |
 
 도전 상태(`status`):
 
@@ -128,7 +130,6 @@
 | is_correct | boolean | 마지막 답변의 정답 여부 (true가 되면 더 이상 답변 불가) |
 | wrong_count | int, default 0 | 틀린 횟수 (재도전 광고 노출 분석용) |
 | retry_unlocked | boolean, default false | 오답 후 광고로 재도전 기회를 받았는지. 재답변하면 다시 false |
-| reward_amount | int, nullable | 지급한 물고기 수 |
 | reward_claimed_at | timestamptz, nullable | 광고 보상 수령 시각 |
 
 - 한 행 = 사용자가 그날 한 퀴즈에 도전한 기록. 재도전하면 새 행을 만들지 않고 같은 행을 갱신한다.
@@ -141,20 +142,21 @@
   - 재답변: `is_correct = false AND retry_unlocked = true` (또 틀리면 `wrong_count + 1`을 DB에서 원자적으로 계산)
   - 보상: `is_correct = true AND reward_claimed_at IS NULL`
 
-### 물고기 지급
+### 낚싯대 강화
 
-물고기 지갑(`fish-wallet`) 모듈은 아직 없다. 우선 `quiz_attempts.reward_amount` / `reward_claimed_at`에 지급 내역을 기록하고,
-지갑 모듈이 생기면 서비스에서 지갑 적립을 호출하도록 연결한다 (출석체크의 `reward_applied_at` TODO와 같은 방식).
+보상 기록(`reward_claimed_at`)과 낚싯대 강화(`FishingService.enhanceRod`)를 **한 트랜잭션**으로 처리한다.
+보상은 기록됐는데 강화가 안 되는 일이 없다. 초기의 `reward_amount`(지급 물고기 수)는 엔티티에서 제거했고,
+DB 컬럼은 배포 후 별도 마이그레이션으로 삭제한다 ([fishing.md](./fishing.md) 7장).
 
 ## 6. 보상·참여 정책
 
 정책값은 **api 안의 `apps/api/src/common/globals/quiz.policy.ts` 한 곳에서만** 관리한다.
-web은 값을 따로 갖지 않고 API 응답(`rewardPerQuiz`, `items` 개수)으로만 받는다. 값을 바꿀 때는 api만 재배포하면 되고, 미니앱 번들 재빌드·재출시가 필요 없다.
+web은 값을 따로 갖지 않고 API 응답(`rewardSpeedBonusPercent`, `items` 개수)으로만 받는다. 값을 바꿀 때는 api만 재배포하면 되고, 미니앱 번들 재빌드·재출시가 필요 없다.
 
 | 항목 | 상수 | 임시값 |
 |---|---|---|
 | 하루 퀴즈 수 | `QUIZ_POLICY.DAILY_QUIZ_COUNT` | 3 |
-| 퀴즈당 물고기 보상 (정답 + 광고 시청 시) | `QUIZ_POLICY.REWARD_PER_QUIZ` | 10 |
+| 퀴즈당 낚싯대 강화 단계 (정답 + 광고 시청 시) | `QUIZ_POLICY.ROD_LEVELS_PER_REWARD` | 1 (단계당 +10%, `ROD_POLICY`) |
 | 오답 시 재도전 횟수 | — | 제한 없음 (맞힐 때까지, 매번 광고 시청) |
 | 오답 보상 | — | 없음 |
 
@@ -227,9 +229,9 @@ src/
 
 ## 12. 결정 필요
 
-- [ ] 하루 퀴즈 수, 퀴즈당 물고기 보상량 (현재 임시값 3문제·10마리)
+- [ ] 하루 퀴즈 수 (현재 임시값 3문제)
 - [x] 보상 조건: 정답을 맞힌 경우에만, 광고 시청 후 지급
 - [x] 오답 처리: 정답·해설 숨김 → 광고 시청 후 재도전 (맞힐 때까지 제한 없음)
 - [ ] 퀴즈 출제 방식: 전체 사용자 동일 문제 / 사용자별 랜덤 / 날짜별 고정 세트
 - [ ] 퀴즈 데이터 관리 방식: 마이그레이션 시드 / 운영자 API / 외부 시트
-- [ ] ADR-0005(보상을 물고기로 지급) 확정 여부
+- [x] 보상 방식: 물고기 지급(ADR-0005) → 낚싯대 강화로 변경 (ADR-0007)

@@ -1,6 +1,8 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { QUIZ_POLICY } from '../../../common/globals/index.js';
+import { DataSource, type EntityManager } from 'typeorm';
+import { QUIZ_POLICY, ROD_POLICY } from '../../../common/globals/index.js';
+import { FishingService } from '../../fishing/fishing.service.js';
 import { UsersService } from '../../users/users.service.js';
 import { selectDailyQuizIds } from '../lib/select-daily-quizzes.js';
 import { QuizRepository } from '../quiz.repository.js';
@@ -30,7 +32,6 @@ function attempt(quizId: string, overrides: Record<string, unknown> = {}) {
     isCorrect: true,
     wrongCount: 0,
     retryUnlocked: false,
-    rewardAmount: null,
     rewardClaimedAt: null,
     ...overrides,
   };
@@ -53,6 +54,11 @@ describe('QuizService', () => {
     claimReward: jest.fn(),
   };
   const usersService = { findById: jest.fn() };
+  const manager = { name: 'tx-manager' } as unknown as EntityManager;
+  const fishingService = { enhanceRod: jest.fn() };
+  const dataSource = {
+    transaction: jest.fn(async (work: (m: EntityManager) => unknown) => work(manager)),
+  };
 
   beforeAll(() => {
     jest.useFakeTimers({ now: NOW });
@@ -69,12 +75,17 @@ describe('QuizService', () => {
     repo.findQuizById.mockResolvedValue(quiz(QUIZ_ID, true));
     repo.findAttempt.mockResolvedValue(null);
     repo.createAttempt.mockImplementation(async (data: object) => ({ id: 'attempt-1', ...data }));
+    dataSource.transaction.mockImplementation(async (work: (m: EntityManager) => unknown) =>
+      work(manager),
+    );
 
     const moduleRef = await Test.createTestingModule({
       providers: [
         QuizService,
         { provide: QuizRepository, useValue: repo },
         { provide: UsersService, useValue: usersService },
+        { provide: FishingService, useValue: fishingService },
+        { provide: DataSource, useValue: dataSource },
       ],
     }).compile();
     service = moduleRef.get(QuizService);
@@ -91,7 +102,8 @@ describe('QuizService', () => {
       expect(repo.findAttemptsByUserAndDate).toHaveBeenCalledWith(USER_ID, TODAY);
       expect(result).toEqual({
         date: TODAY,
-        rewardPerQuiz: QUIZ_POLICY.REWARD_PER_QUIZ,
+        rewardSpeedBonusPercent:
+          QUIZ_POLICY.ROD_LEVELS_PER_REWARD * ROD_POLICY.SPEED_BONUS_PERCENT_PER_LEVEL,
         items: TODAY_IDS.map((id) => ({ quizId: id, question: `${id} 문제`, attempt: null })),
       });
     });
@@ -100,7 +112,7 @@ describe('QuizService', () => {
       const [solved, wrong] = TODAY_IDS;
       repo.findQuizzesByIds.mockResolvedValue(TODAY_IDS.map((id) => quiz(id)));
       repo.findAttemptsByUserAndDate.mockResolvedValue([
-        attempt(solved, { rewardAmount: 10, rewardClaimedAt: new Date() }),
+        attempt(solved, { rewardClaimedAt: new Date() }),
         attempt(wrong, WRONG),
       ]);
 
@@ -145,7 +157,6 @@ describe('QuizService', () => {
         wrongCount: 0,
         correctAnswer: true,
         explanation: `${QUIZ_ID} 해설`,
-        rewardAmount: null,
         rewardClaimed: false,
       });
       expect(repo.createAttempt).toHaveBeenCalledWith({
@@ -167,7 +178,6 @@ describe('QuizService', () => {
         wrongCount: 1,
         correctAnswer: null,
         explanation: null,
-        rewardAmount: null,
         rewardClaimed: false,
       });
       expect(repo.createAttempt).toHaveBeenCalledWith(
@@ -304,19 +314,32 @@ describe('QuizService', () => {
   });
 
   describe('claimAdReward', () => {
-    it('records the reward for a solved quiz', async () => {
+    it('records the reward and enhances the rod in one transaction', async () => {
       repo.findAttempt.mockResolvedValue(attempt(QUIZ_ID));
       repo.claimReward.mockResolvedValue(true);
+      fishingService.enhanceRod.mockResolvedValue({ rodLevel: 2, rodSpeedBonusPercent: 20 });
 
       await expect(service.claimAdReward(USER_ID, QUIZ_ID)).resolves.toEqual({
         quizId: QUIZ_ID,
-        rewardAmount: QUIZ_POLICY.REWARD_PER_QUIZ,
+        rodLevel: 2,
+        rodSpeedBonusPercent: 20,
       });
-      expect(repo.claimReward).toHaveBeenCalledWith(
-        `attempt-${QUIZ_ID}`,
-        QUIZ_POLICY.REWARD_PER_QUIZ,
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(repo.claimReward).toHaveBeenCalledWith(`attempt-${QUIZ_ID}`, NOW, manager);
+      expect(fishingService.enhanceRod).toHaveBeenCalledWith(
+        USER_ID,
+        QUIZ_POLICY.ROD_LEVELS_PER_REWARD,
+        manager,
         NOW,
       );
+    });
+
+    it('does not enhance the rod when the reward cannot be recorded', async () => {
+      repo.findAttempt.mockResolvedValue(attempt(QUIZ_ID));
+      repo.claimReward.mockResolvedValue(false);
+
+      await expect(service.claimAdReward(USER_ID, QUIZ_ID)).rejects.toThrow(ConflictException);
+      expect(fishingService.enhanceRod).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundException when the quiz was not answered today', async () => {
