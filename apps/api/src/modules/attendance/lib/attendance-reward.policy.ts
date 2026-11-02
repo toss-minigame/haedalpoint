@@ -1,5 +1,5 @@
 import type { AttendanceReward, AttendanceStreakDay } from '@haedalpoint/shared';
-import { addDays } from './kst-date';
+import { addDays } from '../../../common/utils/kst-date';
 
 export const ATTENDANCE_CYCLE_DAYS = 7;
 
