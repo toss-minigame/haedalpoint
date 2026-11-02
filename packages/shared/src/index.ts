@@ -2,4 +2,5 @@
 export * from './api';
 export * from './attendance';
 export * from './auth';
+export * from './fishing';
 export * from './quiz';
