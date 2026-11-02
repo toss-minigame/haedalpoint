@@ -6,3 +6,4 @@ packages:
 allowBuilds:
   "@parcel/watcher": false
   unrs-resolver: false
+  protobufjs: false # postinstall은 버전 경고 출력만 함
