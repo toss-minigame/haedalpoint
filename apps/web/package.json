@@ -5,12 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && ait build",
     "preview": "vite preview",
     "lint": "biome lint .",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "deploy": "ait deploy"
   },
   "dependencies": {
+    "@apps-in-toss/web-framework": "^3.9.0",
     "@fontsource-variable/geist": "^5.3.0",
     "@haedalpoint/shared": "workspace:*",
     "@tanstack/react-query": "^5.105.0",
@@ -26,6 +28,7 @@
     "sonner": "^2.0.8"
   },
   "devDependencies": {
+    "@apps-in-toss/devtools": "^3.9.0",
     "@haedalpoint/typescript-config": "workspace:*",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-query-devtools": "^5.105.0",
