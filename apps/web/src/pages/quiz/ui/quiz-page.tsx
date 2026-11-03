@@ -5,6 +5,7 @@ import { env } from '@/shared/config/env';
 import { type RewardedAd, useRewardedAd } from '@/shared/lib/rewarded-ad';
 import { Button } from '@/shared/ui/button';
 import { QuizItem } from './quiz-item';
+import { QuizListSkeleton } from './quiz-list-skeleton';
 
 function countSolved({ items }: TodayQuizResponse): number {
   return items.filter((item) => item.attempt?.status === 'CORRECT').length;
@@ -57,7 +58,7 @@ export function QuizPage() {
         </p>
       </header>
 
-      {isPending && <p className="text-muted-foreground">불러오는 중...</p>}
+      {isPending && <QuizListSkeleton />}
       {isError && <p className="text-destructive">{error.message}</p>}
       {today && <QuizList today={today} ad={rewardedAd} />}
 
