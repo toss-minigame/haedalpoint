@@ -1,6 +1,7 @@
 import { toast } from 'sonner';
 import type { RewardedAd, RewardedAdStatus } from '@/shared/lib/rewarded-ad';
 import { Button } from '@/shared/ui/button';
+import { Spinner } from '@/shared/ui/spinner';
 
 const AD_BUTTON_CLASS = 'h-12 w-full text-base';
 
@@ -18,6 +19,8 @@ type Props = {
   /** 광고를 끝까지 보지 않고 닫았을 때 안내 */
   incompleteMessage: string;
   isPending: boolean;
+  /** 보상을 처리하는 동안의 문구 (스피너와 함께 보인다) */
+  pendingLabel?: string;
   variant: 'default' | 'outline';
   onReward: () => void;
 };
@@ -28,6 +31,7 @@ export function RewardedAdButton({
   label,
   incompleteMessage,
   isPending,
+  pendingLabel = '처리하고 있어요',
   variant,
   onReward,
 }: Props) {
@@ -49,7 +53,7 @@ export function RewardedAdButton({
     });
   };
 
-  const text = isPending ? '처리하고 있어요' : status === 'ready' ? label : STATUS_LABEL[status];
+  const text = isPending ? pendingLabel : status === 'ready' ? label : STATUS_LABEL[status];
 
   return (
     <Button
@@ -60,6 +64,7 @@ export function RewardedAdButton({
       disabled={!isEnabled}
       onClick={handleClick}
     >
+      {isPending && <Spinner />}
       {text}
     </Button>
   );
