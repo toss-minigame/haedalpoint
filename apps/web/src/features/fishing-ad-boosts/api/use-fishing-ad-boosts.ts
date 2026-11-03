@@ -1,6 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { type FishingAdBoostResponse, fishingApi, fishingQueries } from '@/entities/fishing';
+import {
+  type FishingAdBoostResponse,
+  fishingApi,
+  fishingQueries,
+  hammockName,
+} from '@/entities/fishing';
 import { ApiError } from '@/shared/api';
 
 const HTTP_CONFLICT = 409;
@@ -54,12 +59,12 @@ export function useAdEnhanceRod() {
   });
 }
 
-/** 광고 시청 완료 → 오늘 자정까지 해먹 넓히기 */
+/** 광고 시청 완료 → 오늘 자정까지 해먹 한 단계 넓히기 */
 export function useAdExpandHammock() {
   return useFishingAdBoost({
     mutationFn: fishingApi.adExpandHammock,
-    successMessage: ({ hammockExpandBonusPercent }) =>
-      `해먹을 넓혔어요 · 오늘 해먹 용량 +${hammockExpandBonusPercent}%`,
+    successMessage: ({ hammockLevel, hammockLevelBonusPercent }) =>
+      `${hammockName(hammockLevel)}으로 넓혔어요 · 오늘 해먹 용량 +${hammockLevelBonusPercent}%`,
     failureMessage: '해먹을 넓히지 못했어요. 잠시 후 다시 시도해 주세요.',
   });
 }
