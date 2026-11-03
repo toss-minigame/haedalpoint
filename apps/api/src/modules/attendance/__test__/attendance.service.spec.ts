@@ -216,7 +216,7 @@ describe('AttendanceService', () => {
       return { ...log(TODAY, 1), id: 'log-today', rewardType, rewardAmount };
     }
 
-    it('grants the same reward again and records the claim', async () => {
+    it('records the claim and enhances the rod again in one transaction', async () => {
       repo.findByUserIdAndDate.mockResolvedValue(todayLog('ENHANCE_BONUS', 3));
       repo.claimAdBonus.mockResolvedValue(true);
 
@@ -224,16 +224,21 @@ describe('AttendanceService', () => {
         checkedDate: TODAY,
         bonusReward: { type: 'ENHANCE_BONUS', amount: 3 },
       });
-      expect(repo.claimAdBonus).toHaveBeenCalledWith('log-today', NOW);
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(repo.claimAdBonus).toHaveBeenCalledWith('log-today', NOW, manager);
+      expect(fishingService.enhanceRod).toHaveBeenCalledWith(USER_ID, 3, manager, NOW);
+      expect(fishingService.summonOtterFriend).not.toHaveBeenCalled();
     });
 
-    it('includes the day 7 otter friend', async () => {
+    it('summons one more otter friend on day 7', async () => {
       repo.findByUserIdAndDate.mockResolvedValue(todayLog('OTTER_FRIEND', 1));
       repo.claimAdBonus.mockResolvedValue(true);
 
       await expect(service.claimAdBonus(USER_ID)).resolves.toMatchObject({
         bonusReward: { type: 'OTTER_FRIEND', amount: 1 },
       });
+      expect(fishingService.summonOtterFriend).toHaveBeenCalledWith(USER_ID, manager, NOW);
+      expect(fishingService.enhanceRod).not.toHaveBeenCalled();
     });
 
     it('throws ConflictException when a concurrent request claimed it first', async () => {
@@ -241,6 +246,16 @@ describe('AttendanceService', () => {
       repo.claimAdBonus.mockResolvedValue(false);
 
       await expect(service.claimAdBonus(USER_ID)).rejects.toThrow(ConflictException);
+      expect(fishingService.enhanceRod).not.toHaveBeenCalled();
+    });
+
+    it('fails without applying anything when the reward cannot be applied', async () => {
+      repo.findByUserIdAndDate.mockResolvedValue(todayLog('ENHANCE_BONUS', 1));
+      repo.claimAdBonus.mockResolvedValue(true);
+      fishingService.enhanceRod.mockRejectedValue(new Error('db down'));
+
+      // 트랜잭션이 롤백되므로 수령 기록도 남지 않아 클라이언트 재시도로 다시 받을 수 있다
+      await expect(service.claimAdBonus(USER_ID)).rejects.toThrow('db down');
     });
   });
 });

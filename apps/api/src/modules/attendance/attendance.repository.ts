@@ -38,10 +38,12 @@ export class AttendanceRepository {
 
   /**
    * 광고 보너스 수령 기록. 아직 받지 않은 경우에만 반영되는 조건부 UPDATE (연타·동시 요청 방어)
+   * 보상 적용(낚시)과 한 트랜잭션으로 묶을 수 있도록 호출자의 EntityManager 를 받는다.
    * @returns 반영됐으면 true
    */
-  async claimAdBonus(logId: string, claimedAt: Date): Promise<boolean> {
-    const result = await this.repo.update(
+  async claimAdBonus(logId: string, claimedAt: Date, manager?: EntityManager): Promise<boolean> {
+    const repo = manager ? manager.getRepository(AttendanceLog) : this.repo;
+    const result = await repo.update(
       { id: logId, adBonusClaimedAt: IsNull() },
       { adBonusClaimedAt: claimedAt },
     );
