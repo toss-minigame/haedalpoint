@@ -1,6 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { cn } from '@/shared/lib/utils';
-import { OTTER_SPRITES } from '../lib/otter-sprites';
+import {
+  FISH_SPRITES,
+  OTTER_FISHING_SPRITES,
+  PIER_SPRITE,
+  SEA_BACKGROUND_SPRITE,
+  SEA_WAVE_SPRITE,
+} from '../lib/otter-sprites';
 import { createSceneEngine, type SceneEngine } from '../lib/scene/scene-engine';
 
 type Props = {
@@ -9,7 +15,7 @@ type Props = {
 
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
-// 해달이 바다에서 물고기를 잡는 장면 (캔버스). 탭하면 바로 한 마리 잡는다.
+// 해달이 선착장에 앉아 바다에서 물고기를 낚는 장면 (캔버스). 탭하면 바로 한 마리 잡는다.
 // 장식용 연출이므로 재화 수량은 표시하지 않는다 (물고기 지갑 API 연동 후 별도 표시).
 export function OtterScene({ className }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -19,7 +25,14 @@ export function OtterScene({ className }: Props) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const engine = createSceneEngine(canvas, {
-      sprites: { idle: OTTER_SPRITES.idle, happy: OTTER_SPRITES.happy },
+      sprites: {
+        idle: OTTER_FISHING_SPRITES.idle,
+        happy: OTTER_FISHING_SPRITES.catch,
+        pier: PIER_SPRITE,
+        fish: FISH_SPRITES,
+        background: SEA_BACKGROUND_SPRITE,
+        wave: SEA_WAVE_SPRITE,
+      },
       reducedMotion: window.matchMedia(REDUCED_MOTION_QUERY).matches,
     });
     engineRef.current = engine;
@@ -32,7 +45,7 @@ export function OtterScene({ className }: Props) {
   return (
     <button
       type="button"
-      aria-label="바다에서 물고기를 잡는 해달. 누르면 해달이 물고기를 잡아요"
+      aria-label="선착장에서 낚시하는 해달. 누르면 해달이 물고기를 잡아요"
       className={cn(
         'block w-full overflow-hidden rounded-2xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
         className,

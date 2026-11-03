@@ -1,6 +1,9 @@
-import { drawScene, type SceneSprites } from './scene-render';
+import { drawScene, type FishImages, type SceneSprites } from './scene-render';
 import {
   createSceneState,
+  FISH_KINDS,
+  type FishKind,
+  randomFishKind,
   requestCatch,
   resizeScene,
   SCENE,
@@ -12,7 +15,14 @@ const MAX_FRAME_DT = 0.05; // 탭 전환 등으로 프레임이 길게 끊겨도
 const MS_PER_SECOND = 1000;
 
 export type SceneEngineOptions = {
-  sprites: { idle: string; happy: string };
+  sprites: {
+    idle: string;
+    happy: string;
+    pier: string;
+    fish: Record<FishKind, string>;
+    background: string;
+    wave: string;
+  };
   /** '동작 줄이기' 설정 사용자: 애니메이션 없이 정지 장면만 그리고, 탭하면 표정만 바뀐다 */
   reducedMotion: boolean;
 };
@@ -21,6 +31,11 @@ export type SceneEngine = {
   catchFish: () => void;
   destroy: () => void;
 };
+
+async function loadFishImages(sources: Record<FishKind, string>): Promise<FishImages> {
+  const images = await Promise.all(FISH_KINDS.map((kind) => loadImage(sources[kind])));
+  return Object.fromEntries(FISH_KINDS.map((kind, i) => [kind, images[i]])) as FishImages;
+}
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -94,12 +109,19 @@ export function createSceneEngine(
   resizeObserver.observe(canvas);
   document.addEventListener('visibilitychange', handleVisibility);
 
-  Promise.all([loadImage(options.sprites.idle), loadImage(options.sprites.happy)])
-    .then(([idle, happy]) => {
-      sprites = { idle, happy };
+  Promise.all([
+    loadImage(options.sprites.idle),
+    loadImage(options.sprites.happy),
+    loadImage(options.sprites.pier),
+    loadFishImages(options.sprites.fish),
+    loadImage(options.sprites.background),
+    loadImage(options.sprites.wave),
+  ])
+    .then(([idle, happy, pier, fish, background, wave]) => {
+      sprites = { idle, happy, pier, fish, background, wave };
       render();
     })
-    // 이미지를 못 불러와도 바다·물고기는 그린다 (해달만 빠짐)
+    // 이미지를 못 불러와도 단색 바다·이모지 물고기는 그린다 (선착장·해달·파도만 빠짐)
     .catch(() => {});
 
   resize();
@@ -111,8 +133,13 @@ export function createSceneEngine(
       state = requestCatch(state, random);
       return;
     }
-    // 동작 줄이기: 튀어 오르는 연출 없이 표정만 잠깐 바꾼다
-    state = { ...state, happyUntil: Number.POSITIVE_INFINITY };
+    // 동작 줄이기: 튀어 오르는 연출·페이드 없이 표정만 잠깐 바꾼다
+    state = {
+      ...state,
+      happySince: Number.NEGATIVE_INFINITY,
+      happyUntil: Number.POSITIVE_INFINITY,
+      hooked: { kind: randomFishKind(random), size: SCENE.FISH_MAX_SIZE },
+    };
     render();
     if (happyTimer) clearTimeout(happyTimer);
     happyTimer = setTimeout(() => {
