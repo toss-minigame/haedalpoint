@@ -3,8 +3,12 @@
 
 export type Random = () => number;
 
+export const FISH_KINDS = ['angelfish', 'goldfish', 'pufferfish', 'bluefish'] as const;
+export type FishKind = (typeof FISH_KINDS)[number];
+
 export type Fish = {
   id: number;
+  kind: FishKind;
   x: number;
   y: number;
   speed: number; // px/s
@@ -13,6 +17,7 @@ export type Fish = {
 };
 
 export type JumpingFish = {
+  kind: FishKind;
   fromX: number;
   fromY: number;
   toX: number;
@@ -34,13 +39,15 @@ export type SceneState = {
   fish: readonly Fish[];
   jumping: JumpingFish | null;
   splashes: readonly Splash[];
+  happySince: number; // 기쁜 표정이 시작된 시각(time). 표정 전환 페이드에 쓴다
   happyUntil: number; // 이 시각(time)까지 해달이 기쁜 표정
+  hooked: { kind: FishKind; size: number } | null; // 바늘에 걸린 물고기 (기쁜 표정일 때만 보인다)
   nextAutoCatchAt: number;
   nextFishId: number;
 };
 
 export const SCENE = {
-  WATER_LINE_RATIO: 0.52,
+  WATER_LINE_RATIO: 0.62,
   FISH_COUNT: 4,
   FISH_MIN_SIZE: 22,
   FISH_MAX_SIZE: 32,
@@ -50,31 +57,68 @@ export const SCENE = {
   JUMP_DURATION: 0.7, // s
   JUMP_ARC_HEIGHT: 70, // px
   HAPPY_DURATION: 1.6, // s
+  HAPPY_FADE: 0.15, // s, 대기 ↔ 기쁜 스프라이트 전환 페이드
   SPLASH_DURATION: 0.6, // s
-  OTTER_MAX_SIZE: 190, // px
-  OTTER_HEIGHT_RATIO: 0.62,
-  OTTER_SUBMERGE_RATIO: 0.2, // 해달 이미지 아래쪽이 물에 잠기는 비율
-  OTTER_BOB_AMPLITUDE: 4, // px
-  OTTER_BOB_SPEED: 2, // rad/s
+  // 배경 (shared/assets/scene/sea-background.jpg 기준). 이미지 안 수평선 높이
+  BACKGROUND_HORIZON_RATIO: 0.637,
+  // 파도 띠 (shared/assets/scene/sea-wave.png 기준). 마루 4개가 한 타일
+  WAVE_TILE_WIDTH: 320, // px
+  WAVE_SURFACE_Y_RATIO: 0.335, // 타일 안 파도 골(수면) 높이
+  WAVE_SCROLL_SPEED: 12, // px/s
+  // 선착장 (shared/assets/scene/pier.png 기준). 왼쪽 끝을 화면 왼쪽에 붙여 그린다
+  PIER_ASPECT: 600 / 455, // 이미지 가로 / 세로
+  PIER_HEIGHT_RATIO: 0.49, // 장면 높이 대비 선착장 이미지 높이
+  PIER_DECK_Y_RATIO: 0.353, // 이미지 안 상판 가운데 높이 (의자가 놓이는 곳)
+  PIER_WATER_Y_RATIO: 0.614, // 이미지 안에서 수면이 닿는 높이 (기둥 중간)
+  // 해달 스프라이트 (otter-fishing-*.png 기준)
+  OTTER_PIER_RATIO: 0.715, // 선착장 너비 대비 해달 이미지 크기
+  OTTER_PIER_END_OFFSET: 0.659, // 선착장 끝에서 해달 이미지 왼쪽까지 (해달 크기 대비)
+  OTTER_FOOT_RATIO: 0.98, // 이미지 안 의자 다리·발 아래 끝 높이
+  // 성공 스프라이트 안 낚싯바늘 끝 위치 (이미지 크기 대비 비율). 잡힌 물고기가 여기에 매달린다
+  HOOK_X_RATIO: 0.933,
+  HOOK_Y_RATIO: 0.453,
+  HOOKED_FISH_DROP: 0.4, // 바늘 끝에서 매달린 물고기 중심까지 (물고기 크기 대비)
+  HOOKED_FISH_SWING: 0.12, // rad, 매달린 물고기가 좌우로 흔들리는 각도
+  HOOKED_FISH_SWING_SPEED: 3, // rad/s
 } as const;
 
 const between = (random: Random, min: number, max: number) => min + random() * (max - min);
+
+export function randomFishKind(random: Random): FishKind {
+  return FISH_KINDS[Math.floor(random() * FISH_KINDS.length)] ?? FISH_KINDS[0];
+}
 
 export function waterLineY(height: number): number {
   return height * SCENE.WATER_LINE_RATIO;
 }
 
-/** 해달의 그리기 위치(왼쪽 위)와 크기, 물고기를 받는 손 위치 */
-export function otterLayout({
-  width,
-  height,
-  time,
-}: Pick<SceneState, 'width' | 'height' | 'time'>) {
-  const size = Math.min(height * SCENE.OTTER_HEIGHT_RATIO, SCENE.OTTER_MAX_SIZE);
-  const bob = Math.sin(time * SCENE.OTTER_BOB_SPEED) * SCENE.OTTER_BOB_AMPLITUDE;
-  const x = width / 2 - size / 2;
-  const y = waterLineY(height) + size * SCENE.OTTER_SUBMERGE_RATIO - size + bob;
-  return { x, y, size, handsX: width / 2, handsY: y + size * 0.22 };
+export type Rect = { x: number; y: number; width: number; height: number };
+
+/** 선착장 그리기 영역. 장면 높이에 맞춰 크기를 정하고, 기둥 중간이 수면에 오게 둔다 */
+export function pierLayout({ height }: Pick<SceneState, 'height'>): Rect {
+  const pierHeight = height * SCENE.PIER_HEIGHT_RATIO;
+  return {
+    x: 0,
+    y: waterLineY(height) - pierHeight * SCENE.PIER_WATER_Y_RATIO,
+    width: pierHeight * SCENE.PIER_ASPECT,
+    height: pierHeight,
+  };
+}
+
+/** 선착장 끝 상판 위에 앉은 해달의 그리기 위치(왼쪽 위)·크기와 낚싯바늘 위치 */
+export function otterLayout(state: Pick<SceneState, 'height'>) {
+  const pier = pierLayout(state);
+  const deckY = pier.y + pier.height * SCENE.PIER_DECK_Y_RATIO;
+  const size = pier.width * SCENE.OTTER_PIER_RATIO;
+  const x = pier.x + pier.width - size * SCENE.OTTER_PIER_END_OFFSET;
+  const y = deckY - size * SCENE.OTTER_FOOT_RATIO;
+  return {
+    x,
+    y,
+    size,
+    hookX: x + size * SCENE.HOOK_X_RATIO,
+    hookY: y + size * SCENE.HOOK_Y_RATIO,
+  };
 }
 
 function spawnFish(
@@ -90,6 +134,7 @@ function spawnFish(
   const x = atEdge ? (dir === 1 ? -size : width + size) : between(random, size, width - size);
   return {
     id,
+    kind: randomFishKind(random),
     x,
     y: between(random, top, height - size / 2),
     speed: between(random, SCENE.FISH_MIN_SPEED, SCENE.FISH_MAX_SPEED),
@@ -109,7 +154,9 @@ export function createSceneState(width: number, height: number, random: Random):
     fish,
     jumping: null,
     splashes: [],
+    happySince: 0,
     happyUntil: 0,
+    hooked: null,
     nextAutoCatchAt: SCENE.AUTO_CATCH_INTERVAL,
     nextFishId: fish.length,
   };
@@ -136,14 +183,15 @@ function swim(fish: Fish, dt: number, width: number): Fish {
   return hitRight || hitLeft ? { ...fish, dir: (fish.dir * -1) as 1 | -1 } : { ...fish, x };
 }
 
-/** 해달과 가장 가까운 물고기를 해달 손으로 튀어 오르게 하고, 그 자리는 새 물고기로 채운다 */
+/** 낚싯바늘과 가장 가까운 물고기를 바늘로 튀어 오르게 하고, 그 자리는 새 물고기로 채운다 */
 export function requestCatch(state: SceneState, random: Random): SceneState {
   if (state.jumping || state.fish.length === 0) return state;
 
-  const { handsX, handsY } = otterLayout(state);
+  const { hookX } = otterLayout(state);
   const target = state.fish.reduce((nearest, fish) =>
-    Math.abs(fish.x - handsX) < Math.abs(nearest.x - handsX) ? fish : nearest,
+    Math.abs(fish.x - hookX) < Math.abs(nearest.x - hookX) ? fish : nearest,
   );
+  const landing = hookedFishCenter(state, target.size);
   const replacement = spawnFish(state.nextFishId, state.width, state.height, random, true);
 
   return {
@@ -151,10 +199,11 @@ export function requestCatch(state: SceneState, random: Random): SceneState {
     fish: state.fish.map((fish) => (fish.id === target.id ? replacement : fish)),
     nextFishId: state.nextFishId + 1,
     jumping: {
+      kind: target.kind,
       fromX: target.x,
       fromY: target.y,
-      toX: handsX,
-      toY: handsY,
+      toX: landing.x,
+      toY: landing.y,
       size: target.size,
       elapsed: 0,
     },
@@ -184,11 +233,47 @@ export function stepScene(
     const jumping = { ...advanced.jumping, elapsed: advanced.jumping.elapsed + dt };
     const landed = jumping.elapsed >= SCENE.JUMP_DURATION;
     return landed
-      ? { ...advanced, jumping: null, happyUntil: time + SCENE.HAPPY_DURATION }
+      ? {
+          ...advanced,
+          jumping: null,
+          happySince: time,
+          happyUntil: time + SCENE.HAPPY_DURATION,
+          hooked: { kind: jumping.kind, size: jumping.size },
+        }
       : { ...advanced, jumping };
   }
 
   return autoCatch && time >= advanced.nextAutoCatchAt ? requestCatch(advanced, random) : advanced;
+}
+
+/**
+ * 기쁜 스프라이트를 얼마나 보여줄지 (0 = 대기, 1 = 기쁨).
+ * 시작·끝에서 HAPPY_FADE 동안 서서히 바뀐다.
+ */
+export function happyBlend({ time, happySince, happyUntil }: SceneState): number {
+  if (time >= happyUntil) return 0;
+  const fadeIn = (time - happySince) / SCENE.HAPPY_FADE;
+  const fadeOut = (happyUntil - time) / SCENE.HAPPY_FADE;
+  return Math.min(Math.max(Math.min(fadeIn, fadeOut), 0), 1);
+}
+
+/** 바늘에 매달린 물고기의 중심 (흔들리기 전). 튀어 오른 물고기는 여기에 내려앉는다 */
+export function hookedFishCenter(state: Pick<SceneState, 'height'>, size: number) {
+  const { hookX, hookY } = otterLayout(state);
+  return { x: hookX, y: hookY + size * SCENE.HOOKED_FISH_DROP };
+}
+
+/** 매달린 물고기가 바늘을 축으로 흔들리는 각도. 걸린 순간 0 에서 시작한다 */
+export function hookedFishSwing({ time, happySince }: SceneState): number {
+  const elapsed = time - happySince;
+  // 동작 줄이기 모드는 happySince 가 -Infinity 라 흔들지 않는다
+  if (!Number.isFinite(elapsed)) return 0;
+  return Math.sin(elapsed * SCENE.HOOKED_FISH_SWING_SPEED) * SCENE.HOOKED_FISH_SWING;
+}
+
+/** 매달린 물고기의 불투명도. 튀어 오른 물고기를 그대로 이어받으므로 끝날 때만 서서히 사라진다 */
+export function hookedFishOpacity({ time, happyUntil }: SceneState): number {
+  return Math.min(Math.max((happyUntil - time) / SCENE.HAPPY_FADE, 0), 1);
 }
 
 /** 튀어 오르는 물고기의 현재 위치 (포물선) */
