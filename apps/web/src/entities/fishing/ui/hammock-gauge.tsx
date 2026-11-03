@@ -1,4 +1,5 @@
 import { formatFish } from '../lib/format-fishing';
+import { hammockImage } from '../lib/hammock-image';
 import { hammockName } from '../lib/hammock-name';
 
 type Props = {
@@ -14,8 +15,12 @@ export function HammockGauge({ fish, capacity, level }: Props) {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-baseline justify-between">
-        <span className="text-base font-medium">{hammockName(level)}</span>
+      <div className="flex items-center justify-between">
+        <span className="flex items-center gap-2 text-base font-medium">
+          {/* 장식용: 바로 옆 이름이 같은 내용을 읽어 준다 */}
+          <img src={hammockImage(level)} alt="" className="size-12 shrink-0" />
+          {hammockName(level)}
+        </span>
         <span className="text-base tabular-nums">
           <strong className="text-lg font-bold">{formatFish(fish)}</strong>
           <span className="text-muted-foreground"> / {formatFish(capacity)}마리</span>
