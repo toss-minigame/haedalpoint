@@ -15,7 +15,7 @@ flowchart LR
     F[출석 7일차<br/>+ 광고 2배] -->|해달 친구 한 명당: 속도 +100%, 용량 +50%| R
     AR[홈 광고 강화<br/>20분 쿨타임] -->|낚싯대 +10%| R
     R --> H[(해먹<br/>용량 한도)]
-    AE[홈 광고 해먹 넓히기<br/>하루 1회] -->|용량 +50%| H
+    AE[홈 광고 해먹 넓히기<br/>1시간 쿨타임, 5단계] -->|단계당 용량 +10%| H
     H -->|창고에 저장하기| W[(창고<br/>영속 재화)]
     W -.->|후속 작업| T[토스 포인트<br/>500마리 = 1원]
 ```
@@ -140,8 +140,8 @@ sequenceDiagram
 
     Note over W: 홈 진입 시 보상형 광고 1개를 미리 불러와 홈의 광고 버튼이 함께 쓴다
     W->>A: GET /fishing/me
-    A-->>W: rodLevel, adRodEnhanceAvailableAt, hammockExpanded ...
-    alt 쿨타임 중 · 최대 단계 · 이미 넓힘
+    A-->>W: rodLevel, hammockLevel, adRodEnhanceAvailableAt, adHammockExpandAvailableAt ...
+    alt 쿨타임 중 · 최대 단계
         W->>W: 막힌 버튼 ("N분 뒤에 다시 강화할 수 있어요" 등), 광고를 띄우지 않음
     else 받을 수 있음
         U->>W: [광고 보고 낚싯대 강화하기] 또는 [광고 보고 해먹 넓히기]
@@ -152,9 +152,9 @@ sequenceDiagram
             rect rgb(240, 240, 240)
                 Note over A,D: 트랜잭션
                 A->>D: fishing_states 행 잠금
-                A->>A: 쿨타임(20분)·최대 단계 또는 오늘 넓혔는지 확인 → 아니면 409
+                A->>A: 쿨타임(강화 20분 / 해먹 1시간)·오늘 최대 단계 확인 → 걸리면 409
                 A->>A: 지금까지 정산
-                A->>A: 오늘 강화 +1단계 (ad_rod_enhanced_at = 지금) 또는 hammock_expanded_date = 오늘
+                A->>A: 오늘 강화 +1단계 (ad_rod_enhanced_at = 지금) 또는 해먹 +1단계 (ad_hammock_expanded_at = 지금)
                 A->>D: fishing_states 갱신
             end
             A-->>W: 바뀐 뒤의 현황 → 화면에 바로 반영
@@ -167,7 +167,7 @@ sequenceDiagram
 
 ## 7. 자정 처리
 
-배치 작업은 없다. 강화·해달 친구·해먹 넓히기에는 유효 날짜(`rod_level_date`, `otter_friend_date`, `hammock_expanded_date`)가 있고, 정산할 때 자정에서 구간을 나눠 계산한다.
+배치 작업은 없다. 강화·해달 친구·해먹 단계에는 유효 날짜(`rod_level_date`, `otter_friend_date`, `hammock_level_date`)가 있고, 정산할 때 자정에서 구간을 나눠 계산한다.
 
 ```mermaid
 sequenceDiagram
