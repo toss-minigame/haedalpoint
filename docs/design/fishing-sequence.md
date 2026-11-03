@@ -1,19 +1,21 @@
 # 해달 낚시 데이터 시퀀스
 
-[해달 낚시 설계](./fishing.md)의 구현(`apps/api/src/modules/fishing`, `apps/web/src/entities/fishing`, `apps/web/src/features/store-fish`)을 바탕으로 흐름을 간략히 그린 문서다.
+[해달 낚시 설계](./fishing.md)의 구현(`apps/api/src/modules/fishing`, `apps/web/src/entities/fishing`, `apps/web/src/features/store-fish`, `apps/web/src/features/fishing-ad-boosts`)을 바탕으로 흐름을 간략히 그린 문서다.
 
 - 모든 요청에는 자체 access token(`Authorization: Bearer`)이 붙는다. 다이어그램에서는 생략한다. 인증은 [사용자 인증 시퀀스](./user-auth-sequence.md)를 본다.
 - 물고기 수량은 **서버가 시각으로 계산**한다. 클라이언트는 수량을 보내지 않는다.
-- "하루"는 KST 00:00 기준이다. 낚싯대 강화·해달 친구는 자정에 풀린다.
+- "하루"는 KST 00:00 기준이다. 낚싯대 강화·해달 친구·해먹 넓히기는 자정에 풀린다.
 
 ## 1. 전체 흐름
 
 ```mermaid
 flowchart LR
     Q[O/X 퀴즈 정답 + 광고] -->|낚싯대 +10%| R[낚시 속도]
-    C[출석 1~6일차] -->|낚싯대 +10%| R
-    F[출석 7일차] -->|해달 친구: 속도 +100%, 용량 +50%| R
+    C[출석 1~6일차<br/>+ 광고 2배] -->|낚싯대 +10%| R
+    F[출석 7일차<br/>+ 광고 2배] -->|해달 친구 한 명당: 속도 +100%, 용량 +50%| R
+    AR[홈 광고 강화<br/>20분 쿨타임] -->|낚싯대 +10%| R
     R --> H[(해먹<br/>용량 한도)]
+    AE[홈 광고 해먹 넓히기<br/>하루 1회] -->|용량 +50%| H
     H -->|창고에 저장하기| W[(창고<br/>영속 재화)]
     W -.->|후속 작업| T[토스 포인트<br/>500마리 = 1원]
 ```
@@ -114,7 +116,7 @@ sequenceDiagram
         alt 1~6일차
             A->>A: 오늘 강화 단계 +1
         else 7일차
-            A->>A: otter_friend_date = 오늘 (자정까지 속도 +100%, 용량 +50%)
+            A->>A: 오늘 해달 친구 +1명 (자정까지 한 명당 속도 +100%, 용량 +50%)
         end
         A->>D: fishing_states 갱신
     end
@@ -122,9 +124,50 @@ sequenceDiagram
     W->>A: GET /attendance/me, GET /fishing/me (다시 조회)
 ```
 
-## 6. 자정 처리
+출석 '광고 보고 2배'(`POST /attendance/ad-bonus`)도 같은 트랜잭션 구조다. `ad_bonus_claimed_at` 조건부 UPDATE와
+같은 보상 한 번 더(1~6일차 강화 +1단계, 7일차 해달 친구 한 명 더)를 함께 처리하고, 적용이 실패하면 수령 기록도 롤백된다.
 
-배치 작업은 없다. 강화·해달 친구에는 유효 날짜(`rod_level_date`, `otter_friend_date`)가 있고, 정산할 때 자정에서 구간을 나눠 계산한다.
+## 6. 홈 광고 부스트 (낚싯대 강화 · 해먹 넓히기)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as 사용자
+    participant W as Web (홈 화면)
+    participant S as 토스 광고 SDK
+    participant A as API
+    participant D as DB
+
+    Note over W: 홈 진입 시 보상형 광고 1개를 미리 불러와 홈의 광고 버튼이 함께 쓴다
+    W->>A: GET /fishing/me
+    A-->>W: rodLevel, adRodEnhanceAvailableAt, hammockExpanded ...
+    alt 쿨타임 중 · 최대 단계 · 이미 넓힘
+        W->>W: 막힌 버튼 ("N분 뒤에 다시 강화할 수 있어요" 등), 광고를 띄우지 않음
+    else 받을 수 있음
+        U->>W: [광고 보고 낚싯대 강화하기] 또는 [광고 보고 해먹 넓히기]
+        W->>S: showFullScreenAd
+        alt 광고를 끝까지 봄
+            S-->>W: userEarnedReward
+            W->>A: POST /fishing/ad-enhance-rod 또는 /fishing/ad-expand-hammock
+            rect rgb(240, 240, 240)
+                Note over A,D: 트랜잭션
+                A->>D: fishing_states 행 잠금
+                A->>A: 쿨타임(20분)·최대 단계 또는 오늘 넓혔는지 확인 → 아니면 409
+                A->>A: 지금까지 정산
+                A->>A: 오늘 강화 +1단계 (ad_rod_enhanced_at = 지금) 또는 hammock_expanded_date = 오늘
+                A->>D: fishing_states 갱신
+            end
+            A-->>W: 바뀐 뒤의 현황 → 화면에 바로 반영
+        else 끝까지 보지 않고 닫음
+            S-->>W: dismissed (userEarnedReward 없음)
+            W->>W: "광고를 끝까지 보면 ..." 안내 (요청 안 함)
+        end
+    end
+```
+
+## 7. 자정 처리
+
+배치 작업은 없다. 강화·해달 친구·해먹 넓히기에는 유효 날짜(`rod_level_date`, `otter_friend_date`, `hammock_expanded_date`)가 있고, 정산할 때 자정에서 구간을 나눠 계산한다.
 
 ```mermaid
 sequenceDiagram
