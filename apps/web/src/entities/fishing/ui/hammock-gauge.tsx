@@ -1,18 +1,21 @@
 import { formatFish } from '../lib/format-fishing';
+import { hammockName } from '../lib/hammock-name';
 
 type Props = {
   fish: number;
   capacity: number;
+  /** 오늘 광고로 넓힌 해먹 단계 */
+  level: number;
 };
 
 // 해먹에 쌓인 물고기 / 용량
-export function HammockGauge({ fish, capacity }: Props) {
+export function HammockGauge({ fish, capacity, level }: Props) {
   const percent = capacity > 0 ? Math.min(100, (fish / capacity) * 100) : 0;
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between">
-        <span className="text-base font-medium">해먹</span>
+        <span className="text-base font-medium">{hammockName(level)}</span>
         <span className="text-base tabular-nums">
           <strong className="text-lg font-bold">{formatFish(fish)}</strong>
           <span className="text-muted-foreground"> / {formatFish(capacity)}마리</span>

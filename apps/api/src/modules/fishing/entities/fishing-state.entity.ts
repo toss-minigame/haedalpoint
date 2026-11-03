@@ -10,6 +10,8 @@ import { bigintNumberTransformer } from '../../../common/entities/bigint-number.
 @Check('CHK_fishing_states_hammock_milli_fish', '"hammock_milli_fish" >= 0')
 @Check('CHK_fishing_states_warehouse_fish', '"warehouse_fish" >= 0')
 @Check('CHK_fishing_states_rod_level', '"rod_level" >= 0')
+@Check('CHK_fishing_states_otter_friend_count', '"otter_friend_count" >= 0')
+@Check('CHK_fishing_states_hammock_level', '"hammock_level" >= 0')
 export class FishingState extends BaseEntity {
   @Column({ type: 'uuid', name: 'user_id' })
   userId: string;
@@ -37,6 +39,25 @@ export class FishingState extends BaseEntity {
   // 해달 친구가 오는 KST 날짜
   @Column({ type: 'date', name: 'otter_friend_date', nullable: true })
   otterFriendDate: string | null;
+
+  // otter_friend_date 에 함께 낚시하는 해달 친구 수
+  @Column({ type: 'smallint', name: 'otter_friend_count', default: 0 })
+  otterFriendCount: number;
+
+  // 광고로 넓힌 해먹 단계와 그 단계가 유효한 KST 날짜
+  @Column({ type: 'smallint', name: 'hammock_level', default: 0 })
+  hammockLevel: number;
+
+  @Column({ type: 'date', name: 'hammock_level_date', nullable: true })
+  hammockLevelDate: string | null;
+
+  // 마지막으로 광고를 보고 해먹을 넓힌 시각 (쿨타임 계산용)
+  @Column({ type: 'timestamptz', name: 'ad_hammock_expanded_at', nullable: true })
+  adHammockExpandedAt: Date | null;
+
+  // 마지막으로 광고를 보고 낚싯대를 강화한 시각 (쿨타임 계산용)
+  @Column({ type: 'timestamptz', name: 'ad_rod_enhanced_at', nullable: true })
+  adRodEnhancedAt: Date | null;
 
   // 창고의 물고기 (영속 재화)
   @Column({

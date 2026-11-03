@@ -1,4 +1,9 @@
-import { FISHING_POLICY, OTTER_FRIEND_POLICY, ROD_POLICY } from '../../../common/globals/index.js';
+import {
+  FISHING_POLICY,
+  HAMMOCK_EXPAND_POLICY,
+  OTTER_FRIEND_POLICY,
+  ROD_POLICY,
+} from '../../../common/globals/index.js';
 
 // 낚시 속도·해먹 용량 계산 (순수 함수). 정책값은 common/globals/fishing.policy.ts 에만 둔다.
 // 수량은 소수점을 버리지 않도록 1/1000마리(milli-fish) 정수로 다룬다.
@@ -8,13 +13,16 @@ const BASE_PERCENT = 100;
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 
-/** 그 시점에 적용되는 속도 보너스 */
+/** 그 시점에 적용되는 보너스 */
 export interface Boosts {
   rodLevel: number;
-  otterFriend: boolean;
+  /** 함께 낚시하는 해달 친구 수 */
+  otterFriends: number;
+  /** 광고로 넓힌 해먹 단계 */
+  hammockLevel: number;
 }
 
-export const NO_BOOSTS: Readonly<Boosts> = { rodLevel: 0, otterFriend: false };
+export const NO_BOOSTS: Readonly<Boosts> = { rodLevel: 0, otterFriends: 0, hammockLevel: 0 };
 
 /** 강화 0단계·해달 친구 없이 1ms 동안 잡는 milli-fish */
 const BASE_MILLI_FISH_PER_MS =
@@ -28,12 +36,19 @@ export function rodSpeedBonusPercent(rodLevel: number): number {
 
 /** 기본 속도 대비 속도 (%). 보너스는 더한다 (ADR-0007) */
 export function speedPercent(boosts: Boosts): number {
-  const friendBonus = boosts.otterFriend ? OTTER_FRIEND_POLICY.SPEED_BONUS_PERCENT : 0;
+  const friendBonus = boosts.otterFriends * OTTER_FRIEND_POLICY.SPEED_BONUS_PERCENT;
   return BASE_PERCENT + rodSpeedBonusPercent(boosts.rodLevel) + friendBonus;
 }
 
+/** 해먹 단계로 늘어나는 용량 (기본 용량 대비 %) */
+export function hammockLevelBonusPercent(hammockLevel: number): number {
+  return hammockLevel * HAMMOCK_EXPAND_POLICY.CAPACITY_BONUS_PERCENT_PER_LEVEL;
+}
+
+/** 기본 용량 대비 해먹 용량 보너스는 더한다 (해달 친구 한 명당 + 해먹 단계) */
 export function hammockCapacityMilliFish(boosts: Boosts): number {
-  const bonus = boosts.otterFriend ? OTTER_FRIEND_POLICY.CAPACITY_BONUS_PERCENT : 0;
+  const friendBonus = boosts.otterFriends * OTTER_FRIEND_POLICY.CAPACITY_BONUS_PERCENT;
+  const bonus = friendBonus + hammockLevelBonusPercent(boosts.hammockLevel);
   return Math.floor(
     (FISHING_POLICY.HAMMOCK_CAPACITY * MILLI_PER_FISH * (BASE_PERCENT + bonus)) / BASE_PERCENT,
   );

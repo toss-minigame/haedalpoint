@@ -4,7 +4,7 @@
 
 - 모든 요청에는 자체 access token(`Authorization: Bearer`)이 붙는다. 다이어그램에서는 생략한다. 인증 흐름은 [사용자 인증 시퀀스](./user-auth-sequence.md)를 본다.
 - "하루"는 KST 00:00 기준이다. 날짜와 일차는 서버 시각으로만 계산한다.
-- 보상(강화 보너스, 해달 친구)은 지금 `attendance_logs`에 기록만 한다. 실제 적립은 강화·동료 모듈이 생기면 연결한다.
+- 보상은 낚시에 바로 적용된다 (1~6일차 낚싯대 강화, 7일차 해달 친구). 계산은 [해달 낚시 시퀀스](./fishing-sequence.md)를 본다.
 
 ## 1. 하루 상태
 
@@ -86,7 +86,7 @@ sequenceDiagram
     participant A as API
     participant D as DB
 
-    Note over W: adBonusAvailable = true 일 때만 광고 영역이 화면에 붙는다
+    Note over W: 홈 진입 시 보상형 광고 1개를 미리 불러와 홈의 광고 버튼이 함께 쓴다<br/>adBonusAvailable = true 일 때만 이 버튼이 보인다
     W->>S: loadFullScreenAd (미리 불러오기)
     S-->>W: loaded → [광고 보고 2배 받기] 활성화
 
@@ -96,10 +96,14 @@ sequenceDiagram
         S-->>W: userEarnedReward
         W->>A: POST /attendance/ad-bonus
         A->>D: 오늘 출석 기록 조회
-        A->>D: UPDATE SET ad_bonus_claimed_at = now WHERE id = 오늘 행 AND ad_bonus_claimed_at IS NULL
+        rect rgb(240, 240, 240)
+            Note over A,D: 트랜잭션 (적용이 실패하면 수령 기록도 롤백)
+            A->>D: UPDATE SET ad_bonus_claimed_at = now WHERE id = 오늘 행 AND ad_bonus_claimed_at IS NULL
+            A->>D: 같은 보상 한 번 더 적용 (강화 +N단계 / 해달 친구 한 명 더)
+        end
         A-->>W: bonusReward (오늘 보상과 같은 종류·수량)
-        W->>W: "강화 보너스 +N를 한 번 더 받았어요" / "해달 친구가 한 명 더 합류했어요"
-        W->>A: GET /attendance/me (현황 갱신)
+        W->>W: "낚싯대를 N단계 더 강화했어요" / "해달 친구가 한 명 더 합류했어요"
+        W->>A: GET /attendance/me, GET /fishing/me (현황 갱신)
         A-->>W: adBonusAvailable = false → 버튼 사라짐
     else 끝까지 보지 않고 닫음
         S-->>W: dismissed (userEarnedReward 없음)

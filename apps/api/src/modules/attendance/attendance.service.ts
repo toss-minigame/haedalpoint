@@ -92,24 +92,30 @@ export class AttendanceService {
 
   /**
    * "광고 보고 2배 받기": 클라이언트가 보상형 광고의 `userEarnedReward` 를 받은 뒤에만 호출한다.
-   * 오늘 출석 보상과 같은 종류·수량을 한 번 더 지급한다 (7일차 해달 친구 포함).
+   * 오늘 출석 보상과 같은 종류·수량을 한 번 더 적용한다 (강화 +N단계, 7일차는 해달 친구 한 명 더).
    * 하루 1회이며, 조건부 UPDATE 로 연타·동시 요청에도 한 번만 반영된다.
+   * 수령 기록과 보상 적용은 한 트랜잭션이라, 적용이 실패하면 수령 기록도 남지 않아 다시 받을 수 있다.
    */
   async claimAdBonus(userId: string): Promise<AdBonusResponse> {
     await this.usersService.findById(userId);
-    const today = toKstDateString(new Date());
+    // 수령 기록과 보상 적용 날짜가 자정 경계에서 어긋나지 않도록 한 시각을 함께 쓴다
+    const now = new Date();
+    const today = toKstDateString(now);
 
     const todayLog = await this.attendanceRepository.findByUserIdAndDate(userId, today);
     if (!todayLog) throw new NotFoundException('오늘 출석 기록이 없습니다');
     if (todayLog.adBonusClaimedAt) throw new ConflictException(AD_BONUS_ALREADY_CLAIMED);
 
-    const claimed = await this.attendanceRepository.claimAdBonus(todayLog.id, new Date());
-    if (!claimed) throw new ConflictException(AD_BONUS_ALREADY_CLAIMED);
-
-    // TODO(enhancement/otter-friend): 강화·동료 모듈이 생기면 bonusReward 만큼 추가 적립
-    return {
-      checkedDate: today,
-      bonusReward: { type: todayLog.rewardType, amount: todayLog.rewardAmount },
+    const bonusReward: AttendanceReward = {
+      type: todayLog.rewardType,
+      amount: todayLog.rewardAmount,
     };
+    await this.dataSource.transaction(async (manager) => {
+      const claimed = await this.attendanceRepository.claimAdBonus(todayLog.id, now, manager);
+      if (!claimed) throw new ConflictException(AD_BONUS_ALREADY_CLAIMED);
+      await this.applyReward(userId, bonusReward, manager, now);
+    });
+
+    return { checkedDate: today, bonusReward };
   }
 }

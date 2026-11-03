@@ -1,7 +1,7 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { DataSource, type EntityManager } from 'typeorm';
-import { ROD_POLICY } from '../../../common/globals/index.js';
+import { AD_ROD_POLICY, HAMMOCK_EXPAND_POLICY, ROD_POLICY } from '../../../common/globals/index.js';
 import { UsersService } from '../../users/users.service.js';
 import { FishingRepository } from '../fishing.repository.js';
 import { FishingService } from '../fishing.service.js';
@@ -14,6 +14,7 @@ const NOW = new Date('2026-11-02T03:00:00Z');
 const TODAY = '2026-11-02';
 const AN_HOUR_AGO = new Date(NOW.getTime() - HOUR_MS);
 const CAUGHT_IN_AN_HOUR = Math.floor(HOUR_MS * milliFishPerMs(100));
+const MINUTE_MS = 60 * 1000;
 
 function row(overrides: Record<string, unknown> = {}) {
   return {
@@ -24,6 +25,11 @@ function row(overrides: Record<string, unknown> = {}) {
     rodLevel: 0,
     rodLevelDate: null,
     otterFriendDate: null,
+    otterFriendCount: 0,
+    hammockLevel: 0,
+    hammockLevelDate: null,
+    adRodEnhancedAt: null,
+    adHammockExpandedAt: null,
     warehouseFish: 100,
     ...overrides,
   };
@@ -103,6 +109,9 @@ describe('FishingService', () => {
         rodLevel: 0,
         rodLevelDate: null,
         otterFriendDate: null,
+        otterFriendCount: 0,
+        hammockLevel: 0,
+        hammockLevelDate: null,
         warehouseFish: 100 + storedFish,
       });
       expect(repo.addLedgerEntry).toHaveBeenCalledWith(manager, {
@@ -191,8 +200,152 @@ describe('FishingService', () => {
           hammockMilliFish: CAUGHT_IN_AN_HOUR,
           settledAt: NOW,
           otterFriendDate: TODAY,
+          otterFriendCount: 1,
         }),
       );
+    });
+
+    it('adds a second otter friend on the same day', async () => {
+      repo.lockOrCreate.mockResolvedValue(row({ otterFriendDate: TODAY, otterFriendCount: 1 }));
+
+      await service.summonOtterFriend(USER_ID, manager, NOW);
+
+      expect(repo.updateState).toHaveBeenCalledWith(
+        manager,
+        'state-1',
+        expect.objectContaining({ otterFriendDate: TODAY, otterFriendCount: 2 }),
+      );
+    });
+  });
+
+  describe('adEnhanceRod', () => {
+    it('settles, raises the rod level and starts the cooldown in one transaction', async () => {
+      repo.lockOrCreate.mockResolvedValue(row({ rodLevel: 2, rodLevelDate: TODAY }));
+
+      const status = await service.adEnhanceRod(USER_ID);
+
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(repo.updateState).toHaveBeenCalledWith(
+        manager,
+        'state-1',
+        expect.objectContaining({
+          hammockMilliFish: Math.floor(HOUR_MS * milliFishPerMs(120)),
+          settledAt: NOW,
+          rodLevel: 2 + AD_ROD_POLICY.LEVELS_PER_AD,
+          rodLevelDate: TODAY,
+          adRodEnhancedAt: NOW,
+        }),
+      );
+      expect(status).toMatchObject({
+        rodLevel: 2 + AD_ROD_POLICY.LEVELS_PER_AD,
+        adRodEnhanceAvailableAt: new Date(
+          NOW.getTime() + AD_ROD_POLICY.COOLDOWN_MINUTES * MINUTE_MS,
+        ).toISOString(),
+      });
+    });
+
+    it('rejects during the cooldown', async () => {
+      const lastEnhancedAt = new Date(
+        NOW.getTime() - (AD_ROD_POLICY.COOLDOWN_MINUTES - 1) * MINUTE_MS,
+      );
+      repo.lockOrCreate.mockResolvedValue(row({ adRodEnhancedAt: lastEnhancedAt }));
+
+      await expect(service.adEnhanceRod(USER_ID)).rejects.toBeInstanceOf(ConflictException);
+      expect(repo.updateState).not.toHaveBeenCalled();
+    });
+
+    it('allows it again once the cooldown has passed', async () => {
+      const lastEnhancedAt = new Date(NOW.getTime() - AD_ROD_POLICY.COOLDOWN_MINUTES * MINUTE_MS);
+      repo.lockOrCreate.mockResolvedValue(row({ adRodEnhancedAt: lastEnhancedAt }));
+
+      await expect(service.adEnhanceRod(USER_ID)).resolves.toMatchObject({ rodLevel: 1 });
+    });
+
+    it("rejects when today's rod level is already at the max", async () => {
+      repo.lockOrCreate.mockResolvedValue(
+        row({ rodLevel: ROD_POLICY.MAX_LEVEL, rodLevelDate: TODAY }),
+      );
+
+      await expect(service.adEnhanceRod(USER_ID)).rejects.toBeInstanceOf(ConflictException);
+      expect(repo.updateState).not.toHaveBeenCalled();
+    });
+
+    it("ignores yesterday's max level", async () => {
+      repo.lockOrCreate.mockResolvedValue(
+        row({ rodLevel: ROD_POLICY.MAX_LEVEL, rodLevelDate: '2026-11-01' }),
+      );
+
+      await expect(service.adEnhanceRod(USER_ID)).resolves.toMatchObject({ rodLevel: 1 });
+    });
+
+    it('rejects unknown users', async () => {
+      usersService.findById.mockRejectedValue(new NotFoundException());
+
+      await expect(service.adEnhanceRod(USER_ID)).rejects.toBeInstanceOf(NotFoundException);
+      expect(dataSource.transaction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('adExpandHammock', () => {
+    it('settles, raises the hammock level and starts the cooldown in one transaction', async () => {
+      repo.lockOrCreate.mockResolvedValue(row({ hammockLevel: 2, hammockLevelDate: TODAY }));
+
+      const status = await service.adExpandHammock(USER_ID);
+
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(repo.updateState).toHaveBeenCalledWith(
+        manager,
+        'state-1',
+        expect.objectContaining({
+          hammockMilliFish: CAUGHT_IN_AN_HOUR,
+          settledAt: NOW,
+          hammockLevel: 2 + HAMMOCK_EXPAND_POLICY.LEVELS_PER_AD,
+          hammockLevelDate: TODAY,
+          adHammockExpandedAt: NOW,
+        }),
+      );
+      expect(status).toMatchObject({
+        hammockLevel: 2 + HAMMOCK_EXPAND_POLICY.LEVELS_PER_AD,
+        adHammockExpandAvailableAt: new Date(
+          NOW.getTime() + HAMMOCK_EXPAND_POLICY.COOLDOWN_MINUTES * MINUTE_MS,
+        ).toISOString(),
+      });
+    });
+
+    it('rejects during the cooldown', async () => {
+      const lastExpandedAt = new Date(
+        NOW.getTime() - (HAMMOCK_EXPAND_POLICY.COOLDOWN_MINUTES - 1) * MINUTE_MS,
+      );
+      repo.lockOrCreate.mockResolvedValue(row({ adHammockExpandedAt: lastExpandedAt }));
+
+      await expect(service.adExpandHammock(USER_ID)).rejects.toBeInstanceOf(ConflictException);
+      expect(repo.updateState).not.toHaveBeenCalled();
+    });
+
+    it('allows it again once the cooldown has passed', async () => {
+      const lastExpandedAt = new Date(
+        NOW.getTime() - HAMMOCK_EXPAND_POLICY.COOLDOWN_MINUTES * MINUTE_MS,
+      );
+      repo.lockOrCreate.mockResolvedValue(row({ adHammockExpandedAt: lastExpandedAt }));
+
+      await expect(service.adExpandHammock(USER_ID)).resolves.toMatchObject({ hammockLevel: 1 });
+    });
+
+    it("rejects when today's hammock is already at the max level", async () => {
+      repo.lockOrCreate.mockResolvedValue(
+        row({ hammockLevel: HAMMOCK_EXPAND_POLICY.MAX_LEVEL, hammockLevelDate: TODAY }),
+      );
+
+      await expect(service.adExpandHammock(USER_ID)).rejects.toBeInstanceOf(ConflictException);
+      expect(repo.updateState).not.toHaveBeenCalled();
+    });
+
+    it("starts again from level 1 after yesterday's max level", async () => {
+      repo.lockOrCreate.mockResolvedValue(
+        row({ hammockLevel: HAMMOCK_EXPAND_POLICY.MAX_LEVEL, hammockLevelDate: '2026-11-01' }),
+      );
+
+      await expect(service.adExpandHammock(USER_ID)).resolves.toMatchObject({ hammockLevel: 1 });
     });
   });
 });

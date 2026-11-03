@@ -1,10 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { AttendanceStamps, attendanceQueries } from '@/entities/attendance';
-import { CheckInButton } from '@/features/check-in';
+import { AdBonusButton, CheckInButton } from '@/features/check-in';
+import type { RewardedAd } from '@/shared/lib/rewarded-ad';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card';
-import { AttendanceAdBonus } from './attendance-ad-bonus';
 
-export function AttendanceSection() {
+type Props = {
+  rewardedAd: RewardedAd;
+};
+
+export function AttendanceSection({ rewardedAd }: Props) {
   const { data: status, isPending, isError, error } = useQuery(attendanceQueries.me());
 
   const description = status
@@ -28,7 +32,7 @@ export function AttendanceSection() {
               <AttendanceStamps cycle={status.cycle} />
               <div className="flex flex-col gap-2">
                 <CheckInButton status={status} />
-                {status.adBonusAvailable && <AttendanceAdBonus />}
+                {status.adBonusAvailable && <AdBonusButton ad={rewardedAd} />}
               </div>
             </>
           )}

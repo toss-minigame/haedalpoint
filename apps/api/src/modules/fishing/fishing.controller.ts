@@ -16,4 +16,15 @@ export class FishingController {
   storeFish(@CurrentUserId() userId: string) {
     return this.fishingService.storeFish(userId);
   }
+
+  // 보상형 광고를 끝까지 본 뒤(`userEarnedReward`)에만 호출한다
+  @Post('ad-enhance-rod')
+  adEnhanceRod(@CurrentUserId() userId: string) {
+    return this.fishingService.adEnhanceRod(userId);
+  }
+
+  @Post('ad-expand-hammock')
+  adExpandHammock(@CurrentUserId() userId: string) {
+    return this.fishingService.adExpandHammock(userId);
+  }
 }

@@ -1,19 +1,29 @@
-import { FISHING_POLICY, OTTER_FRIEND_POLICY, ROD_POLICY } from '../../../common/globals/index.js';
+import {
+  FISHING_POLICY,
+  HAMMOCK_EXPAND_POLICY,
+  OTTER_FRIEND_POLICY,
+  ROD_POLICY,
+} from '../../../common/globals/index.js';
 import { ATTENDANCE_CYCLE_DAYS } from '../../attendance/lib/attendance-reward.policy.js';
 import { speedPercent, tossPointsPerDay } from '../lib/fishing-rate.js';
 
 // 월 지급 상한을 코드로 강제하지 않는 대신, 정책값이 예산을 넘으면 이 테스트가 실패한다 (ADR-0007).
-// 최악의 한 달: 31일 내내 최대 강화, 해달 친구가 올 수 있는 최대 일수, 해먹을 한 번도 넘치지 않게 비움.
+// 최악의 한 달: 31일 내내 최대 강화, 해달 친구가 올 수 있는 최대 일수(그날은 하루 최대 인원),
+// 해먹을 한 번도 넘치지 않게 비움. 해먹 넓히기는 속도를 바꾸지 않아 이 최악값에 영향이 없다.
 const LONGEST_MONTH_DAYS = 31;
 const MAX_OTTER_FRIEND_DAYS = Math.ceil(LONGEST_MONTH_DAYS / ATTENDANCE_CYCLE_DAYS);
 
 function worstCaseMonthlyTossPoints(): number {
-  const maxRod = { rodLevel: ROD_POLICY.MAX_LEVEL, otterFriend: false };
-  const maxRodWithFriend = { rodLevel: ROD_POLICY.MAX_LEVEL, otterFriend: true };
+  const maxRod = {
+    rodLevel: ROD_POLICY.MAX_LEVEL,
+    otterFriends: 0,
+    hammockLevel: HAMMOCK_EXPAND_POLICY.MAX_LEVEL,
+  };
+  const maxRodWithFriends = { ...maxRod, otterFriends: OTTER_FRIEND_POLICY.MAX_PER_DAY };
   const normalDays = LONGEST_MONTH_DAYS - MAX_OTTER_FRIEND_DAYS;
   return (
     normalDays * tossPointsPerDay(speedPercent(maxRod)) +
-    MAX_OTTER_FRIEND_DAYS * tossPointsPerDay(speedPercent(maxRodWithFriend))
+    MAX_OTTER_FRIEND_DAYS * tossPointsPerDay(speedPercent(maxRodWithFriends))
   );
 }
 
