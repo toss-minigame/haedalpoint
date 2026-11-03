@@ -1,7 +1,7 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { DataSource, type EntityManager } from 'typeorm';
-import { AD_ROD_POLICY, ROD_POLICY } from '../../../common/globals/index.js';
+import { AD_ROD_POLICY, HAMMOCK_EXPAND_POLICY, ROD_POLICY } from '../../../common/globals/index.js';
 import { UsersService } from '../../users/users.service.js';
 import { FishingRepository } from '../fishing.repository.js';
 import { FishingService } from '../fishing.service.js';
@@ -26,8 +26,10 @@ function row(overrides: Record<string, unknown> = {}) {
     rodLevelDate: null,
     otterFriendDate: null,
     otterFriendCount: 0,
-    hammockExpandedDate: null,
+    hammockLevel: 0,
+    hammockLevelDate: null,
     adRodEnhancedAt: null,
+    adHammockExpandedAt: null,
     warehouseFish: 100,
     ...overrides,
   };
@@ -108,7 +110,8 @@ describe('FishingService', () => {
         rodLevelDate: null,
         otterFriendDate: null,
         otterFriendCount: 0,
-        hammockExpandedDate: null,
+        hammockLevel: 0,
+        hammockLevelDate: null,
         warehouseFish: 100 + storedFish,
       });
       expect(repo.addLedgerEntry).toHaveBeenCalledWith(manager, {
@@ -284,8 +287,8 @@ describe('FishingService', () => {
   });
 
   describe('adExpandHammock', () => {
-    it('settles first, then expands the hammock for today', async () => {
-      repo.lockOrCreate.mockResolvedValue(row());
+    it('settles, raises the hammock level and starts the cooldown in one transaction', async () => {
+      repo.lockOrCreate.mockResolvedValue(row({ hammockLevel: 2, hammockLevelDate: TODAY }));
 
       const status = await service.adExpandHammock(USER_ID);
 
@@ -296,25 +299,53 @@ describe('FishingService', () => {
         expect.objectContaining({
           hammockMilliFish: CAUGHT_IN_AN_HOUR,
           settledAt: NOW,
-          hammockExpandedDate: TODAY,
+          hammockLevel: 2 + HAMMOCK_EXPAND_POLICY.LEVELS_PER_AD,
+          hammockLevelDate: TODAY,
+          adHammockExpandedAt: NOW,
         }),
       );
-      expect(status.hammockExpanded).toBe(true);
+      expect(status).toMatchObject({
+        hammockLevel: 2 + HAMMOCK_EXPAND_POLICY.LEVELS_PER_AD,
+        adHammockExpandAvailableAt: new Date(
+          NOW.getTime() + HAMMOCK_EXPAND_POLICY.COOLDOWN_MINUTES * MINUTE_MS,
+        ).toISOString(),
+      });
     });
 
-    it('rejects when the hammock was already expanded today', async () => {
-      repo.lockOrCreate.mockResolvedValue(row({ hammockExpandedDate: TODAY }));
+    it('rejects during the cooldown', async () => {
+      const lastExpandedAt = new Date(
+        NOW.getTime() - (HAMMOCK_EXPAND_POLICY.COOLDOWN_MINUTES - 1) * MINUTE_MS,
+      );
+      repo.lockOrCreate.mockResolvedValue(row({ adHammockExpandedAt: lastExpandedAt }));
 
       await expect(service.adExpandHammock(USER_ID)).rejects.toBeInstanceOf(ConflictException);
       expect(repo.updateState).not.toHaveBeenCalled();
     });
 
-    it('allows it again on a new day', async () => {
-      repo.lockOrCreate.mockResolvedValue(row({ hammockExpandedDate: '2026-11-01' }));
+    it('allows it again once the cooldown has passed', async () => {
+      const lastExpandedAt = new Date(
+        NOW.getTime() - HAMMOCK_EXPAND_POLICY.COOLDOWN_MINUTES * MINUTE_MS,
+      );
+      repo.lockOrCreate.mockResolvedValue(row({ adHammockExpandedAt: lastExpandedAt }));
 
-      await expect(service.adExpandHammock(USER_ID)).resolves.toMatchObject({
-        hammockExpanded: true,
-      });
+      await expect(service.adExpandHammock(USER_ID)).resolves.toMatchObject({ hammockLevel: 1 });
+    });
+
+    it("rejects when today's hammock is already at the max level", async () => {
+      repo.lockOrCreate.mockResolvedValue(
+        row({ hammockLevel: HAMMOCK_EXPAND_POLICY.MAX_LEVEL, hammockLevelDate: TODAY }),
+      );
+
+      await expect(service.adExpandHammock(USER_ID)).rejects.toBeInstanceOf(ConflictException);
+      expect(repo.updateState).not.toHaveBeenCalled();
+    });
+
+    it("starts again from level 1 after yesterday's max level", async () => {
+      repo.lockOrCreate.mockResolvedValue(
+        row({ hammockLevel: HAMMOCK_EXPAND_POLICY.MAX_LEVEL, hammockLevelDate: '2026-11-01' }),
+      );
+
+      await expect(service.adExpandHammock(USER_ID)).resolves.toMatchObject({ hammockLevel: 1 });
     });
   });
 });

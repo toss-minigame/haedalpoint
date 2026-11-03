@@ -25,8 +25,10 @@ export interface HammockState {
   otterFriendDate: string | null;
   /** otterFriendDate 에 함께 낚시하는 해달 친구 수 */
   otterFriendCount: number;
-  /** 광고로 해먹을 넓힌 KST 날짜 */
-  hammockExpandedDate: string | null;
+  /** 광고로 넓힌 해먹 단계 */
+  hammockLevel: number;
+  /** hammockLevel 이 유효한 KST 날짜. 다른 날이면 0단계 */
+  hammockLevelDate: string | null;
 }
 
 /** `date`(KST) 에 적용되는 보너스 */
@@ -34,7 +36,7 @@ export function boostsOn(state: HammockState, date: string): Boosts {
   return {
     rodLevel: state.rodLevelDate === date ? state.rodLevel : 0,
     otterFriends: state.otterFriendDate === date ? state.otterFriendCount : 0,
-    hammockExpanded: state.hammockExpandedDate === date,
+    hammockLevel: state.hammockLevelDate === date ? state.hammockLevel : 0,
   };
 }
 

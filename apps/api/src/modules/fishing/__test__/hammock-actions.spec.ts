@@ -1,4 +1,8 @@
-import { OTTER_FRIEND_POLICY, ROD_POLICY } from '../../../common/globals/index.js';
+import {
+  HAMMOCK_EXPAND_POLICY,
+  OTTER_FRIEND_POLICY,
+  ROD_POLICY,
+} from '../../../common/globals/index.js';
 import {
   enhanceRod,
   expandHammock,
@@ -18,7 +22,8 @@ function state(overrides: Partial<HammockState> = {}): HammockState {
     rodLevelDate: null,
     otterFriendDate: null,
     otterFriendCount: 0,
-    hammockExpandedDate: null,
+    hammockLevel: 0,
+    hammockLevelDate: null,
     ...overrides,
   };
 }
@@ -82,8 +87,22 @@ describe('summonOtterFriend', () => {
 });
 
 describe('expandHammock', () => {
-  it('expands the hammock for today', () => {
-    expect(expandHammock(state(), TODAY).hammockExpandedDate).toBe(TODAY);
+  it("raises today's hammock level", () => {
+    const next = expandHammock(state({ hammockLevel: 2, hammockLevelDate: TODAY }), 1, TODAY);
+
+    expect(next).toMatchObject({ hammockLevel: 3, hammockLevelDate: TODAY });
+  });
+
+  it('starts from level 0 when the level belongs to another day', () => {
+    const next = expandHammock(state({ hammockLevel: 4, hammockLevelDate: YESTERDAY }), 1, TODAY);
+
+    expect(next).toMatchObject({ hammockLevel: 1, hammockLevelDate: TODAY });
+  });
+
+  it('stops at the max level', () => {
+    const s = state({ hammockLevel: HAMMOCK_EXPAND_POLICY.MAX_LEVEL, hammockLevelDate: TODAY });
+
+    expect(expandHammock(s, 1, TODAY).hammockLevel).toBe(HAMMOCK_EXPAND_POLICY.MAX_LEVEL);
   });
 });
 

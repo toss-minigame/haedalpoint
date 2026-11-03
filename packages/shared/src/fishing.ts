@@ -22,14 +22,19 @@ export interface FishingStatusResponse {
   otterFriendActive: boolean;
   /** 오늘 함께 낚시하는 해달 친구 수 (7일차 출석 1, 출석 광고 2배로 +1) */
   otterFriendCount: number;
-  /** 오늘 광고로 해먹을 넓혔는지 (하루 1회) */
-  hammockExpanded: boolean;
-  /** 광고로 넓히면 늘어나는 해먹 용량 (기본 용량 대비 %) */
-  hammockExpandBonusPercent: number;
+  /** 오늘 광고로 넓힌 해먹 단계 (0이면 기본 해먹) */
+  hammockLevel: number;
+  hammockMaxLevel: number;
+  /** 해먹 단계로 늘어난 용량 (기본 용량 대비 %) */
+  hammockLevelBonusPercent: number;
   /** 광고 강화 1회로 오르는 낚시 속도 (%) */
   adRodSpeedBonusPercent: number;
   /** 광고 강화 쿨타임이 끝나는 시각 (ISO 8601). 지금 강화할 수 있으면 null */
   adRodEnhanceAvailableAt: string | null;
+  /** 광고 해먹 넓히기 1회로 늘어나는 용량 (%) */
+  adHammockBonusPercent: number;
+  /** 광고 해먹 넓히기 쿨타임이 끝나는 시각 (ISO 8601). 지금 넓힐 수 있으면 null */
+  adHammockExpandAvailableAt: string | null;
   /** 강화·해달 친구·해먹 넓히기가 풀리는 시각 = 다음 KST 자정 (ISO 8601) */
   boostsResetAt: string;
   warehouseFish: number;

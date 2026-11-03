@@ -18,11 +18,11 @@ export interface Boosts {
   rodLevel: number;
   /** 함께 낚시하는 해달 친구 수 */
   otterFriends: number;
-  /** 광고로 해먹을 넓혔는지 */
-  hammockExpanded: boolean;
+  /** 광고로 넓힌 해먹 단계 */
+  hammockLevel: number;
 }
 
-export const NO_BOOSTS: Readonly<Boosts> = { rodLevel: 0, otterFriends: 0, hammockExpanded: false };
+export const NO_BOOSTS: Readonly<Boosts> = { rodLevel: 0, otterFriends: 0, hammockLevel: 0 };
 
 /** 강화 0단계·해달 친구 없이 1ms 동안 잡는 milli-fish */
 const BASE_MILLI_FISH_PER_MS =
@@ -40,11 +40,15 @@ export function speedPercent(boosts: Boosts): number {
   return BASE_PERCENT + rodSpeedBonusPercent(boosts.rodLevel) + friendBonus;
 }
 
-/** 기본 용량 대비 해먹 용량 보너스는 더한다 (해달 친구 한 명당 + 광고로 넓히기) */
+/** 해먹 단계로 늘어나는 용량 (기본 용량 대비 %) */
+export function hammockLevelBonusPercent(hammockLevel: number): number {
+  return hammockLevel * HAMMOCK_EXPAND_POLICY.CAPACITY_BONUS_PERCENT_PER_LEVEL;
+}
+
+/** 기본 용량 대비 해먹 용량 보너스는 더한다 (해달 친구 한 명당 + 해먹 단계) */
 export function hammockCapacityMilliFish(boosts: Boosts): number {
   const friendBonus = boosts.otterFriends * OTTER_FRIEND_POLICY.CAPACITY_BONUS_PERCENT;
-  const expandBonus = boosts.hammockExpanded ? HAMMOCK_EXPAND_POLICY.CAPACITY_BONUS_PERCENT : 0;
-  const bonus = friendBonus + expandBonus;
+  const bonus = friendBonus + hammockLevelBonusPercent(boosts.hammockLevel);
   return Math.floor(
     (FISHING_POLICY.HAMMOCK_CAPACITY * MILLI_PER_FISH * (BASE_PERCENT + bonus)) / BASE_PERCENT,
   );

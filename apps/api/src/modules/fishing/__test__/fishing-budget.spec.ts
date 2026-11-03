@@ -1,4 +1,9 @@
-import { FISHING_POLICY, OTTER_FRIEND_POLICY, ROD_POLICY } from '../../../common/globals/index.js';
+import {
+  FISHING_POLICY,
+  HAMMOCK_EXPAND_POLICY,
+  OTTER_FRIEND_POLICY,
+  ROD_POLICY,
+} from '../../../common/globals/index.js';
 import { ATTENDANCE_CYCLE_DAYS } from '../../attendance/lib/attendance-reward.policy.js';
 import { speedPercent, tossPointsPerDay } from '../lib/fishing-rate.js';
 
@@ -9,7 +14,11 @@ const LONGEST_MONTH_DAYS = 31;
 const MAX_OTTER_FRIEND_DAYS = Math.ceil(LONGEST_MONTH_DAYS / ATTENDANCE_CYCLE_DAYS);
 
 function worstCaseMonthlyTossPoints(): number {
-  const maxRod = { rodLevel: ROD_POLICY.MAX_LEVEL, otterFriends: 0, hammockExpanded: true };
+  const maxRod = {
+    rodLevel: ROD_POLICY.MAX_LEVEL,
+    otterFriends: 0,
+    hammockLevel: HAMMOCK_EXPAND_POLICY.MAX_LEVEL,
+  };
   const maxRodWithFriends = { ...maxRod, otterFriends: OTTER_FRIEND_POLICY.MAX_PER_DAY };
   const normalDays = LONGEST_MONTH_DAYS - MAX_OTTER_FRIEND_DAYS;
   return (

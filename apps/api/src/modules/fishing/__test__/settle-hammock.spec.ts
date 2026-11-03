@@ -32,7 +32,8 @@ function state(overrides: Partial<HammockState> = {}): HammockState {
     rodLevelDate: null,
     otterFriendDate: null,
     otterFriendCount: 0,
-    hammockExpandedDate: null,
+    hammockLevel: 0,
+    hammockLevelDate: null,
     ...overrides,
   };
 }
@@ -54,14 +55,19 @@ describe('boostsOn', () => {
       otterFriendCount: 1,
     });
 
-    expect(boostsOn(s, TODAY)).toEqual({ rodLevel: 3, otterFriends: 1, hammockExpanded: false });
+    expect(boostsOn(s, TODAY)).toEqual({ rodLevel: 3, otterFriends: 1, hammockLevel: 0 });
     expect(boostsOn(s, '2026-11-03')).toEqual(NO_BOOSTS);
   });
 
   it('counts the otter friends and the expanded hammock only on their own date', () => {
-    const s = state({ otterFriendDate: TODAY, otterFriendCount: 2, hammockExpandedDate: TODAY });
+    const s = state({
+      otterFriendDate: TODAY,
+      otterFriendCount: 2,
+      hammockLevel: 3,
+      hammockLevelDate: TODAY,
+    });
 
-    expect(boostsOn(s, TODAY)).toEqual({ rodLevel: 0, otterFriends: 2, hammockExpanded: true });
+    expect(boostsOn(s, TODAY)).toEqual({ rodLevel: 0, otterFriends: 2, hammockLevel: 3 });
     expect(boostsOn(s, '2026-11-03')).toEqual(NO_BOOSTS);
   });
 });
@@ -155,8 +161,8 @@ describe('settleHammock', () => {
   });
 
   it('fills up to the expanded capacity today', () => {
-    const expanded = hammockCapacityMilliFish({ ...NO_BOOSTS, hammockExpanded: true });
-    const s = state({ milliFish: BASE_CAPACITY, hammockExpandedDate: TODAY });
+    const expanded = hammockCapacityMilliFish({ ...NO_BOOSTS, hammockLevel: 2 });
+    const s = state({ milliFish: BASE_CAPACITY, hammockLevel: 2, hammockLevelDate: TODAY });
 
     expect(settleHammock(s, shiftMs(NOON, 24 * HOUR_MS)).milliFish).toBe(expanded);
   });

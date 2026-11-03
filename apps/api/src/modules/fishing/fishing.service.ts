@@ -5,15 +5,15 @@ import type {
 } from '@haedalpoint/shared';
 import { ConflictException, Injectable } from '@nestjs/common';
 import { DataSource, type EntityManager } from 'typeorm';
-import { AD_ROD_POLICY, ROD_POLICY } from '../../common/globals/index.js';
+import { AD_ROD_POLICY, HAMMOCK_EXPAND_POLICY, ROD_POLICY } from '../../common/globals/index.js';
 import { toKstDateString } from '../../common/utils/kst-date.js';
 import { UsersService } from '../users/users.service.js';
 import type { FishingState } from './entities/fishing-state.entity.js';
 import { FishingRepository, type FishingStateChanges } from './fishing.repository.js';
 import { MILLI_PER_FISH, rodSpeedBonusPercent } from './lib/fishing-rate.js';
 import {
-  adRodEnhanceAvailableAt,
   buildFishingStatus,
+  isCoolingDown,
   toHammockState,
   toStateChanges,
 } from './lib/fishing-status.js';
@@ -28,7 +28,8 @@ import { boostsOn, type HammockState, settleHammock } from './lib/settle-hammock
 const NOTHING_TO_STORE = '해먹에 저장할 물고기가 없어요';
 const AD_ROD_COOLING_DOWN = `낚싯대는 ${AD_ROD_POLICY.COOLDOWN_MINUTES}분마다 강화할 수 있어요`;
 const ROD_AT_MAX_LEVEL = '오늘은 낚싯대를 최대로 강화했어요';
-const HAMMOCK_ALREADY_EXPANDED = '오늘은 이미 해먹을 넓혔어요';
+const HAMMOCK_COOLING_DOWN = `해먹은 ${HAMMOCK_EXPAND_POLICY.COOLDOWN_MINUTES}분마다 넓힐 수 있어요`;
+const HAMMOCK_AT_MAX_LEVEL = '오늘은 해먹을 최대로 넓혔어요';
 
 export interface RodEnhancement {
   rodLevel: number;
@@ -59,7 +60,7 @@ export class FishingService {
     const now = new Date();
     const row = await this.fishingRepository.findOrCreate(userId, now);
     const hammock = settleHammock(toHammockState(row), now);
-    return buildFishingStatus(hammock, row.warehouseFish, row.adRodEnhancedAt, now);
+    return buildFishingStatus(hammock, row, now);
   }
 
   /** 해먹의 물고기(정수 부분)를 창고로 옮긴다 */
@@ -102,8 +103,9 @@ export class FishingService {
         userId,
         now,
         (settled, today, current) => {
-          const availableAt = adRodEnhanceAvailableAt(current.adRodEnhancedAt);
-          if (availableAt && availableAt > now) throw new ConflictException(AD_ROD_COOLING_DOWN);
+          if (isCoolingDown(current.adRodEnhancedAt, AD_ROD_POLICY.COOLDOWN_MINUTES, now)) {
+            throw new ConflictException(AD_ROD_COOLING_DOWN);
+          }
           if (boostsOn(settled, today).rodLevel >= ROD_POLICY.MAX_LEVEL) {
             throw new ConflictException(ROD_AT_MAX_LEVEL);
           }
@@ -111,22 +113,36 @@ export class FishingService {
         },
         { adRodEnhancedAt: now },
       );
-      return buildFishingStatus(next, row.warehouseFish, now, now);
+      return buildFishingStatus(next, { ...row, adRodEnhancedAt: now }, now);
     });
   }
 
-  /** 홈 '광고 보고 해먹 넓히기'. `userEarnedReward` 뒤에만 호출한다. 하루 1회, 이미 넓혔으면 409 */
+  /**
+   * 홈 '광고 보고 해먹 넓히기'. `userEarnedReward` 뒤에만 호출한다.
+   * 쿨타임(HAMMOCK_EXPAND_POLICY.COOLDOWN_MINUTES)마다 정해진 순서로 한 단계씩 넓힌다. 쿨타임 안이거나 최대 단계면 409.
+   */
   async adExpandHammock(userId: string): Promise<FishingAdBoostResponse> {
     await this.usersService.findById(userId);
     return this.dataSource.transaction(async (manager) => {
       const now = new Date();
-      const { row, next } = await this.changeHammock(manager, userId, now, (settled, today) => {
-        if (boostsOn(settled, today).hammockExpanded) {
-          throw new ConflictException(HAMMOCK_ALREADY_EXPANDED);
-        }
-        return expandHammock(settled, today);
-      });
-      return buildFishingStatus(next, row.warehouseFish, row.adRodEnhancedAt, now);
+      const { row, next } = await this.changeHammock(
+        manager,
+        userId,
+        now,
+        (settled, today, current) => {
+          if (
+            isCoolingDown(current.adHammockExpandedAt, HAMMOCK_EXPAND_POLICY.COOLDOWN_MINUTES, now)
+          ) {
+            throw new ConflictException(HAMMOCK_COOLING_DOWN);
+          }
+          if (boostsOn(settled, today).hammockLevel >= HAMMOCK_EXPAND_POLICY.MAX_LEVEL) {
+            throw new ConflictException(HAMMOCK_AT_MAX_LEVEL);
+          }
+          return expandHammock(settled, HAMMOCK_EXPAND_POLICY.LEVELS_PER_AD, today);
+        },
+        { adHammockExpandedAt: now },
+      );
+      return buildFishingStatus(next, { ...row, adHammockExpandedAt: now }, now);
     });
   }
 

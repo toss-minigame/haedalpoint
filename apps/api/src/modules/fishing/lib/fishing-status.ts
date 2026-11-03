@@ -6,6 +6,7 @@ import type { FishingStateChanges } from '../fishing.repository.js';
 import {
   fishPerHour,
   hammockCapacityMilliFish,
+  hammockLevelBonusPercent,
   MILLI_PER_FISH,
   rodSpeedBonusPercent,
   speedPercent,
@@ -20,7 +21,14 @@ type FishingStateRow = Pick<
   | 'rodLevelDate'
   | 'otterFriendDate'
   | 'otterFriendCount'
-  | 'hammockExpandedDate'
+  | 'hammockLevel'
+  | 'hammockLevelDate'
+>;
+
+/** 현황 응답에 필요한, 해먹 계산 밖의 값 */
+export type FishingAccount = Pick<
+  FishingState,
+  'warehouseFish' | 'adRodEnhancedAt' | 'adHammockExpandedAt'
 >;
 
 const MINUTE_MS = 60 * 1000;
@@ -33,7 +41,8 @@ export function toHammockState(row: FishingStateRow): HammockState {
     rodLevelDate: row.rodLevelDate,
     otterFriendDate: row.otterFriendDate,
     otterFriendCount: row.otterFriendCount,
-    hammockExpandedDate: row.hammockExpandedDate,
+    hammockLevel: row.hammockLevel,
+    hammockLevelDate: row.hammockLevelDate,
   };
 }
 
@@ -45,27 +54,38 @@ export function toStateChanges(state: HammockState): FishingStateChanges {
     rodLevelDate: state.rodLevelDate,
     otterFriendDate: state.otterFriendDate,
     otterFriendCount: state.otterFriendCount,
-    hammockExpandedDate: state.hammockExpandedDate,
+    hammockLevel: state.hammockLevel,
+    hammockLevelDate: state.hammockLevelDate,
   };
 }
 
-/** 광고 강화를 다시 할 수 있는 시각. 한 번도 안 했으면 null */
-export function adRodEnhanceAvailableAt(adRodEnhancedAt: Date | null): Date | null {
-  if (!adRodEnhancedAt) return null;
-  return new Date(adRodEnhancedAt.getTime() + AD_ROD_POLICY.COOLDOWN_MINUTES * MINUTE_MS);
+/** 마지막 광고 보상 시각에서 쿨타임이 끝나는 시각. 한 번도 안 받았으면 null */
+export function cooldownEndsAt(lastAt: Date | null, cooldownMinutes: number): Date | null {
+  if (!lastAt) return null;
+  return new Date(lastAt.getTime() + cooldownMinutes * MINUTE_MS);
+}
+
+/** 아직 쿨타임 중인지 */
+export function isCoolingDown(lastAt: Date | null, cooldownMinutes: number, now: Date): boolean {
+  const endsAt = cooldownEndsAt(lastAt, cooldownMinutes);
+  return endsAt !== null && endsAt > now;
+}
+
+/** 쿨타임 중이면 끝나는 시각(ISO 8601), 지금 받을 수 있으면 null */
+function availableAtOrNull(lastAt: Date | null, cooldownMinutes: number, now: Date): string | null {
+  const endsAt = cooldownEndsAt(lastAt, cooldownMinutes);
+  return endsAt && endsAt > now ? endsAt.toISOString() : null;
 }
 
 /** `now` 로 정산된 해먹 상태를 화면용 응답으로 만든다 */
 export function buildFishingStatus(
   hammock: HammockState,
-  warehouseFish: number,
-  adRodEnhancedAt: Date | null,
+  account: FishingAccount,
   now: Date,
 ): FishingStatusResponse {
   const boosts = boostsOn(hammock, toKstDateString(now));
   const percent = speedPercent(boosts);
   const fullAt = predictHammockFullAt(hammock);
-  const availableAt = adRodEnhanceAvailableAt(adRodEnhancedAt);
 
   return {
     serverTime: now.toISOString(),
@@ -79,11 +99,22 @@ export function buildFishingStatus(
     rodSpeedBonusPercent: rodSpeedBonusPercent(boosts.rodLevel),
     otterFriendActive: boosts.otterFriends > 0,
     otterFriendCount: boosts.otterFriends,
-    hammockExpanded: boosts.hammockExpanded,
-    hammockExpandBonusPercent: HAMMOCK_EXPAND_POLICY.CAPACITY_BONUS_PERCENT,
+    hammockLevel: boosts.hammockLevel,
+    hammockMaxLevel: HAMMOCK_EXPAND_POLICY.MAX_LEVEL,
+    hammockLevelBonusPercent: hammockLevelBonusPercent(boosts.hammockLevel),
     adRodSpeedBonusPercent: rodSpeedBonusPercent(AD_ROD_POLICY.LEVELS_PER_AD),
-    adRodEnhanceAvailableAt: availableAt && availableAt > now ? availableAt.toISOString() : null,
+    adRodEnhanceAvailableAt: availableAtOrNull(
+      account.adRodEnhancedAt,
+      AD_ROD_POLICY.COOLDOWN_MINUTES,
+      now,
+    ),
+    adHammockBonusPercent: hammockLevelBonusPercent(HAMMOCK_EXPAND_POLICY.LEVELS_PER_AD),
+    adHammockExpandAvailableAt: availableAtOrNull(
+      account.adHammockExpandedAt,
+      HAMMOCK_EXPAND_POLICY.COOLDOWN_MINUTES,
+      now,
+    ),
     boostsResetAt: nextKstMidnight(now).toISOString(),
-    warehouseFish,
+    warehouseFish: account.warehouseFish,
   };
 }

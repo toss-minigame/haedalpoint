@@ -1,4 +1,8 @@
-import { OTTER_FRIEND_POLICY, ROD_POLICY } from '../../../common/globals/index.js';
+import {
+  HAMMOCK_EXPAND_POLICY,
+  OTTER_FRIEND_POLICY,
+  ROD_POLICY,
+} from '../../../common/globals/index.js';
 import { MILLI_PER_FISH } from './fishing-rate.js';
 import { boostsOn, type HammockState } from './settle-hammock.js';
 
@@ -25,9 +29,14 @@ export function summonOtterFriend(state: HammockState, today: string): HammockSt
   };
 }
 
-/** 오늘 자정까지 해먹을 넓힌다 */
-export function expandHammock(state: HammockState, today: string): HammockState {
-  return { ...state, hammockExpandedDate: today };
+/** 오늘 해먹을 levels 단계 넓힌다 (최대 단계에서 멈춤) */
+export function expandHammock(state: HammockState, levels: number, today: string): HammockState {
+  const current = boostsOn(state, today).hammockLevel;
+  return {
+    ...state,
+    hammockLevel: Math.min(HAMMOCK_EXPAND_POLICY.MAX_LEVEL, current + levels),
+    hammockLevelDate: today,
+  };
 }
 
 /** 해먹에서 정수 마리만 꺼낸다. 1마리 미만 소수는 해먹에 남긴다 */

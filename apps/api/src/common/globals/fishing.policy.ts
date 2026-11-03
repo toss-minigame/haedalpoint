@@ -42,9 +42,15 @@ export const AD_ROD_POLICY = {
   COOLDOWN_MINUTES: 20,
 } as const;
 
-// 홈 '광고 보고 해먹 넓히기': 하루 1회, 그날 자정까지 용량이 늘어난다.
+// 홈 '광고 보고 해먹 넓히기': 쿨타임마다 한 단계씩 정해진 순서로 넓힌다 (랜덤 없음). 매일 KST 자정에 0단계로 초기화된다.
 // 속도는 그대로라 월 예산 최악값(해먹을 한 번도 넘치지 않게 비우는 경우)에는 영향이 없다
 export const HAMMOCK_EXPAND_POLICY = {
-  /** 늘어나는 해먹 용량 (기본 용량 대비 %) */
-  CAPACITY_BONUS_PERCENT: 50,
+  /** 해먹 1단계당 늘어나는 용량 (기본 용량 대비 %, 복리 아님) */
+  CAPACITY_BONUS_PERCENT_PER_LEVEL: 10,
+  /** 하루 최대 해먹 단계 */
+  MAX_LEVEL: 5,
+  /** 광고 1회당 오르는 해먹 단계 */
+  LEVELS_PER_AD: 1,
+  /** 다음 광고 해먹 넓히기까지 기다리는 시간 (분) */
+  COOLDOWN_MINUTES: 60,
 } as const;

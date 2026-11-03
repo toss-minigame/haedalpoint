@@ -5,12 +5,16 @@ import {
   ROD_POLICY,
 } from '../../../common/globals/index.js';
 import { fishPerHour, hammockCapacityMilliFish, NO_BOOSTS } from '../lib/fishing-rate.js';
-import { buildFishingStatus, toHammockState } from '../lib/fishing-status.js';
+import { buildFishingStatus, type FishingAccount, toHammockState } from '../lib/fishing-status.js';
 import type { HammockState } from '../lib/settle-hammock.js';
 
 const TODAY = '2026-11-02';
 const NOW = new Date('2026-11-02T03:00:00Z');
 const MINUTE_MS = 60 * 1000;
+
+function account(overrides: Partial<FishingAccount> = {}): FishingAccount {
+  return { warehouseFish: 0, adRodEnhancedAt: null, adHammockExpandedAt: null, ...overrides };
+}
 
 function hammock(overrides: Partial<HammockState> = {}): HammockState {
   return {
@@ -20,14 +24,15 @@ function hammock(overrides: Partial<HammockState> = {}): HammockState {
     rodLevelDate: null,
     otterFriendDate: null,
     otterFriendCount: 0,
-    hammockExpandedDate: null,
+    hammockLevel: 0,
+    hammockLevelDate: null,
     ...overrides,
   };
 }
 
 describe('buildFishingStatus', () => {
   it('describes a hammock without boosts', () => {
-    const status = buildFishingStatus(hammock(), 300, null, NOW);
+    const status = buildFishingStatus(hammock(), account({ warehouseFish: 300 }), NOW);
 
     expect(status).toMatchObject({
       serverTime: NOW.toISOString(),
@@ -40,8 +45,13 @@ describe('buildFishingStatus', () => {
       rodSpeedBonusPercent: 0,
       otterFriendActive: false,
       otterFriendCount: 0,
-      hammockExpanded: false,
-      hammockExpandBonusPercent: HAMMOCK_EXPAND_POLICY.CAPACITY_BONUS_PERCENT,
+      hammockLevel: 0,
+      hammockMaxLevel: HAMMOCK_EXPAND_POLICY.MAX_LEVEL,
+      hammockLevelBonusPercent: 0,
+      adHammockBonusPercent:
+        HAMMOCK_EXPAND_POLICY.LEVELS_PER_AD *
+        HAMMOCK_EXPAND_POLICY.CAPACITY_BONUS_PERCENT_PER_LEVEL,
+      adHammockExpandAvailableAt: null,
       adRodSpeedBonusPercent:
         AD_ROD_POLICY.LEVELS_PER_AD * ROD_POLICY.SPEED_BONUS_PERCENT_PER_LEVEL,
       adRodEnhanceAvailableAt: null,
@@ -54,8 +64,7 @@ describe('buildFishingStatus', () => {
   it("reflects today's rod level and otter friend", () => {
     const status = buildFishingStatus(
       hammock({ rodLevel: 3, rodLevelDate: TODAY, otterFriendDate: TODAY, otterFriendCount: 1 }),
-      0,
-      null,
+      account(),
       NOW,
     );
 
@@ -70,18 +79,31 @@ describe('buildFishingStatus', () => {
     });
   });
 
-  it("reflects today's expanded hammock", () => {
-    const status = buildFishingStatus(hammock({ hammockExpandedDate: TODAY }), 0, null, NOW);
+  it("reflects today's hammock level", () => {
+    const s = hammock({ hammockLevel: 3, hammockLevelDate: TODAY });
+    const status = buildFishingStatus(s, account(), NOW);
 
     expect(status).toMatchObject({
-      hammockExpanded: true,
-      hammockCapacity: hammockCapacityMilliFish({ ...NO_BOOSTS, hammockExpanded: true }) / 1000,
+      hammockLevel: 3,
+      hammockLevelBonusPercent: 30,
+      hammockCapacity: hammockCapacityMilliFish({ ...NO_BOOSTS, hammockLevel: 3 }) / 1000,
     });
+  });
+
+  it('tells when the ad hammock cooldown ends', () => {
+    const expandedAt = new Date(NOW.getTime() - 5 * MINUTE_MS);
+    const status = buildFishingStatus(hammock(), account({ adHammockExpandedAt: expandedAt }), NOW);
+
+    expect(status.adHammockExpandAvailableAt).toBe(
+      new Date(
+        expandedAt.getTime() + HAMMOCK_EXPAND_POLICY.COOLDOWN_MINUTES * MINUTE_MS,
+      ).toISOString(),
+    );
   });
 
   it('tells when the ad rod cooldown ends', () => {
     const enhancedAt = new Date(NOW.getTime() - 5 * MINUTE_MS);
-    const status = buildFishingStatus(hammock(), 0, enhancedAt, NOW);
+    const status = buildFishingStatus(hammock(), account({ adRodEnhancedAt: enhancedAt }), NOW);
 
     expect(status.adRodEnhanceAvailableAt).toBe(
       new Date(enhancedAt.getTime() + AD_ROD_POLICY.COOLDOWN_MINUTES * MINUTE_MS).toISOString(),
@@ -91,13 +113,15 @@ describe('buildFishingStatus', () => {
   it('allows the ad rod enhancement once the cooldown has passed', () => {
     const enhancedAt = new Date(NOW.getTime() - AD_ROD_POLICY.COOLDOWN_MINUTES * MINUTE_MS);
 
-    expect(buildFishingStatus(hammock(), 0, enhancedAt, NOW).adRodEnhanceAvailableAt).toBeNull();
+    const status = buildFishingStatus(hammock(), account({ adRodEnhancedAt: enhancedAt }), NOW);
+
+    expect(status.adRodEnhanceAvailableAt).toBeNull();
   });
 
   it('has no fill time when the hammock is full', () => {
     const full = hammock({ milliFish: FISHING_POLICY.HAMMOCK_CAPACITY * 1000 });
 
-    expect(buildFishingStatus(full, 0, null, NOW).hammockFullAt).toBeNull();
+    expect(buildFishingStatus(full, account(), NOW).hammockFullAt).toBeNull();
   });
 });
 
@@ -112,8 +136,10 @@ describe('toHammockState', () => {
       rodLevelDate: TODAY,
       otterFriendDate: null,
       otterFriendCount: 0,
-      hammockExpandedDate: null,
+      hammockLevel: 0,
+      hammockLevelDate: null,
       adRodEnhancedAt: null,
+      adHammockExpandedAt: null,
       warehouseFish: 5,
       createdAt: NOW,
       updatedAt: NOW,
@@ -126,7 +152,8 @@ describe('toHammockState', () => {
       rodLevelDate: TODAY,
       otterFriendDate: null,
       otterFriendCount: 0,
-      hammockExpandedDate: null,
+      hammockLevel: 0,
+      hammockLevelDate: null,
     });
   });
 });
