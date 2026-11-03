@@ -1,7 +1,7 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { DataSource, type EntityManager } from 'typeorm';
-import { ROD_POLICY } from '../../../common/globals/index.js';
+import { AD_ROD_POLICY, ROD_POLICY } from '../../../common/globals/index.js';
 import { UsersService } from '../../users/users.service.js';
 import { FishingRepository } from '../fishing.repository.js';
 import { FishingService } from '../fishing.service.js';
@@ -14,6 +14,7 @@ const NOW = new Date('2026-11-02T03:00:00Z');
 const TODAY = '2026-11-02';
 const AN_HOUR_AGO = new Date(NOW.getTime() - HOUR_MS);
 const CAUGHT_IN_AN_HOUR = Math.floor(HOUR_MS * milliFishPerMs(100));
+const MINUTE_MS = 60 * 1000;
 
 function row(overrides: Record<string, unknown> = {}) {
   return {
@@ -24,6 +25,9 @@ function row(overrides: Record<string, unknown> = {}) {
     rodLevel: 0,
     rodLevelDate: null,
     otterFriendDate: null,
+    otterFriendCount: 0,
+    hammockExpandedDate: null,
+    adRodEnhancedAt: null,
     warehouseFish: 100,
     ...overrides,
   };
@@ -103,6 +107,8 @@ describe('FishingService', () => {
         rodLevel: 0,
         rodLevelDate: null,
         otterFriendDate: null,
+        otterFriendCount: 0,
+        hammockExpandedDate: null,
         warehouseFish: 100 + storedFish,
       });
       expect(repo.addLedgerEntry).toHaveBeenCalledWith(manager, {
@@ -191,8 +197,124 @@ describe('FishingService', () => {
           hammockMilliFish: CAUGHT_IN_AN_HOUR,
           settledAt: NOW,
           otterFriendDate: TODAY,
+          otterFriendCount: 1,
         }),
       );
+    });
+
+    it('adds a second otter friend on the same day', async () => {
+      repo.lockOrCreate.mockResolvedValue(row({ otterFriendDate: TODAY, otterFriendCount: 1 }));
+
+      await service.summonOtterFriend(USER_ID, manager, NOW);
+
+      expect(repo.updateState).toHaveBeenCalledWith(
+        manager,
+        'state-1',
+        expect.objectContaining({ otterFriendDate: TODAY, otterFriendCount: 2 }),
+      );
+    });
+  });
+
+  describe('adEnhanceRod', () => {
+    it('settles, raises the rod level and starts the cooldown in one transaction', async () => {
+      repo.lockOrCreate.mockResolvedValue(row({ rodLevel: 2, rodLevelDate: TODAY }));
+
+      const status = await service.adEnhanceRod(USER_ID);
+
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(repo.updateState).toHaveBeenCalledWith(
+        manager,
+        'state-1',
+        expect.objectContaining({
+          hammockMilliFish: Math.floor(HOUR_MS * milliFishPerMs(120)),
+          settledAt: NOW,
+          rodLevel: 2 + AD_ROD_POLICY.LEVELS_PER_AD,
+          rodLevelDate: TODAY,
+          adRodEnhancedAt: NOW,
+        }),
+      );
+      expect(status).toMatchObject({
+        rodLevel: 2 + AD_ROD_POLICY.LEVELS_PER_AD,
+        adRodEnhanceAvailableAt: new Date(
+          NOW.getTime() + AD_ROD_POLICY.COOLDOWN_MINUTES * MINUTE_MS,
+        ).toISOString(),
+      });
+    });
+
+    it('rejects during the cooldown', async () => {
+      const lastEnhancedAt = new Date(
+        NOW.getTime() - (AD_ROD_POLICY.COOLDOWN_MINUTES - 1) * MINUTE_MS,
+      );
+      repo.lockOrCreate.mockResolvedValue(row({ adRodEnhancedAt: lastEnhancedAt }));
+
+      await expect(service.adEnhanceRod(USER_ID)).rejects.toBeInstanceOf(ConflictException);
+      expect(repo.updateState).not.toHaveBeenCalled();
+    });
+
+    it('allows it again once the cooldown has passed', async () => {
+      const lastEnhancedAt = new Date(NOW.getTime() - AD_ROD_POLICY.COOLDOWN_MINUTES * MINUTE_MS);
+      repo.lockOrCreate.mockResolvedValue(row({ adRodEnhancedAt: lastEnhancedAt }));
+
+      await expect(service.adEnhanceRod(USER_ID)).resolves.toMatchObject({ rodLevel: 1 });
+    });
+
+    it("rejects when today's rod level is already at the max", async () => {
+      repo.lockOrCreate.mockResolvedValue(
+        row({ rodLevel: ROD_POLICY.MAX_LEVEL, rodLevelDate: TODAY }),
+      );
+
+      await expect(service.adEnhanceRod(USER_ID)).rejects.toBeInstanceOf(ConflictException);
+      expect(repo.updateState).not.toHaveBeenCalled();
+    });
+
+    it("ignores yesterday's max level", async () => {
+      repo.lockOrCreate.mockResolvedValue(
+        row({ rodLevel: ROD_POLICY.MAX_LEVEL, rodLevelDate: '2026-11-01' }),
+      );
+
+      await expect(service.adEnhanceRod(USER_ID)).resolves.toMatchObject({ rodLevel: 1 });
+    });
+
+    it('rejects unknown users', async () => {
+      usersService.findById.mockRejectedValue(new NotFoundException());
+
+      await expect(service.adEnhanceRod(USER_ID)).rejects.toBeInstanceOf(NotFoundException);
+      expect(dataSource.transaction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('adExpandHammock', () => {
+    it('settles first, then expands the hammock for today', async () => {
+      repo.lockOrCreate.mockResolvedValue(row());
+
+      const status = await service.adExpandHammock(USER_ID);
+
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(repo.updateState).toHaveBeenCalledWith(
+        manager,
+        'state-1',
+        expect.objectContaining({
+          hammockMilliFish: CAUGHT_IN_AN_HOUR,
+          settledAt: NOW,
+          hammockExpandedDate: TODAY,
+        }),
+      );
+      expect(status.hammockExpanded).toBe(true);
+    });
+
+    it('rejects when the hammock was already expanded today', async () => {
+      repo.lockOrCreate.mockResolvedValue(row({ hammockExpandedDate: TODAY }));
+
+      await expect(service.adExpandHammock(USER_ID)).rejects.toBeInstanceOf(ConflictException);
+      expect(repo.updateState).not.toHaveBeenCalled();
+    });
+
+    it('allows it again on a new day', async () => {
+      repo.lockOrCreate.mockResolvedValue(row({ hammockExpandedDate: '2026-11-01' }));
+
+      await expect(service.adExpandHammock(USER_ID)).resolves.toMatchObject({
+        hammockExpanded: true,
+      });
     });
   });
 });

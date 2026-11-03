@@ -1,4 +1,9 @@
-import { FISHING_POLICY, OTTER_FRIEND_POLICY, ROD_POLICY } from '../../../common/globals/index.js';
+import {
+  FISHING_POLICY,
+  HAMMOCK_EXPAND_POLICY,
+  OTTER_FRIEND_POLICY,
+  ROD_POLICY,
+} from '../../../common/globals/index.js';
 import {
   fishPerHour,
   hammockCapacityMilliFish,
@@ -11,6 +16,7 @@ import {
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
+const BASE_CAPACITY = FISHING_POLICY.HAMMOCK_CAPACITY * 1000;
 
 describe('speedPercent', () => {
   it('is 100% without boosts', () => {
@@ -18,15 +24,25 @@ describe('speedPercent', () => {
   });
 
   it('adds 10% of the base speed per rod level (not compounding)', () => {
-    expect(speedPercent({ rodLevel: 3, otterFriend: false })).toBe(
+    expect(speedPercent({ ...NO_BOOSTS, rodLevel: 3 })).toBe(
       100 + 3 * ROD_POLICY.SPEED_BONUS_PERCENT_PER_LEVEL,
     );
   });
 
   it('adds the otter friend bonus on top of the rod bonus', () => {
-    expect(speedPercent({ rodLevel: 3, otterFriend: true })).toBe(
+    expect(speedPercent({ ...NO_BOOSTS, rodLevel: 3, otterFriends: 1 })).toBe(
       100 + 3 * ROD_POLICY.SPEED_BONUS_PERCENT_PER_LEVEL + OTTER_FRIEND_POLICY.SPEED_BONUS_PERCENT,
     );
+  });
+
+  it('adds the otter friend bonus once per friend', () => {
+    expect(speedPercent({ ...NO_BOOSTS, otterFriends: 2 })).toBe(
+      100 + 2 * OTTER_FRIEND_POLICY.SPEED_BONUS_PERCENT,
+    );
+  });
+
+  it('is not changed by expanding the hammock', () => {
+    expect(speedPercent({ ...NO_BOOSTS, hammockExpanded: true })).toBe(100);
   });
 });
 
@@ -38,20 +54,33 @@ describe('rodSpeedBonusPercent', () => {
 
 describe('hammockCapacityMilliFish', () => {
   it('is the base capacity without the otter friend', () => {
-    expect(hammockCapacityMilliFish(NO_BOOSTS)).toBe(FISHING_POLICY.HAMMOCK_CAPACITY * 1000);
+    expect(hammockCapacityMilliFish(NO_BOOSTS)).toBe(BASE_CAPACITY);
   });
 
   it('grows by the otter friend capacity bonus', () => {
-    expect(hammockCapacityMilliFish({ rodLevel: 0, otterFriend: true })).toBe(
-      (FISHING_POLICY.HAMMOCK_CAPACITY *
-        1000 *
-        (100 + OTTER_FRIEND_POLICY.CAPACITY_BONUS_PERCENT)) /
-        100,
+    expect(hammockCapacityMilliFish({ ...NO_BOOSTS, otterFriends: 1 })).toBe(
+      (BASE_CAPACITY * (100 + OTTER_FRIEND_POLICY.CAPACITY_BONUS_PERCENT)) / 100,
     );
   });
 
+  it('grows by the expand bonus', () => {
+    expect(hammockCapacityMilliFish({ ...NO_BOOSTS, hammockExpanded: true })).toBe(
+      (BASE_CAPACITY * (100 + HAMMOCK_EXPAND_POLICY.CAPACITY_BONUS_PERCENT)) / 100,
+    );
+  });
+
+  it('adds the otter friend and expand bonuses together', () => {
+    const boosts = { rodLevel: 0, otterFriends: 2, hammockExpanded: true };
+    const percent =
+      100 +
+      2 * OTTER_FRIEND_POLICY.CAPACITY_BONUS_PERCENT +
+      HAMMOCK_EXPAND_POLICY.CAPACITY_BONUS_PERCENT;
+
+    expect(hammockCapacityMilliFish(boosts)).toBe((BASE_CAPACITY * percent) / 100);
+  });
+
   it('is not changed by rod upgrades', () => {
-    expect(hammockCapacityMilliFish({ rodLevel: 5, otterFriend: false })).toBe(
+    expect(hammockCapacityMilliFish({ ...NO_BOOSTS, rodLevel: 5 })).toBe(
       hammockCapacityMilliFish(NO_BOOSTS),
     );
   });

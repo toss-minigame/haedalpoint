@@ -20,10 +20,24 @@ export interface FishingStatusResponse {
   /** 낚싯대 강화로 오른 속도 (%) */
   rodSpeedBonusPercent: number;
   otterFriendActive: boolean;
-  /** 강화·해달 친구가 풀리는 시각 = 다음 KST 자정 (ISO 8601) */
+  /** 오늘 함께 낚시하는 해달 친구 수 (7일차 출석 1, 출석 광고 2배로 +1) */
+  otterFriendCount: number;
+  /** 오늘 광고로 해먹을 넓혔는지 (하루 1회) */
+  hammockExpanded: boolean;
+  /** 광고로 넓히면 늘어나는 해먹 용량 (기본 용량 대비 %) */
+  hammockExpandBonusPercent: number;
+  /** 광고 강화 1회로 오르는 낚시 속도 (%) */
+  adRodSpeedBonusPercent: number;
+  /** 광고 강화 쿨타임이 끝나는 시각 (ISO 8601). 지금 강화할 수 있으면 null */
+  adRodEnhanceAvailableAt: string | null;
+  /** 강화·해달 친구·해먹 넓히기가 풀리는 시각 = 다음 KST 자정 (ISO 8601) */
   boostsResetAt: string;
   warehouseFish: number;
 }
+
+// POST /api/fishing/ad-enhance-rod, POST /api/fishing/ad-expand-hammock
+// 보상형 광고를 끝까지 본 뒤(`userEarnedReward`)에만 호출한다. 응답은 바뀐 뒤의 현황이다.
+export type FishingAdBoostResponse = FishingStatusResponse;
 
 // POST /api/fishing/store
 export interface StoreFishResponse {

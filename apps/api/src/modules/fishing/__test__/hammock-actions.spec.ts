@@ -1,5 +1,10 @@
-import { ROD_POLICY } from '../../../common/globals/index.js';
-import { enhanceRod, summonOtterFriend, takeWholeFish } from '../lib/hammock-actions.js';
+import { OTTER_FRIEND_POLICY, ROD_POLICY } from '../../../common/globals/index.js';
+import {
+  enhanceRod,
+  expandHammock,
+  summonOtterFriend,
+  takeWholeFish,
+} from '../lib/hammock-actions.js';
 import type { HammockState } from '../lib/settle-hammock.js';
 
 const TODAY = '2026-11-02';
@@ -12,6 +17,8 @@ function state(overrides: Partial<HammockState> = {}): HammockState {
     rodLevel: 0,
     rodLevelDate: null,
     otterFriendDate: null,
+    otterFriendCount: 0,
+    hammockExpandedDate: null,
     ...overrides,
   };
 }
@@ -45,8 +52,38 @@ describe('enhanceRod', () => {
 });
 
 describe('summonOtterFriend', () => {
-  it('makes the otter friend fish today', () => {
-    expect(summonOtterFriend(state(), TODAY).otterFriendDate).toBe(TODAY);
+  it('makes one otter friend fish today', () => {
+    expect(summonOtterFriend(state(), TODAY)).toMatchObject({
+      otterFriendDate: TODAY,
+      otterFriendCount: 1,
+    });
+  });
+
+  it('adds one more otter friend on the same day', () => {
+    const s = state({ otterFriendDate: TODAY, otterFriendCount: 1 });
+
+    expect(summonOtterFriend(s, TODAY).otterFriendCount).toBe(2);
+  });
+
+  it('starts from one when the friends belong to another day', () => {
+    const s = state({ otterFriendDate: YESTERDAY, otterFriendCount: 2 });
+
+    expect(summonOtterFriend(s, TODAY)).toMatchObject({
+      otterFriendDate: TODAY,
+      otterFriendCount: 1,
+    });
+  });
+
+  it('stops at the daily max', () => {
+    const s = state({ otterFriendDate: TODAY, otterFriendCount: OTTER_FRIEND_POLICY.MAX_PER_DAY });
+
+    expect(summonOtterFriend(s, TODAY).otterFriendCount).toBe(OTTER_FRIEND_POLICY.MAX_PER_DAY);
+  });
+});
+
+describe('expandHammock', () => {
+  it('expands the hammock for today', () => {
+    expect(expandHammock(state(), TODAY).hammockExpandedDate).toBe(TODAY);
   });
 });
 
