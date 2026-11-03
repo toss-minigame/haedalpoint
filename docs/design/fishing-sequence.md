@@ -51,7 +51,8 @@ sequenceDiagram
     participant A as API
     participant D as DB
 
-    U->>W: [창고에 저장하기]
+    U->>W: [광고 보고 창고에 저장하기]
+    W->>W: 보상형 광고 표시 → userEarnedReward 받은 뒤에만 다음 단계
     W->>A: POST /fishing/store
     rect rgb(240, 240, 240)
         Note over A,D: 트랜잭션
@@ -67,6 +68,8 @@ sequenceDiagram
     end
     W->>A: GET /fishing/me (다시 조회)
 ```
+
+광고를 끝까지 보지 않고 닫으면 요청하지 않는다. 광고를 쓸 수 없는 환경(`unsupported`)이거나 불러오지 못하면(`failed`) 광고 없이 저장한다 (내 물고기를 저장하지 못하는 막다른 화면 방지). 서버는 광고 시청을 확인할 수 없으므로 API 는 그대로다.
 
 같은 사용자의 요청이 동시에 와도 행 잠금 때문에 차례로 처리되고, 두 번째 요청은 꺼낼 물고기가 없어 409가 된다.
 

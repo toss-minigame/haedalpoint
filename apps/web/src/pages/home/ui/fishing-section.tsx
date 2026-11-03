@@ -22,7 +22,7 @@ function FishingContent({ status, receivedAt, rewardedAd }: ContentProps) {
   return (
     <>
       <HammockGauge fish={fish} capacity={status.hammockCapacity} level={status.hammockLevel} />
-      <StoreFishButton canStore={fish >= 1} />
+      <StoreFishButton canStore={fish >= 1} ad={rewardedAd} />
       <div className="flex flex-col gap-2">
         <p className="text-sm text-muted-foreground">
           광고로 받은 강화와 넓힌 해먹은 오늘 자정까지 유지돼요
