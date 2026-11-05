@@ -5,7 +5,7 @@ import { FishingService } from '../fishing.service.js';
 describe('FishingController', () => {
   const USER_ID = '00000000-0000-4000-8000-000000000001';
   let controller: FishingController;
-  const service = { getStatus: jest.fn(), storeFish: jest.fn() };
+  const service = { getStatus: jest.fn(), getWarehouse: jest.fn(), storeFish: jest.fn() };
 
   beforeEach(async () => {
     jest.resetAllMocks();
@@ -18,6 +18,7 @@ describe('FishingController', () => {
 
   it.each([
     ['getStatus', 'getStatus'],
+    ['getWarehouse', 'getWarehouse'],
     ['storeFish', 'storeFish'],
   ] as const)('%s delegates to service.%s with the user id', async (route, method) => {
     service[method].mockResolvedValue('result');

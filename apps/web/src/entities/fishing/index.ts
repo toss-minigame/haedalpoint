@@ -5,5 +5,11 @@ export { formatFish } from './lib/format-fishing';
 export { hammockName } from './lib/hammock-name';
 export { projectHammockFish } from './lib/project-hammock';
 export { useProjectedHammock } from './lib/use-projected-hammock';
-export type { FishingAdBoostResponse, FishingStatus, StoreFishResponse } from './model/types';
+export type {
+  FishingAdBoostResponse,
+  FishingStatus,
+  StoreFishResponse,
+  Warehouse,
+  WarehouseEntry,
+} from './model/types';
 export { HammockGauge } from './ui/hammock-gauge';

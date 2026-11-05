@@ -12,6 +12,11 @@ export class FishingController {
     return this.fishingService.getStatus(userId);
   }
 
+  @Get('warehouse')
+  getWarehouse(@CurrentUserId() userId: string) {
+    return this.fishingService.getWarehouse(userId);
+  }
+
   @Post('store')
   storeFish(@CurrentUserId() userId: string) {
     return this.fishingService.storeFish(userId);

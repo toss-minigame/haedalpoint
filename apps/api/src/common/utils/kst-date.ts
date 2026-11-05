@@ -21,3 +21,14 @@ export function nextKstMidnight(at: Date): Date {
   const nextKstDayStart = (Math.floor(kstMs / DAY_MS) + 1) * DAY_MS;
   return new Date(nextKstDayStart - KST_OFFSET_MS);
 }
+
+/** 'YYYY-MM-DD' KST 날짜가 시작하는 시각 (그날 KST 00:00) */
+export function kstDayStart(date: string): Date {
+  return new Date(Date.parse(`${date}T00:00:00Z`) - KST_OFFSET_MS);
+}
+
+/** `at` 이 속한 KST 달의 1일 00:00 */
+export function kstMonthStart(at: Date): Date {
+  const yearMonth = toKstDateString(at).slice(0, 'YYYY-MM'.length);
+  return kstDayStart(`${yearMonth}-01`);
+}

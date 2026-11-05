@@ -9,6 +9,7 @@ import { AdEnhanceRodButton, AdExpandHammockButton } from '@/features/fishing-ad
 import { StoreFishButton } from '@/features/store-fish';
 import type { RewardedAd } from '@/shared/lib/rewarded-ad';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card';
+import { WarehouseLink } from './warehouse-link';
 
 type ContentProps = {
   status: FishingStatus;
@@ -23,6 +24,7 @@ function FishingContent({ status, receivedAt, rewardedAd }: ContentProps) {
     <>
       <HammockGauge fish={fish} capacity={status.hammockCapacity} level={status.hammockLevel} />
       <StoreFishButton canStore={fish >= 1} ad={rewardedAd} />
+      <WarehouseLink warehouseFish={status.warehouseFish} />
       <div className="flex flex-col gap-2">
         <p className="text-sm text-muted-foreground">
           광고로 받은 강화와 넓힌 해먹은 오늘 자정까지 유지돼요

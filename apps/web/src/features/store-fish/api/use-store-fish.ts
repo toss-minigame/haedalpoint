@@ -8,8 +8,8 @@ const HTTP_CONFLICT = 409;
 /** 해먹의 물고기를 창고로 옮긴다. 수량은 서버가 정산한 값이다 */
 export function useStoreFish() {
   const queryClient = useQueryClient();
-  const refreshStatus = () =>
-    queryClient.invalidateQueries({ queryKey: fishingQueries.me().queryKey });
+  // 해먹 현황과 창고 화면을 함께 다시 불러온다
+  const refreshStatus = () => queryClient.invalidateQueries({ queryKey: fishingQueries.all() });
 
   return useMutation({
     mutationFn: fishingApi.storeFish,

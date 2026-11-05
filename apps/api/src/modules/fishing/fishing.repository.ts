@@ -27,6 +27,12 @@ export interface WarehouseLedgerEntry {
   amount: number;
 }
 
+/** 기간별 창고 저장량 (STORE 합계) */
+export interface StoredFishSums {
+  today: number;
+  month: number;
+}
+
 // 데이터 접근 계층: TypeORM 의존성은 이 계층 안에만 둡니다.
 // 해먹이 바뀌는 작업은 서비스가 연 트랜잭션(EntityManager) 안에서 행을 잠그고 처리한다.
 @Injectable()
@@ -61,6 +67,34 @@ export class FishingRepository {
   async addLedgerEntry(manager: EntityManager, entry: WarehouseLedgerEntry): Promise<void> {
     const repo = manager.getRepository(WarehouseLedger);
     await repo.insert(repo.create(entry));
+  }
+
+  /** 오늘·이번 달 창고에 저장한 물고기. dayStart 는 monthStart 이후여야 한다 */
+  async sumStoredFish(userId: string, dayStart: Date, monthStart: Date): Promise<StoredFishSums> {
+    const sums = await this.stateRepo.manager
+      .getRepository(WarehouseLedger)
+      .createQueryBuilder('ledger')
+      .select(
+        'COALESCE(SUM(ledger.amount) FILTER (WHERE ledger.createdAt >= :dayStart), 0)',
+        'today',
+      )
+      .addSelect('COALESCE(SUM(ledger.amount), 0)', 'month')
+      .where('ledger.userId = :userId', { userId })
+      .andWhere('ledger.type = :type', { type: 'STORE' satisfies WarehouseLedgerType })
+      .andWhere('ledger.createdAt >= :monthStart', { monthStart })
+      .setParameter('dayStart', dayStart)
+      .getRawOne<{ today: string; month: string }>();
+    // bigint 합계는 문자열로 온다
+    return { today: Number(sums?.today ?? 0), month: Number(sums?.month ?? 0) };
+  }
+
+  /** 최근 창고 이력 (최신순) */
+  async findRecentLedger(userId: string, limit: number): Promise<WarehouseLedger[]> {
+    return this.stateRepo.manager.getRepository(WarehouseLedger).find({
+      where: { userId },
+      order: { createdAt: 'DESC', id: 'DESC' },
+      take: limit,
+    });
   }
 
   /** 동시에 첫 요청이 들어와도 한 행만 생기도록 user_id 유니크 충돌은 무시한다 */

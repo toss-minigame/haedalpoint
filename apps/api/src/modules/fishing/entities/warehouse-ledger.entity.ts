@@ -1,9 +1,10 @@
+import type { WarehouseEntryType } from '@haedalpoint/shared';
 import { Check, Column, Entity, Index } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity.js';
 import { bigintNumberTransformer } from '../../../common/entities/bigint-number.transformer.js';
 
 // STORE: 해먹 → 창고 저장. (후속) CONVERT: 창고 → 토스 포인트 전환
-export type WarehouseLedgerType = 'STORE';
+export type WarehouseLedgerType = WarehouseEntryType;
 
 // 창고 적립·차감 이력. 행을 고치지 않고 쌓기만 한다.
 // STORE 합계가 매월 콘솔에 보고할 물고기 발행 총액이다 (ADR-0007).
