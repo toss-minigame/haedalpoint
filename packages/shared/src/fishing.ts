@@ -52,3 +52,26 @@ export interface StoreFishResponse {
   /** 옮기고 남은 해먹의 물고기 (1마리 미만 소수) */
   hammockFish: number;
 }
+
+// GET /api/fishing/warehouse
+/** 창고 이력 종류. STORE: 해먹 → 창고 저장. (후속) 토스 포인트 전환 이력이 추가된다 */
+export type WarehouseEntryType = 'STORE';
+
+export interface WarehouseEntry {
+  id: string;
+  type: WarehouseEntryType;
+  amount: number;
+  createdAt: string; // ISO 8601
+}
+
+export interface WarehouseResponse {
+  serverTime: string; // ISO 8601
+  /** 창고에 있는 물고기 */
+  warehouseFish: number;
+  /** 오늘(KST) 창고에 저장한 물고기 */
+  todayStoredFish: number;
+  /** 이번 달(KST) 창고에 저장한 물고기 */
+  monthStoredFish: number;
+  /** 최근 이력 (최신순, 최대 개수는 서버가 정한다) */
+  recentEntries: WarehouseEntry[];
+}

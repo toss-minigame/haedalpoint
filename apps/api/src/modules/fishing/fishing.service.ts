@@ -2,11 +2,12 @@ import type {
   FishingAdBoostResponse,
   FishingStatusResponse,
   StoreFishResponse,
+  WarehouseResponse,
 } from '@haedalpoint/shared';
 import { ConflictException, Injectable } from '@nestjs/common';
 import { DataSource, type EntityManager } from 'typeorm';
 import { AD_ROD_POLICY, HAMMOCK_EXPAND_POLICY, ROD_POLICY } from '../../common/globals/index.js';
-import { toKstDateString } from '../../common/utils/kst-date.js';
+import { kstDayStart, kstMonthStart, toKstDateString } from '../../common/utils/kst-date.js';
 import { UsersService } from '../users/users.service.js';
 import type { FishingState } from './entities/fishing-state.entity.js';
 import { FishingRepository, type FishingStateChanges } from './fishing.repository.js';
@@ -30,6 +31,8 @@ const AD_ROD_COOLING_DOWN = `낚싯대는 ${AD_ROD_POLICY.COOLDOWN_MINUTES}분�
 const ROD_AT_MAX_LEVEL = '오늘은 낚싯대를 최대로 강화했어요';
 const HAMMOCK_COOLING_DOWN = `해먹은 ${HAMMOCK_EXPAND_POLICY.COOLDOWN_MINUTES}분마다 넓힐 수 있어요`;
 const HAMMOCK_AT_MAX_LEVEL = '오늘은 해먹을 최대로 넓혔어요';
+/** 창고 화면에 보여줄 최근 이력 수 */
+const RECENT_LEDGER_LIMIT = 30;
 
 export interface RodEnhancement {
   rodLevel: number;
@@ -61,6 +64,33 @@ export class FishingService {
     const row = await this.fishingRepository.findOrCreate(userId, now);
     const hammock = settleHammock(toHammockState(row), now);
     return buildFishingStatus(hammock, row, now);
+  }
+
+  /** 창고 화면: 창고 수량, 오늘·이번 달(KST) 저장량, 최근 이력. 조회만 한다 */
+  async getWarehouse(userId: string): Promise<WarehouseResponse> {
+    await this.usersService.findById(userId);
+    const now = new Date();
+    const row = await this.fishingRepository.findOrCreate(userId, now);
+    const [stored, entries] = await Promise.all([
+      this.fishingRepository.sumStoredFish(
+        userId,
+        kstDayStart(toKstDateString(now)),
+        kstMonthStart(now),
+      ),
+      this.fishingRepository.findRecentLedger(userId, RECENT_LEDGER_LIMIT),
+    ]);
+    return {
+      serverTime: now.toISOString(),
+      warehouseFish: row.warehouseFish,
+      todayStoredFish: stored.today,
+      monthStoredFish: stored.month,
+      recentEntries: entries.map(({ id, type, amount, createdAt }) => ({
+        id,
+        type,
+        amount,
+        createdAt: createdAt.toISOString(),
+      })),
+    };
   }
 
   /** 해먹의 물고기(정수 부분)를 창고로 옮긴다 */

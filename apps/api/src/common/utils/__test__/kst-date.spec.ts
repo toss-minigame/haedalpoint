@@ -1,4 +1,10 @@
-import { addDays, nextKstMidnight, toKstDateString } from '../kst-date.js';
+import {
+  addDays,
+  kstDayStart,
+  kstMonthStart,
+  nextKstMidnight,
+  toKstDateString,
+} from '../kst-date.js';
 
 describe('toKstDateString', () => {
   it('treats UTC 14:59 as the same KST day', () => {
@@ -43,6 +49,33 @@ describe('nextKstMidnight', () => {
   it('handles the minute before KST midnight', () => {
     expect(nextKstMidnight(new Date('2026-11-02T14:59:59.999Z'))).toEqual(
       new Date('2026-11-02T15:00:00Z'),
+    );
+  });
+});
+
+describe('kstDayStart', () => {
+  it('returns KST 00:00 of the date (UTC 15:00 of the previous day)', () => {
+    expect(kstDayStart('2026-11-05')).toEqual(new Date('2026-11-04T15:00:00Z'));
+  });
+});
+
+describe('kstMonthStart', () => {
+  it('returns KST 00:00 of the first day of the KST month', () => {
+    expect(kstMonthStart(new Date('2026-11-05T03:00:00Z'))).toEqual(
+      new Date('2026-10-31T15:00:00Z'),
+    );
+  });
+
+  it('uses the KST month when UTC is still in the previous month', () => {
+    // UTC 10-31 15:30 = KST 11-01 00:30
+    expect(kstMonthStart(new Date('2026-10-31T15:30:00Z'))).toEqual(
+      new Date('2026-10-31T15:00:00Z'),
+    );
+  });
+
+  it('handles year boundary', () => {
+    expect(kstMonthStart(new Date('2026-12-31T15:00:00Z'))).toEqual(
+      new Date('2026-12-31T15:00:00Z'),
     );
   });
 });

@@ -43,6 +43,8 @@ describe('FishingService', () => {
     lockOrCreate: jest.fn(),
     updateState: jest.fn(),
     addLedgerEntry: jest.fn(),
+    sumStoredFish: jest.fn(),
+    findRecentLedger: jest.fn(),
   };
   const usersService = { findById: jest.fn() };
   const dataSource = {
@@ -90,6 +92,44 @@ describe('FishingService', () => {
       usersService.findById.mockRejectedValue(new NotFoundException());
 
       await expect(service.getStatus(USER_ID)).rejects.toBeInstanceOf(NotFoundException);
+      expect(repo.findOrCreate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getWarehouse', () => {
+    it("returns the warehouse with today's and this month's KST totals and recent entries", async () => {
+      repo.findOrCreate.mockResolvedValue(row({ warehouseFish: 5_000 }));
+      repo.sumStoredFish.mockResolvedValue({ today: 300, month: 5_000 });
+      const createdAt = new Date('2026-11-02T02:00:00Z');
+      repo.findRecentLedger.mockResolvedValue([
+        { id: 'ledger-1', userId: USER_ID, type: 'STORE', amount: 300, createdAt },
+      ]);
+
+      const result = await service.getWarehouse(USER_ID);
+
+      // KST 2026-11-02 00:00 = UTC 11-01 15:00, KST 11-01 00:00 = UTC 10-31 15:00
+      expect(repo.sumStoredFish).toHaveBeenCalledWith(
+        USER_ID,
+        new Date('2026-11-01T15:00:00Z'),
+        new Date('2026-10-31T15:00:00Z'),
+      );
+      expect(repo.findRecentLedger).toHaveBeenCalledWith(USER_ID, 30);
+      expect(repo.updateState).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        serverTime: NOW.toISOString(),
+        warehouseFish: 5_000,
+        todayStoredFish: 300,
+        monthStoredFish: 5_000,
+        recentEntries: [
+          { id: 'ledger-1', type: 'STORE', amount: 300, createdAt: createdAt.toISOString() },
+        ],
+      });
+    });
+
+    it('rejects an unknown user before reading the warehouse', async () => {
+      usersService.findById.mockRejectedValue(new NotFoundException());
+
+      await expect(service.getWarehouse(USER_ID)).rejects.toBeInstanceOf(NotFoundException);
       expect(repo.findOrCreate).not.toHaveBeenCalled();
     });
   });
