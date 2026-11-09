@@ -2,6 +2,7 @@ import {
   AD_ROD_POLICY,
   FISHING_POLICY,
   HAMMOCK_EXPAND_POLICY,
+  OTTER_FRIEND_POLICY,
   ROD_POLICY,
 } from '../../../common/globals/index.js';
 import { fishPerHour, hammockCapacityMilliFish, NO_BOOSTS } from '../lib/fishing-rate.js';
@@ -70,10 +71,11 @@ describe('buildFishingStatus', () => {
 
     expect(status).toMatchObject({
       rodLevel: 3,
-      rodSpeedBonusPercent: 30,
+      rodSpeedBonusPercent: 3 * ROD_POLICY.SPEED_BONUS_PERCENT_PER_LEVEL,
       otterFriendActive: true,
       otterFriendCount: 1,
-      speedPercent: 230,
+      speedPercent:
+        100 + 3 * ROD_POLICY.SPEED_BONUS_PERCENT_PER_LEVEL + OTTER_FRIEND_POLICY.SPEED_BONUS_PERCENT,
       hammockCapacity:
         hammockCapacityMilliFish({ ...NO_BOOSTS, rodLevel: 3, otterFriends: 1 }) / 1000,
     });
@@ -85,7 +87,7 @@ describe('buildFishingStatus', () => {
 
     expect(status).toMatchObject({
       hammockLevel: 3,
-      hammockLevelBonusPercent: 30,
+      hammockLevelBonusPercent: 3 * HAMMOCK_EXPAND_POLICY.CAPACITY_BONUS_PERCENT_PER_LEVEL,
       hammockCapacity: hammockCapacityMilliFish({ ...NO_BOOSTS, hammockLevel: 3 }) / 1000,
     });
   });

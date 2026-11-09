@@ -48,9 +48,13 @@ describe('speedPercent', () => {
 });
 
 describe('hammockLevelBonusPercent', () => {
-  it('is 10% per level, up to +50% at the max level', () => {
-    expect(hammockLevelBonusPercent(1)).toBe(10);
-    expect(hammockLevelBonusPercent(HAMMOCK_EXPAND_POLICY.MAX_LEVEL)).toBe(50);
+  it('adds the per-level bonus for each level, up to the max level', () => {
+    const perLevel = HAMMOCK_EXPAND_POLICY.CAPACITY_BONUS_PERCENT_PER_LEVEL;
+
+    expect(hammockLevelBonusPercent(1)).toBe(perLevel);
+    expect(hammockLevelBonusPercent(HAMMOCK_EXPAND_POLICY.MAX_LEVEL)).toBe(
+      HAMMOCK_EXPAND_POLICY.MAX_LEVEL * perLevel,
+    );
   });
 });
 

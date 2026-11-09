@@ -209,9 +209,11 @@ describe('predictHammockFullAt', () => {
   });
 
   it('is full at midnight when the otter friend capacity shrinks below the current fish', () => {
+    // 기본 용량과 해달 친구 용량 사이 (친구가 떠나면 넘치는 양)
+    const betweenCapacities = (BASE_CAPACITY + hammockCapacityMilliFish(FRIEND_DAY)) / 2;
     const s = state({
       settledAt: shiftMs(MIDNIGHT, -1000),
-      milliFish: BASE_CAPACITY + 1_000_000,
+      milliFish: betweenCapacities,
       otterFriendDate: TODAY,
       otterFriendCount: 1,
     });

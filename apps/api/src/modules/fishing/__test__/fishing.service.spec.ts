@@ -5,7 +5,7 @@ import { AD_ROD_POLICY, HAMMOCK_EXPAND_POLICY, ROD_POLICY } from '../../../commo
 import { UsersService } from '../../users/users.service.js';
 import { FishingRepository } from '../fishing.repository.js';
 import { FishingService } from '../fishing.service.js';
-import { milliFishPerMs } from '../lib/fishing-rate.js';
+import { milliFishPerMs, NO_BOOSTS, speedPercent } from '../lib/fishing-rate.js';
 
 const USER_ID = '00000000-0000-4000-8000-000000000001';
 const HOUR_MS = 60 * 60 * 1000;
@@ -15,6 +15,10 @@ const TODAY = '2026-11-02';
 const AN_HOUR_AGO = new Date(NOW.getTime() - HOUR_MS);
 const CAUGHT_IN_AN_HOUR = Math.floor(HOUR_MS * milliFishPerMs(100));
 const MINUTE_MS = 60 * 1000;
+// 강화 2단계 상태로 한 시간 낚시한 양
+const CAUGHT_IN_AN_HOUR_AT_ROD_2 = Math.floor(
+  HOUR_MS * milliFishPerMs(speedPercent({ ...NO_BOOSTS, rodLevel: 2 })),
+);
 
 function row(overrides: Record<string, unknown> = {}) {
   return {
@@ -186,13 +190,16 @@ describe('FishingService', () => {
         manager,
         'state-1',
         expect.objectContaining({
-          hammockMilliFish: Math.floor(HOUR_MS * milliFishPerMs(120)),
+          hammockMilliFish: CAUGHT_IN_AN_HOUR_AT_ROD_2,
           settledAt: NOW,
           rodLevel: 3,
           rodLevelDate: TODAY,
         }),
       );
-      expect(result).toEqual({ rodLevel: 3, rodSpeedBonusPercent: 30 });
+      expect(result).toEqual({
+        rodLevel: 3,
+        rodSpeedBonusPercent: 3 * ROD_POLICY.SPEED_BONUS_PERCENT_PER_LEVEL,
+      });
     });
 
     it('applies the boost to the later day when another server already settled past midnight', async () => {
@@ -269,7 +276,7 @@ describe('FishingService', () => {
         manager,
         'state-1',
         expect.objectContaining({
-          hammockMilliFish: Math.floor(HOUR_MS * milliFishPerMs(120)),
+          hammockMilliFish: CAUGHT_IN_AN_HOUR_AT_ROD_2,
           settledAt: NOW,
           rodLevel: 2 + AD_ROD_POLICY.LEVELS_PER_AD,
           rodLevelDate: TODAY,
