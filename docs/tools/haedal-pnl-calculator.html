@@ -1,0 +1,303 @@
+<title>해달 손익 계산기</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+  /* 레이아웃: 위에 공통 가정, 아래에 사용자 유형 3장. 장마다 입력과 결과를 한 카드에 둔 정산서 형식 */
+  :root {
+    --bg: #eef2f4;
+    --surface: #ffffff;
+    --surface-2: #f4f7f8;
+    --line: #d5dde1;
+    --fg: #14232b;
+    --muted: #5b6e78;
+    --accent: #0b6e7f;
+    --accent-soft: #d9eef1;
+    --gain: #0f7a4a;
+    --gain-soft: #dcf2e6;
+    --loss: #b42d2d;
+    --loss-soft: #f8e0e0;
+    --font-body: "Noto Sans KR", system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif;
+    --font-num: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d171c;
+      --surface: #14232b;
+      --surface-2: #1a2d37;
+      --line: #28404c;
+      --fg: #e6eff2;
+      --muted: #93a9b3;
+      --accent: #5cc4d4;
+      --accent-soft: #163a43;
+      --gain: #5fd49a;
+      --gain-soft: #143a2a;
+      --loss: #ff8f8f;
+      --loss-soft: #402021;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d171c;
+    --surface: #14232b;
+    --surface-2: #1a2d37;
+    --line: #28404c;
+    --fg: #e6eff2;
+    --muted: #93a9b3;
+    --accent: #5cc4d4;
+    --accent-soft: #163a43;
+    --gain: #5fd49a;
+    --gain-soft: #143a2a;
+    --loss: #ff8f8f;
+    --loss-soft: #402021;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.55;
+    padding-block: 24px 48px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+  h1 { font-size: 24px; line-height: 1.3; margin: 0; text-wrap: balance; }
+  h2 { font-size: 16px; margin: 0; }
+  p { margin: 0; }
+  .lede { color: var(--muted); max-width: 62ch; }
+  .num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .panel-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  button.chip {
+    font: inherit; font-size: 13px; color: var(--accent); background: var(--accent-soft);
+    border: 1px solid transparent; border-radius: 999px; padding: 6px 12px; cursor: pointer; min-height: 32px;
+  }
+  button.chip:hover { border-color: var(--accent); }
+  button.chip:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+  .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .field label { font-size: 12px; color: var(--muted); }
+  .field .box { display: flex; align-items: center; gap: 6px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 0 10px; min-height: 38px; }
+  .field input { flex: 1; min-width: 0; width: 100%; border: 0; background: transparent; color: var(--fg); font-family: var(--font-num); font-size: 15px; padding: 8px 0; outline-offset: 6px; }
+  .field .unit { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+  .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .stat { background: var(--surface-2); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .stat .k { font-size: 12px; color: var(--muted); }
+  .stat .v { font-family: var(--font-num); font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .stat .s { font-size: 12px; color: var(--muted); }
+  .stat.gain { background: var(--gain-soft); }
+  .stat.gain .v { color: var(--gain); }
+  .stat.loss { background: var(--loss-soft); }
+  .stat.loss .v { color: var(--loss); }
+
+  .types { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 16px; align-items: start; }
+  .type h2 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .type .tag { font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: 999px; }
+  .tag.gain { color: var(--gain); background: var(--gain-soft); }
+  .tag.loss { color: var(--loss); background: var(--loss-soft); }
+  .type .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rows { display: flex; flex-direction: column; margin: 0; border-top: 1px solid var(--line); }
+  .rows div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .rows dt { color: var(--muted); font-size: 13px; }
+  .rows dd { margin: 0; text-align: right; font-family: var(--font-num); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .rows .strong dd { font-weight: 600; }
+  .rows .gain dd { color: var(--gain); }
+  .rows .loss dd { color: var(--loss); }
+
+  .notes { color: var(--muted); font-size: 13px; padding-left: 18px; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+  .notes b { color: var(--fg); font-weight: 500; }
+  @media (max-width: 420px) { .type .fields { grid-template-columns: 1fr 1fr; } .stat .v { font-size: 19px; } }
+</style>
+
+<div class="wrap">
+  <header style="display:flex;flex-direction:column;gap:8px">
+    <h1>해달 손익 계산기</h1>
+    <p class="lede">광고 1회 수익, 환율, 낚시 속도를 바꾸면 사용자 유형별 하루·한 달 손익이 바로 계산돼요. 코드의 정책값(500마리 = 1원, 시간당 약 694마리, 해먹 5,000마리)이 기본으로 들어 있어요.</p>
+  </header>
+
+  <section class="panel" aria-labelledby="g-head">
+    <div class="panel-head">
+      <h2 id="g-head">공통 가정</h2>
+      <div class="chips" role="group" aria-label="프리셋">
+        <button class="chip" type="button" data-set="ad" data-v="1.5">광고 1.5원</button>
+        <button class="chip" type="button" data-set="ad" data-v="2">광고 2.0원</button>
+        <button class="chip" type="button" data-preset="current">현재 정책</button>
+        <button class="chip" type="button" data-preset="example">예시 정책</button>
+      </div>
+    </div>
+    <div class="fields" id="globals"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="all-head">
+    <h2 id="all-head">전체 사용자 평균</h2>
+    <div class="summary" id="blended"></div>
+  </section>
+
+  <section class="types" id="types" aria-label="사용자 유형별 계산"></section>
+
+  <section class="panel" aria-labelledby="note-head">
+    <h2 id="note-head">계산 방식과 가정</h2>
+    <ul class="notes">
+      <li><b>속도</b> = 100% + 낚싯대 단계 × 단계당 % + 해달 친구 × 친구당 %. 보너스는 더해요.</li>
+      <li><b>해먹 용량</b> = 기본 용량 × (100% + 해달 친구 × 친구당 % + 해먹 단계 × 단계당 %).</li>
+      <li><b>저장 1회 물고기</b> = 저장 간격 동안 쌓인 양과 해먹 용량 중 작은 값. 간격이 길어도 용량을 넘기면 쌓이지 않아요.</li>
+      <li><b>광고 수익</b> = (저장 횟수 × 광고가 뜬 비율 + 저장 외 광고 시청) × 광고 1회 수익. 저장 외 광고는 낚싯대 강화, 해먹 넓히기, 퀴즈, 출석 2배예요.</li>
+      <li>광고 1회 수익은 토스 수수료를 뺀 순수익으로 가정했어요. 사용자 유형별 행동과 비중은 예시값이라 실제 데이터로 바꿔야 해요.</li>
+      <li>최소 전환 단위는 아직 정해지지 않아 임의값(10원)을 넣었어요. 첫 전환까지 걸리는 시간 계산에만 쓰여요.</li>
+      <li>이 계산기는 앱 코드와 별개예요. 값이 정해지면 정책값 파일에 따로 반영해요.</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+(function () {
+  var GLOBALS = [
+    { k: 'ad', label: '광고 1회 수익', unit: '원', step: 0.1, v: 1.5 },
+    { k: 'noAd', label: '저장 때 광고 없이 저장되는 비율', unit: '%', step: 1, v: 0 },
+    { k: 'fishPerWon', label: '환율 (1원당 물고기)', unit: '마리', step: 100, v: 500 },
+    { k: 'baseRate', label: '기본 낚시 속도', unit: '마리/시간', step: 10, v: 694.44 },
+    { k: 'baseCap', label: '기본 해먹 용량', unit: '마리', step: 100, v: 5000 },
+    { k: 'rodPct', label: '낚싯대 1단계당 속도', unit: '%', step: 1, v: 10 },
+    { k: 'otterSpeed', label: '해달 친구 1명당 속도', unit: '%', step: 10, v: 100 },
+    { k: 'otterCap', label: '해달 친구 1명당 용량', unit: '%', step: 10, v: 50 },
+    { k: 'hamPct', label: '해먹 1단계당 용량', unit: '%', step: 1, v: 10 },
+    { k: 'minWon', label: '최소 전환 단위 (가정)', unit: '원', step: 1, v: 10 }
+  ];
+  var FIELDS = [
+    { k: 'stores', label: '하루 저장 횟수', unit: '회', step: 1 },
+    { k: 'interval', label: '저장 사이 간격', unit: '시간', step: 0.1 },
+    { k: 'other', label: '저장 외 광고', unit: '회/일', step: 1 },
+    { k: 'rod', label: '낚싯대 단계', unit: '단계', step: 1 },
+    { k: 'otter', label: '해달 친구', unit: '명', step: 1 },
+    { k: 'ham', label: '해먹 단계', unit: '단계', step: 1 },
+    { k: 'share', label: '사용자 비중', unit: '%', step: 5 }
+  ];
+  var TYPES = [
+    { id: 'idle', name: '방치형', hint: '광고 없이 가끔 들어와 저장만', v: { stores: 3, interval: 8, other: 0, rod: 0, otter: 0, ham: 0, share: 60 } },
+    { id: 'some', name: '가끔 보는 유형', hint: '출석·퀴즈와 강화를 조금', v: { stores: 4, interval: 6, other: 6, rod: 5, otter: 0, ham: 0, share: 30 } },
+    { id: 'heavy', name: '꾸준히 보는 유형', hint: '강화와 해먹을 최대로', v: { stores: 6, interval: 2.7, other: 20, rod: 10, otter: 0, ham: 5, share: 10 } }
+  ];
+  var PRESETS = {
+    current: { fishPerWon: 500, baseRate: 694.44, baseCap: 5000 },
+    example: { fishPerWon: 4000, baseRate: 300, baseCap: 1200 }
+  };
+
+  var state = {};
+  GLOBALS.forEach(function (f) { state[f.k] = f.v; });
+  TYPES.forEach(function (t) { state[t.id] = Object.assign({}, t.v); });
+
+  function fieldHtml(id, f, value) {
+    return '<div class="field"><label for="' + id + '">' + f.label + '</label>' +
+      '<div class="box"><input id="' + id + '" type="number" inputmode="decimal" min="0" step="' + f.step + '" value="' + value + '">' +
+      '<span class="unit">' + f.unit + '</span></div></div>';
+  }
+
+  document.getElementById('globals').innerHTML = GLOBALS.map(function (f) {
+    return fieldHtml('g-' + f.k, f, state[f.k]);
+  }).join('');
+
+  document.getElementById('types').innerHTML = TYPES.map(function (t) {
+    return '<article class="panel type" aria-labelledby="t-' + t.id + '">' +
+      '<div><h2 id="t-' + t.id + '"><span>' + t.name + '</span><span class="tag" id="tag-' + t.id + '"></span></h2>' +
+      '<p style="color:var(--muted);font-size:13px">' + t.hint + '</p></div>' +
+      '<div class="fields">' + FIELDS.map(function (f) { return fieldHtml(t.id + '-' + f.k, f, t.v[f.k]); }).join('') + '</div>' +
+      '<dl class="rows" id="rows-' + t.id + '"></dl></article>';
+  }).join('');
+
+  function num(v) { var n = parseFloat(v); return isFinite(n) && n >= 0 ? n : 0; }
+  function won(n, digits) {
+    var d = digits == null ? (Math.abs(n) < 10 ? 2 : 1) : digits;
+    var s = Math.abs(n).toLocaleString('ko-KR', { minimumFractionDigits: d, maximumFractionDigits: d });
+    return (n < 0 ? '-' : '') + s + '원';
+  }
+  function signedWon(n, digits) { return (n > 0 ? '+' : '') + won(n, digits); }
+  function int(n) { return Math.round(n).toLocaleString('ko-KR'); }
+
+  function calc(g, c) {
+    var speed = 1 + c.rod * g.rodPct / 100 + c.otter * g.otterSpeed / 100;
+    var cap = g.baseCap * (1 + c.otter * g.otterCap / 100 + c.ham * g.hamPct / 100);
+    var rate = g.baseRate * speed;
+    var perStore = Math.min(cap, rate * c.interval);
+    var fish = c.stores * perStore;
+    var pay = g.fishPerWon > 0 ? fish / g.fishPerWon : 0;
+    var ads = c.stores * (1 - Math.min(g.noAd, 100) / 100) + c.other;
+    var rev = ads * g.ad;
+    return { speed: speed, cap: cap, fillH: rate > 0 ? cap / rate : 0, perStore: perStore, fish: fish, pay: pay, ads: ads, rev: rev, day: rev - pay };
+  }
+
+  function row(label, value, cls) {
+    return '<div class="' + (cls || '') + '"><dt>' + label + '</dt><dd>' + value + '</dd></div>';
+  }
+  function statHtml(k, v, s, cls) {
+    return '<div class="stat ' + (cls || '') + '"><span class="k">' + k + '</span><span class="v">' + v + '</span><span class="s">' + s + '</span></div>';
+  }
+  function days(n) { return !isFinite(n) ? '계산 불가' : n > 365 ? '1년 이상' : Math.ceil(n) + '일'; }
+
+  function render() {
+    var g = {};
+    GLOBALS.forEach(function (f) { g[f.k] = num(document.getElementById('g-' + f.k).value); });
+    var shareSum = 0, blend = { day: 0, pay: 0, rev: 0, fish: 0 }, res = {};
+
+    TYPES.forEach(function (t) {
+      var c = {};
+      FIELDS.forEach(function (f) { c[f.k] = num(document.getElementById(t.id + '-' + f.k).value); });
+      var r = calc(g, c);
+      res[t.id] = { r: r, c: c };
+      var gain = r.day >= 0;
+      var tag = document.getElementById('tag-' + t.id);
+      tag.textContent = gain ? '흑자' : '적자';
+      tag.className = 'tag ' + (gain ? 'gain' : 'loss');
+      var toConvert = r.pay > 0 ? g.minWon / r.pay : Infinity;
+      document.getElementById('rows-' + t.id).innerHTML =
+        row('낚시 속도', int(r.speed * 100) + '%') +
+        row('해먹 용량', int(r.cap) + '마리') +
+        row('빈 해먹이 가득 차는 시간', r.fillH.toFixed(1) + '시간') +
+        row('저장 1회 물고기', int(r.perStore) + '마리') +
+        row('하루 광고 시청', r.ads.toFixed(1) + '회') +
+        row('하루 포인트 지급', won(r.pay)) +
+        row('하루 광고 수익', won(r.rev)) +
+        row('하루 손익', signedWon(r.day), 'strong ' + (gain ? 'gain' : 'loss')) +
+        row('한 달 손익 (30일)', signedWon(r.day * 30, 0), 'strong ' + (gain ? 'gain' : 'loss')) +
+        row('수익 대비 지급', r.rev > 0 ? Math.round(r.pay / r.rev * 100) + '%' : '수익 없음') +
+        row('첫 전환까지 (' + g.minWon + '원)', days(toConvert));
+      shareSum += c.share;
+    });
+
+    TYPES.forEach(function (t) {
+      var w = shareSum > 0 ? res[t.id].c.share / shareSum : 0;
+      var r = res[t.id].r;
+      blend.day += w * r.day; blend.pay += w * r.pay; blend.rev += w * r.rev; blend.fish += w * r.fish;
+    });
+    var beRate = blend.rev > 0 ? blend.fish / blend.rev : Infinity;
+    var gain = blend.day >= 0;
+    var shareNote = shareSum === 100 ? '비중 합계 100%' : '비중 합계 ' + shareSum + '%, 100% 기준으로 환산';
+    document.getElementById('blended').innerHTML =
+      statHtml('사용자 1명 하루 평균 손익', signedWon(blend.day), shareNote, gain ? 'gain' : 'loss') +
+      statHtml('사용자 1명 한 달 평균 손익', signedWon(blend.day * 30, 0), '하루 평균 × 30일', gain ? 'gain' : 'loss') +
+      statHtml('평균 수익 대비 지급', blend.rev > 0 ? Math.round(blend.pay / blend.rev * 100) + '%' : '수익 없음', '지급 ' + won(blend.pay) + ' / 수익 ' + won(blend.rev)) +
+      statHtml('손익분기 환율', isFinite(beRate) ? int(beRate) + '마리 = 1원' : '계산 불가', '이 값보다 환율이 크면(마리가 많으면) 평균 흑자');
+  }
+
+  document.addEventListener('input', function (e) { if (e.target.matches('input')) render(); });
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('button.chip');
+    if (!b) return;
+    if (b.dataset.set === 'ad') { document.getElementById('g-ad').value = b.dataset.v; }
+    if (b.dataset.preset) {
+      var p = PRESETS[b.dataset.preset];
+      Object.keys(p).forEach(function (k) { document.getElementById('g-' + k).value = p[k]; });
+    }
+    render();
+  });
+  render();
+})();
+</script>
