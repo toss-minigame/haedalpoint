@@ -1,36 +1,14 @@
 import { loadFullScreenAd, showFullScreenAd } from '@apps-in-toss/web-framework';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { adEnvironment, adLog, describeError, inspectAdGroupId } from './ad-debug-log';
 
-// ── 임시 진단 로그 (debug/ad-log). 광고 실패 원인을 찾으면 지운다 ──
-const LOG_PREFIX = '[광고]';
-
-function adLog(...args: unknown[]): void {
-  console.info(LOG_PREFIX, ...args);
+// 임시 진단: 실패하면 화면의 '광고 로그' 창을 열어 복사하도록 안내한다
+function notifyAdFailure(stage: string): void {
+  toast.error(`[광고] ${stage} 실패 · 왼쪽 아래 '광고 로그'를 눌러 전체 복사해 주세요`, {
+    duration: 15_000,
+  });
 }
-
-/** SDK 가 돌려준 오류를 사람이 읽을 수 있게 (이름·메시지·코드·원본) */
-function describeAdError(error: unknown): string {
-  if (error instanceof Error) {
-    const code = (error as Error & { code?: unknown }).code;
-    return [error.name, error.message, code !== undefined ? `code=${String(code)}` : null]
-      .filter(Boolean)
-      .join(' · ');
-  }
-  try {
-    return JSON.stringify(error);
-  } catch {
-    return String(error);
-  }
-}
-
-/** 실패는 콘솔 + 화면 알림으로 남긴다 (토스 앱 안에서는 콘솔을 바로 볼 수 없어서) */
-function adFail(stage: string, error: unknown): void {
-  const reason = describeAdError(error);
-  console.error(LOG_PREFIX, `${stage} 실패`, reason, error);
-  toast.error(`${LOG_PREFIX} ${stage} 실패: ${reason}`, { duration: 10_000 });
-}
-// ── 임시 진단 로그 끝 ──
 
 /**
  * - unsupported: 이 환경(토스 앱 버전·광고 ID 미설정)에서 광고를 쓸 수 없음
@@ -73,21 +51,17 @@ export function useRewardedAd(adGroupId: string | null): RewardedAd {
   const [status, setStatus] = useState<RewardedAdStatus>(isSupported ? 'loading' : 'unsupported');
   const [loadCount, setLoadCount] = useState(0);
   const showCleanupRef = useRef<(() => void) | null>(null);
+  // 임시 진단: 앞선 불러오기가 이벤트를 받기 전에 또 불렀는지
+  const pendingLoadRef = useRef(false);
 
-  // 임시 진단: 빌드에 들어간 ID·모드와 토스 앱의 광고 지원 여부
+  // 임시 진단: 실행 환경과 광고 그룹 ID 상태, 지원 여부
   useEffect(() => {
-    const info = {
-      adGroupId,
-      mode: import.meta.env.MODE,
-      dev: import.meta.env.DEV,
+    adLog('환경', {
+      ...adEnvironment(),
+      adGroupId: inspectAdGroupId(adGroupId),
       loadSupported: loadFullScreenAd.isSupported(),
       showSupported: showFullScreenAd.isSupported(),
-    };
-    adLog('환경', info);
-    toast.info(
-      `${LOG_PREFIX} ID=${info.adGroupId ?? '없음'} · 모드=${info.mode} · 지원=${info.loadSupported}/${info.showSupported}`,
-      { duration: 10_000 },
-    );
+    });
   }, [adGroupId]);
 
   // 임시 진단: 버튼 상태가 왜 그런지
@@ -99,28 +73,44 @@ export function useRewardedAd(adGroupId: string | null): RewardedAd {
   useEffect(() => {
     if (!isSupported) return;
     setStatus('loading');
-    adLog('불러오기 시작', { adGroupId, attempt: loadCount + 1 });
+    const options = { adGroupId };
+    adLog('불러오기 호출', {
+      attempt: loadCount + 1,
+      previousLoadStillPending: pendingLoadRef.current,
+      options,
+    });
+    pendingLoadRef.current = true;
     const unregister = loadFullScreenAd({
-      options: { adGroupId },
+      options,
       onEvent: (event) => {
+        pendingLoadRef.current = false;
         adLog('불러오기 이벤트', event);
         if (event.type === 'loaded') setStatus('ready');
       },
       onError: (error) => {
-        adFail('불러오기', error);
+        pendingLoadRef.current = false;
+        adLog('불러오기 실패', describeError(error));
+        notifyAdFailure('불러오기');
         setStatus('failed');
       },
     });
-    return unregister;
+    return () => {
+      adLog('불러오기 콜백 해제', { attempt: loadCount + 1 });
+      unregister();
+    };
   }, [adGroupId, isSupported, loadCount]);
 
   // 광고가 떠 있는 동안 화면을 벗어나면 콜백 등록을 해제한다
   useEffect(() => () => showCleanupRef.current?.(), []);
 
-  const reload = useCallback(() => setLoadCount((count) => count + 1), []);
+  const reload = useCallback(() => {
+    adLog('다시 불러오기 요청');
+    setLoadCount((count) => count + 1);
+  }, []);
 
   const show = useCallback(
     ({ onReward, onClose, onFail }: ShowRewardedAdHandlers) => {
+      adLog('띄우기 요청', { isSupported, status });
       if (!isSupported || status !== 'ready') return;
       setStatus('showing');
 
@@ -132,9 +122,10 @@ export function useRewardedAd(adGroupId: string | null): RewardedAd {
         reload();
       };
 
-      adLog('띄우기 시작', { adGroupId });
+      const options = { adGroupId };
+      adLog('띄우기 호출', { options });
       showCleanupRef.current = showFullScreenAd({
-        options: { adGroupId },
+        options,
         onEvent: (event) => {
           adLog('띄우기 이벤트', event);
           switch (event.type) {
@@ -147,14 +138,15 @@ export function useRewardedAd(adGroupId: string | null): RewardedAd {
               finish();
               break;
             case 'failedToShow':
-              adFail('띄우기(failedToShow)', event);
+              notifyAdFailure('띄우기(failedToShow)');
               onFail?.();
               finish();
               break;
           }
         },
         onError: (error) => {
-          adFail('띄우기', error);
+          adLog('띄우기 실패', describeError(error));
+          notifyAdFailure('띄우기');
           onFail?.();
           finish();
         },
