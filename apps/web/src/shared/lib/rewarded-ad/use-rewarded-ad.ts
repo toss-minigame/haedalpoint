@@ -1,4 +1,5 @@
 import {
+  Device,
   GoogleAdMob,
   loadFullScreenAd,
   type ShowFullScreenAdEvent,
@@ -50,11 +51,34 @@ const AUTO_RETRY_DELAYS_MS = [1_000, 2_000] as const;
 
 /**
  * 광고를 불러오고 띄우는 API.
- * - fullScreen: 통합 광고 API (토스 애즈 + AdMob, 토스 앱 5.247.0 이상)
- * - admob: AdMob 전용 API. iOS 에서 통합 API 가 EXECUTION_ERROR [1017] 로 바로 거절하는 경우가 있어,
- *   통합 API 가 실패하면 이 화면에서는 AdMob 전용으로 바꿔 불러온다 (원인 확인 전 임시 우회)
+ * - fullScreen: 통합 광고 API (토스 애즈 + AdMob, 토스 앱 5.247.0 이상). 기본으로 쓴다
+ * - admob: AdMob 전용 API. iOS 토스 앱(5.284.1 확인)에서 통합 API 가 EXECUTION_ERROR [1017] 로
+ *   바로 거절하는 경우가 있어, 그때만 AdMob 전용으로 바꿔 불러온다. 같은 기기에서 AdMob 은 정상 동작했다
  */
 type AdProvider = 'fullScreen' | 'admob';
+
+/** iOS 통합 광고 모듈이 바로 거절할 때 오류 메시지 끝에 붙는 코드 */
+const UNIFIED_AD_REJECTED_CODE = '[1017]';
+
+/**
+ * 이 기기에서 통합 API 가 1017 로 거절된 적이 있는지 (앱을 다시 열면 초기화).
+ * 한 번 거절된 기기는 다른 화면에서도 바로 AdMob 전용으로 불러와 실패를 한 번 더 겪지 않게 한다
+ */
+let isUnifiedAdRejectedOnDevice = false;
+
+function isIos(): boolean {
+  try {
+    return Device.os === 'ios';
+  } catch {
+    return false;
+  }
+}
+
+/** iOS 에서 통합 광고 API 가 EXECUTION_ERROR [1017] 로 거절했는지. 다른 오류나 Android 는 해당하지 않는다 */
+function isUnifiedAdRejectedOnIos(error: unknown): boolean {
+  if (!isIos() || !(error instanceof Error)) return false;
+  return error.message.includes(UNIFIED_AD_REJECTED_CODE);
+}
 
 function isFullScreenSupported(): boolean {
   return loadFullScreenAd.isSupported() && showFullScreenAd.isSupported();
@@ -67,6 +91,7 @@ function isAdMobSupported(): boolean {
 }
 
 function firstProvider(): AdProvider | null {
+  if (isUnifiedAdRejectedOnDevice && isAdMobSupported()) return 'admob';
   if (isFullScreenSupported()) return 'fullScreen';
   if (isAdMobSupported()) return 'admob';
   return null;
@@ -113,7 +138,7 @@ export function useRewardedAd(adGroupId: string | null): RewardedAd {
   const pendingLoadRef = useRef(false);
   /** 지금까지 자동으로 다시 불러온 횟수. 성공하거나 사용자가 다시 시도하면 0 */
   const autoRetryCountRef = useRef(0);
-  /** 지금 쓰는 광고 API. 통합 API 가 실패하면 admob 으로 바뀌고, 이 화면에서는 그대로 유지한다 */
+  /** 지금 쓰는 광고 API. iOS 에서 통합 API 가 1017 로 거절하면 admob 으로 바뀌고 그대로 유지한다 */
   const providerRef = useRef<AdProvider | null>(firstProvider());
 
   // 임시 진단: 실행 환경과 광고 그룹 ID 상태, 지원 여부
@@ -171,10 +196,12 @@ export function useRewardedAd(adGroupId: string | null): RewardedAd {
         onError: (error) => {
           pendingLoadRef.current = false;
           adLog('불러오기 실패', { provider, error: describeError(error) });
-          // 통합 API 가 거절하면 AdMob 전용 API 로 바꿔 바로 다시 불러온다 (자동 재시도 횟수는 쓰지 않음)
-          if (provider === 'fullScreen' && isAdMobSupported()) {
+          // iOS 에서 통합 API 가 1017 로 거절하면 AdMob 전용 API 로 바꿔 바로 다시 불러온다
+          // (자동 재시도 횟수는 쓰지 않음). 그 밖의 오류는 아래 자동 재시도로 통합 API 를 다시 부른다
+          if (provider === 'fullScreen' && isUnifiedAdRejectedOnIos(error) && isAdMobSupported()) {
+            isUnifiedAdRejectedOnDevice = true;
             providerRef.current = 'admob';
-            adLog('AdMob 전용 API 로 전환');
+            adLog('AdMob 전용 API 로 전환', { reason: UNIFIED_AD_REJECTED_CODE });
             setLoadCount((count) => count + 1);
             return;
           }
