@@ -11,15 +11,24 @@ import { createSceneEngine, type SceneEngine } from '../lib/scene/scene-engine';
 
 type Props = {
   className?: string;
+  /** 자동으로 잡을 때마다 물고기 옆에 띄울 글자 (예: +0.0000208). 없으면 띄우지 않는다 */
+  catchLabel?: string | null;
 };
 
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
-// 해달이 선착장에 앉아 바다에서 물고기를 낚는 장면 (캔버스). 탭하면 바로 한 마리 잡는다.
-// 장식용 연출이므로 재화 수량은 표시하지 않는다 (물고기 지갑 API 연동 후 별도 표시).
-export function OtterScene({ className }: Props) {
+// 해달이 선착장에 앉아 바다에서 물고기를 낚는 장면 (캔버스). CATCH_INTERVAL_SECONDS 마다 스스로 잡고,
+// 탭하면 바로 한 마리 잡는다 (탭은 연출만 하고 catchLabel 은 띄우지 않는다).
+export function OtterScene({ className, catchLabel = null }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<SceneEngine | null>(null);
+  // 엔진은 한 번만 만들므로, 만들 때 쓸 최신 글자를 ref 로 들고 있는다
+  const catchLabelRef = useRef(catchLabel);
+
+  useEffect(() => {
+    catchLabelRef.current = catchLabel;
+    engineRef.current?.setCatchLabel(catchLabel);
+  }, [catchLabel]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -36,6 +45,7 @@ export function OtterScene({ className }: Props) {
       reducedMotion: window.matchMedia(REDUCED_MOTION_QUERY).matches,
     });
     engineRef.current = engine;
+    engine.setCatchLabel(catchLabelRef.current);
     return () => {
       engine.destroy();
       engineRef.current = null;

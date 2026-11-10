@@ -1,19 +1,33 @@
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
-import { OtterScene } from '@/entities/otter';
+import { fishingQueries, formatFish } from '@/entities/fishing';
+import { CATCH_INTERVAL_SECONDS, OtterScene } from '@/entities/otter';
 import { env } from '@/shared/config/env';
 import { useRewardedAd } from '@/shared/lib/rewarded-ad';
 import { Button } from '@/shared/ui/button';
 import { AttendanceSection } from './attendance-section';
+import { FishingBoostSection } from './fishing-boost-section';
 import { FishingSection } from './fishing-section';
+
+const SECONDS_PER_HOUR = 60 * 60;
+
+/** 해달이 한 번 잡을 때 늘어나는 양 (예: +0.0000208). 해먹이 가득 찼으면 늘지 않으므로 띄우지 않는다 */
+function useCatchLabel(): string | null {
+  const { data: status } = useQuery(fishingQueries.me());
+  if (!status || status.hammockFullAt === null) return null;
+  return `+${formatFish((status.fishPerHour * CATCH_INTERVAL_SECONDS) / SECONDS_PER_HOUR)}`;
+}
 
 export function HomePage() {
   // 같은 광고 그룹은 한 번에 하나만 미리 불러올 수 있어, 홈의 보상형 광고 버튼이 모두 이 광고를 함께 쓴다
   const rewardedAd = useRewardedAd(env.rewardedAdGroupId);
+  const catchLabel = useCatchLabel();
 
   return (
     <main className="mx-auto flex max-w-xl flex-col gap-6 p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
       <h1 className="text-2xl font-bold">해달해달</h1>
-      <OtterScene />
+      <FishingBoostSection rewardedAd={rewardedAd} />
+      <OtterScene catchLabel={catchLabel} />
       <FishingSection rewardedAd={rewardedAd} />
       <AttendanceSection rewardedAd={rewardedAd} />
       <Button asChild size="lg" variant="outline" className="h-12 w-full text-base">

@@ -24,6 +24,8 @@ export type JumpingFish = {
   toY: number;
   size: number;
   elapsed: number;
+  /** 자동으로 잡은 물고기면 true. 바늘에 걸리면 옆에 잡은 양을 띄운다 (탭으로 잡은 물고기는 띄우지 않음) */
+  labeled: boolean;
 };
 
 export type Splash = {
@@ -41,7 +43,7 @@ export type SceneState = {
   splashes: readonly Splash[];
   happySince: number; // 기쁜 표정이 시작된 시각(time). 표정 전환 페이드에 쓴다
   happyUntil: number; // 이 시각(time)까지 해달이 기쁜 표정
-  hooked: { kind: FishKind; size: number } | null; // 바늘에 걸린 물고기 (기쁜 표정일 때만 보인다)
+  hooked: { kind: FishKind; size: number; labeled: boolean } | null; // 바늘에 걸린 물고기 (기쁜 표정일 때만 보인다)
   nextAutoCatchAt: number;
   nextFishId: number;
 };
@@ -53,7 +55,8 @@ export const SCENE = {
   FISH_MAX_SIZE: 32,
   FISH_MIN_SPEED: 18,
   FISH_MAX_SPEED: 42,
-  AUTO_CATCH_INTERVAL: 4.5, // s
+  // 3초마다 한 마리 잡는다. 튀어 오르기 + 기쁜 표정(2.3초)이 이 간격 안에 끝나야 연출이 겹치지 않는다
+  AUTO_CATCH_INTERVAL: 3, // s
   JUMP_DURATION: 0.7, // s
   JUMP_ARC_HEIGHT: 70, // px
   HAPPY_DURATION: 1.6, // s
@@ -81,6 +84,9 @@ export const SCENE = {
   HOOKED_FISH_SWING: 0.12, // rad, 매달린 물고기가 좌우로 흔들리는 각도
   HOOKED_FISH_SWING_SPEED: 3, // rad/s
 } as const;
+
+/** 해달이 스스로 물고기를 잡는 간격 (초). 잡을 때 띄우는 양을 계산할 때 쓴다 */
+export const CATCH_INTERVAL_SECONDS = SCENE.AUTO_CATCH_INTERVAL;
 
 const between = (random: Random, min: number, max: number) => min + random() * (max - min);
 
@@ -184,7 +190,7 @@ function swim(fish: Fish, dt: number, width: number): Fish {
 }
 
 /** 낚싯바늘과 가장 가까운 물고기를 바늘로 튀어 오르게 하고, 그 자리는 새 물고기로 채운다 */
-export function requestCatch(state: SceneState, random: Random): SceneState {
+export function requestCatch(state: SceneState, random: Random, labeled = false): SceneState {
   if (state.jumping || state.fish.length === 0) return state;
 
   const { hookX } = otterLayout(state);
@@ -206,6 +212,7 @@ export function requestCatch(state: SceneState, random: Random): SceneState {
       toY: landing.y,
       size: target.size,
       elapsed: 0,
+      labeled,
     },
     splashes: [...state.splashes, { x: target.x, y: waterLineY(state.height), elapsed: 0 }],
     nextAutoCatchAt: state.time + SCENE.AUTO_CATCH_INTERVAL,
@@ -238,12 +245,14 @@ export function stepScene(
           jumping: null,
           happySince: time,
           happyUntil: time + SCENE.HAPPY_DURATION,
-          hooked: { kind: jumping.kind, size: jumping.size },
+          hooked: { kind: jumping.kind, size: jumping.size, labeled: jumping.labeled },
         }
       : { ...advanced, jumping };
   }
 
-  return autoCatch && time >= advanced.nextAutoCatchAt ? requestCatch(advanced, random) : advanced;
+  return autoCatch && time >= advanced.nextAutoCatchAt
+    ? requestCatch(advanced, random, true)
+    : advanced;
 }
 
 /**

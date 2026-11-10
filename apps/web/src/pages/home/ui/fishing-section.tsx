@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import {
+  FishingStats,
   type FishingStatus,
   fishingQueries,
   HammockGauge,
   useProjectedHammock,
 } from '@/entities/fishing';
-import { AdEnhanceRodButton, AdExpandHammockButton } from '@/features/fishing-ad-boosts';
 import { StoreFishButton } from '@/features/store-fish';
 import type { RewardedAd } from '@/shared/lib/rewarded-ad';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card';
@@ -23,15 +23,9 @@ function FishingContent({ status, receivedAt, rewardedAd }: ContentProps) {
   return (
     <>
       <HammockGauge fish={fish} capacity={status.hammockCapacity} level={status.hammockLevel} />
+      <FishingStats status={status} receivedAt={receivedAt} />
       <StoreFishButton canStore={fish > 0} ad={rewardedAd} />
       <WarehouseLink warehouseFish={status.warehouseFish} />
-      <div className="flex flex-col gap-2">
-        <p className="text-sm text-muted-foreground">
-          광고로 받은 강화와 넓힌 해먹은 오늘 자정까지 유지돼요
-        </p>
-        <AdEnhanceRodButton status={status} receivedAt={receivedAt} ad={rewardedAd} />
-        <AdExpandHammockButton status={status} receivedAt={receivedAt} ad={rewardedAd} />
-      </div>
     </>
   );
 }

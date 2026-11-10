@@ -4,6 +4,7 @@ import { Button } from '@/shared/ui/button';
 import { Spinner } from '@/shared/ui/spinner';
 
 const AD_BUTTON_CLASS = 'h-12 w-full text-base';
+const COMPACT_AD_BUTTON_CLASS = 'h-9 w-full text-sm';
 
 // 광고 상태별 버튼 문구. ready 일 때만 원래 문구를 쓴다.
 const STATUS_LABEL: Record<Exclude<RewardedAdStatus, 'ready'>, string> = {
@@ -11,6 +12,14 @@ const STATUS_LABEL: Record<Exclude<RewardedAdStatus, 'ready'>, string> = {
   loading: '광고를 준비하고 있어요',
   showing: '광고를 보는 중이에요',
   failed: '광고를 불러오지 못했어요 · 다시 시도',
+};
+
+// 좁은 카드 안에 들어가는 짧은 문구
+const COMPACT_STATUS_LABEL: Record<Exclude<RewardedAdStatus, 'ready'>, string> = {
+  unsupported: '광고 없음',
+  loading: '광고 준비 중',
+  showing: '광고 보는 중',
+  failed: '다시 시도',
 };
 
 type Props = {
@@ -22,6 +31,10 @@ type Props = {
   /** 보상을 처리하는 동안의 문구 (스피너와 함께 보인다) */
   pendingLabel?: string;
   variant: 'default' | 'outline';
+  /** 좁은 카드용 작은 버튼과 짧은 상태 문구 */
+  compact?: boolean;
+  /** label 이 짧아 무엇을 하는지 드러나지 않을 때 화면 낭독기가 읽을 문구 (광고를 볼 수 있을 때만 쓴다) */
+  accessibleLabel?: string;
   onReward: () => void;
 };
 
@@ -33,6 +46,8 @@ export function RewardedAdButton({
   isPending,
   pendingLabel = '처리하고 있어요',
   variant,
+  compact = false,
+  accessibleLabel,
   onReward,
 }: Props) {
   const { status } = ad;
@@ -53,14 +68,17 @@ export function RewardedAdButton({
     });
   };
 
-  const text = isPending ? pendingLabel : status === 'ready' ? label : STATUS_LABEL[status];
+  const isReady = !isPending && status === 'ready';
+  const statusLabel = compact ? COMPACT_STATUS_LABEL : STATUS_LABEL;
+  const text = isPending ? pendingLabel : status === 'ready' ? label : statusLabel[status];
 
   return (
     <Button
       type="button"
       variant={variant}
       size="lg"
-      className={AD_BUTTON_CLASS}
+      className={compact ? COMPACT_AD_BUTTON_CLASS : AD_BUTTON_CLASS}
+      aria-label={isReady ? accessibleLabel : undefined}
       disabled={!isEnabled}
       onClick={handleClick}
     >

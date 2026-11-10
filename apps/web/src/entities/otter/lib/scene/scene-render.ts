@@ -1,6 +1,7 @@
 import {
   type FishKind,
   happyBlend,
+  hookedFishCenter,
   hookedFishOpacity,
   hookedFishSwing,
   jumpPosition,
@@ -32,9 +33,16 @@ const PALETTE = {
   // 물속(선착장 기둥 아래쪽·헤엄치는 물고기)을 살짝 덮는 색. 배경 수면 아래 색과 맞춘다
   underwater: 'rgba(95, 195, 222, 0.35)',
   splash: 'rgba(255, 255, 255, 0.9)',
+  // 잡은 양 글자. 하늘·바다 어느 배경 위에서도 읽히도록 흰 글자에 짙은 바다색 테두리를 두른다
+  catchLabel: '#ffffff',
+  catchLabelOutline: 'rgba(16, 64, 96, 0.85)',
 } as const;
 
 const FISH_EMOJI = '🐟';
+const CATCH_LABEL_FONT = '600 13px system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif';
+const CATCH_LABEL_OUTLINE_WIDTH = 3; // px
+const CATCH_LABEL_GAP = 0.7; // 매달린 물고기 중심에서 글자까지 (물고기 크기 대비)
+const CATCH_LABEL_EDGE_MARGIN = 4; // px, 화면 오른쪽 끝과 글자 사이
 const EMOJI_FONT = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
 
 /** 배경 이미지를 못 불러왔을 때 그리는 단색 그라데이션 하늘·바다 */
@@ -153,6 +161,27 @@ function drawHookedFish(ctx: CanvasRenderingContext2D, state: SceneState, images
   ctx.restore();
 }
 
+/** 자동으로 잡은 물고기 옆에 잡은 양(예: +0.0000208)을 띄운다. 매달린 물고기와 함께 사라진다 */
+function drawCatchLabel(ctx: CanvasRenderingContext2D, state: SceneState, label: string | null) {
+  const opacity = hookedFishOpacity(state);
+  if (!label || !state.hooked?.labeled || opacity === 0) return;
+  const { x, y } = hookedFishCenter(state, state.hooked.size);
+  ctx.save();
+  ctx.font = CATCH_LABEL_FONT;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = CATCH_LABEL_OUTLINE_WIDTH;
+  ctx.strokeStyle = PALETTE.catchLabelOutline;
+  ctx.fillStyle = PALETTE.catchLabel;
+  ctx.globalAlpha = opacity;
+  const maxX = state.width - ctx.measureText(label).width - CATCH_LABEL_EDGE_MARGIN;
+  const labelX = Math.min(x + state.hooked.size * CATCH_LABEL_GAP, maxX);
+  ctx.strokeText(label, labelX, y);
+  ctx.fillText(label, labelX, y);
+  ctx.restore();
+}
+
 function drawSplashes(ctx: CanvasRenderingContext2D, state: SceneState) {
   for (const splash of state.splashes) {
     const t = splash.elapsed / SCENE.SPLASH_DURATION;
@@ -188,6 +217,7 @@ export function drawScene(
   ctx: CanvasRenderingContext2D,
   state: SceneState,
   sprites: SceneSprites | null,
+  catchLabel: string | null,
 ) {
   ctx.clearRect(0, 0, state.width, state.height);
   if (sprites) drawBackground(ctx, state, sprites.background);
@@ -213,4 +243,6 @@ export function drawScene(
     const { x, y } = jumpPosition(state.jumping);
     drawFish(ctx, { kind, x, y, size }, toX > fromX, fishImages);
   }
+
+  if (sprites) drawCatchLabel(ctx, state, catchLabel);
 }

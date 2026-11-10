@@ -1,2 +1,2 @@
-export { AdEnhanceRodButton } from './ui/ad-enhance-rod-button';
-export { AdExpandHammockButton } from './ui/ad-expand-hammock-button';
+export { AdEnhanceRodCard } from './ui/ad-enhance-rod-card';
+export { AdExpandHammockCard } from './ui/ad-expand-hammock-card';
