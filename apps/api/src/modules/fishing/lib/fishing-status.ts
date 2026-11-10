@@ -1,5 +1,5 @@
 import type { FishingStatusResponse } from '@haedalpoint/shared';
-import { AD_ROD_POLICY, HAMMOCK_EXPAND_POLICY, ROD_POLICY } from '../../../common/globals/index.js';
+import { AD_ROD_POLICY, HAMMOCK_EXPAND_POLICY } from '../../../common/globals/index.js';
 import { nextKstMidnight, toKstDateString } from '../../../common/utils/kst-date.js';
 import type { FishingState } from '../entities/fishing-state.entity.js';
 import type { FishingStateChanges } from '../fishing.repository.js';
@@ -101,7 +101,7 @@ export function buildFishingStatus(
     fishPerHour: fishPerHour(percent),
     speedPercent: percent,
     rodLevel: boosts.rodLevel,
-    rodMaxLevel: ROD_POLICY.MAX_LEVEL,
+    rodMaxLevel: null,
     rodSpeedBonusPercent: rodSpeedBonusPercent(boosts.rodLevel),
     otterFriendActive: boosts.otterFriends > 0,
     otterFriendCount: boosts.otterFriends,
@@ -115,6 +115,9 @@ export function buildFishingStatus(
       now,
     ),
     adHammockBonusPercent: hammockLevelBonusPercent(HAMMOCK_EXPAND_POLICY.LEVELS_PER_AD),
+    adHammockRodSpeedBonusPercent: rodSpeedBonusPercent(
+      HAMMOCK_EXPAND_POLICY.ROD_LEVELS_PER_EXPAND,
+    ),
     baitSpeedBonusPercent: boosts.baitBonusPercent,
     adHammockExpandAvailableAt: availableAtOrNull(
       account.adHammockExpandedAt,

@@ -15,7 +15,7 @@ type Props = {
 
 const TITLE = '해먹 넓히기';
 
-// 쿨타임마다 광고를 보고 해먹을 정해진 순서로 한 단계 넓힌다 (랜덤 없음). 오늘 자정까지 유지된다.
+// 쿨타임마다 광고를 보고 해먹을 정해진 순서로 한 단계 넓히고 낚싯대도 함께 강화한다 (랜덤 없음). 오늘 자정까지 유지된다.
 export function AdExpandHammockButton({ status, receivedAt, ad }: Props) {
   const { mutate, isPending } = useAdExpandHammock();
   const remainingMs = useCooldown(status.adHammockExpandAvailableAt, status.serverTime, receivedAt);
@@ -38,7 +38,7 @@ export function AdExpandHammockButton({ status, receivedAt, ad }: Props) {
     <RewardedAdButton
       ad={ad}
       label="광고 보기"
-      accessibleLabel={`광고 보고 ${hammockName(status.hammockLevel + 1)}으로 넓히기 (${bonus})`}
+      accessibleLabel={`광고 보고 ${hammockName(status.hammockLevel + 1)}으로 넓히기 (용량 ${bonus}, 낚시 속도 +${status.adHammockRodSpeedBonusPercent}%)`}
       incompleteMessage="광고를 끝까지 보면 해먹을 넓힐 수 있어요"
       variant="secondary"
       compact

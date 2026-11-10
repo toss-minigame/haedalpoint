@@ -16,7 +16,8 @@ export interface FishingStatusResponse {
   /** 기본 속도 대비 지금 속도 (%). 100 = 기본 */
   speedPercent: number;
   rodLevel: number;
-  rodMaxLevel: number;
+  /** 하루 최대 강화 단계. null 이면 상한 없음 */
+  rodMaxLevel: number | null;
   /** 낚싯대 강화로 오른 속도 (%) */
   rodSpeedBonusPercent: number;
   otterFriendActive: boolean;
@@ -25,14 +26,16 @@ export interface FishingStatusResponse {
   /** 오늘 광고로 넓힌 해먹 단계 (0이면 기본 해먹) */
   hammockLevel: number;
   hammockMaxLevel: number;
-  /** 해먹 단계로 늘어난 용량 (기본 용량 대비 %) */
+  /** 해먹 단계로 늘어난 용량 (기본 용량 대비 %, 등비라 소수 첫째 자리까지) */
   hammockLevelBonusPercent: number;
   /** 광고 강화 1회로 오르는 낚시 속도 (%) */
   adRodSpeedBonusPercent: number;
   /** 광고 강화 쿨타임이 끝나는 시각 (ISO 8601). 지금 강화할 수 있으면 null */
   adRodEnhanceAvailableAt: string | null;
-  /** 광고 해먹 넓히기 1회로 늘어나는 용량 (%) */
+  /** 광고 해먹 넓히기 1회로 늘어나는 용량 (직전 용량 대비 %) */
   adHammockBonusPercent: number;
+  /** 광고 해먹 넓히기 1회로 함께 오르는 낚시 속도 (%) */
+  adHammockRodSpeedBonusPercent: number;
   /** 오늘 적용한 룰렛 미끼로 오른 낚시 속도 (%). 적용 전이면 0 */
   baitSpeedBonusPercent: number;
   /** 광고 해먹 넓히기 쿨타임이 끝나는 시각 (ISO 8601). 지금 넓힐 수 있으면 null */

@@ -235,13 +235,12 @@ describe('FishingService', () => {
       expect(result.rodLevel).toBe(3);
     });
 
-    it('stops at the max level', async () => {
-      repo.lockOrCreate.mockResolvedValue(
-        row({ rodLevel: ROD_POLICY.MAX_LEVEL, rodLevelDate: TODAY }),
-      );
+    it('keeps raising the level past the old 10-level cap', async () => {
+      repo.lockOrCreate.mockResolvedValue(row({ rodLevel: 10, rodLevelDate: TODAY }));
 
       await expect(service.enhanceRod(USER_ID, 1, manager, NOW)).resolves.toMatchObject({
-        rodLevel: ROD_POLICY.MAX_LEVEL,
+        rodLevel: 11,
+        rodSpeedBonusPercent: 11 * ROD_POLICY.SPEED_BONUS_PERCENT_PER_LEVEL,
       });
     });
   });
@@ -340,19 +339,17 @@ describe('FishingService', () => {
       await expect(service.adEnhanceRod(USER_ID)).resolves.toMatchObject({ rodLevel: 1 });
     });
 
-    it("rejects when today's rod level is already at the max", async () => {
-      repo.lockOrCreate.mockResolvedValue(
-        row({ rodLevel: ROD_POLICY.MAX_LEVEL, rodLevelDate: TODAY }),
-      );
+    it('keeps enhancing past the old 10-level cap (no daily max)', async () => {
+      repo.lockOrCreate.mockResolvedValue(row({ rodLevel: 10, rodLevelDate: TODAY }));
 
-      await expect(service.adEnhanceRod(USER_ID)).rejects.toBeInstanceOf(ConflictException);
-      expect(repo.updateState).not.toHaveBeenCalled();
+      await expect(service.adEnhanceRod(USER_ID)).resolves.toMatchObject({
+        rodLevel: 10 + AD_ROD_POLICY.LEVELS_PER_AD,
+        rodMaxLevel: null,
+      });
     });
 
-    it("ignores yesterday's max level", async () => {
-      repo.lockOrCreate.mockResolvedValue(
-        row({ rodLevel: ROD_POLICY.MAX_LEVEL, rodLevelDate: '2026-11-01' }),
-      );
+    it("ignores yesterday's rod level", async () => {
+      repo.lockOrCreate.mockResolvedValue(row({ rodLevel: 10, rodLevelDate: '2026-11-01' }));
 
       await expect(service.adEnhanceRod(USER_ID)).resolves.toMatchObject({ rodLevel: 1 });
     });
@@ -380,11 +377,14 @@ describe('FishingService', () => {
           settledAt: NOW,
           hammockLevel: 2 + HAMMOCK_EXPAND_POLICY.LEVELS_PER_AD,
           hammockLevelDate: TODAY,
+          rodLevel: HAMMOCK_EXPAND_POLICY.ROD_LEVELS_PER_EXPAND,
+          rodLevelDate: TODAY,
           adHammockExpandedAt: NOW,
         }),
       );
       expect(status).toMatchObject({
         hammockLevel: 2 + HAMMOCK_EXPAND_POLICY.LEVELS_PER_AD,
+        rodLevel: HAMMOCK_EXPAND_POLICY.ROD_LEVELS_PER_EXPAND,
         adHammockExpandAvailableAt: new Date(
           NOW.getTime() + HAMMOCK_EXPAND_POLICY.COOLDOWN_MINUTES * MINUTE_MS,
         ).toISOString(),
@@ -408,6 +408,15 @@ describe('FishingService', () => {
       repo.lockOrCreate.mockResolvedValue(row({ adHammockExpandedAt: lastExpandedAt }));
 
       await expect(service.adExpandHammock(USER_ID)).resolves.toMatchObject({ hammockLevel: 1 });
+    });
+
+    it("adds the rod level on top of today's rod enhancements", async () => {
+      repo.lockOrCreate.mockResolvedValue(row({ rodLevel: 4, rodLevelDate: TODAY }));
+
+      await expect(service.adExpandHammock(USER_ID)).resolves.toMatchObject({
+        hammockLevel: 1,
+        rodLevel: 4 + HAMMOCK_EXPAND_POLICY.ROD_LEVELS_PER_EXPAND,
+      });
     });
 
     it("rejects when today's hammock is already at the max level", async () => {

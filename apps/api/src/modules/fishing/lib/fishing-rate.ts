@@ -53,16 +53,21 @@ export function speedPercent(boosts: Boosts): number {
   );
 }
 
-/** 해먹 단계로 늘어나는 용량 (기본 용량 대비 %) */
+/** 해먹 1단계마다 용량에 곱하는 값 (등비) */
+const HAMMOCK_GROWTH_PER_LEVEL =
+  1 + HAMMOCK_EXPAND_POLICY.CAPACITY_GROWTH_PERCENT_PER_LEVEL / BASE_PERCENT;
+
+/** 해먹 단계로 늘어나는 용량 (기본 용량 대비 %, 등비). 화면에 보여줄 값이라 소수 첫째 자리까지 */
 export function hammockLevelBonusPercent(hammockLevel: number): number {
-  return hammockLevel * HAMMOCK_EXPAND_POLICY.CAPACITY_BONUS_PERCENT_PER_LEVEL;
+  const percent = (HAMMOCK_GROWTH_PER_LEVEL ** hammockLevel - 1) * BASE_PERCENT;
+  return Math.round(percent * 10) / 10;
 }
 
-/** 기본 용량 대비 해먹 용량 보너스는 더한다 (해달 친구 한 명당 + 해먹 단계) */
+/** 해먹 용량: 기본 용량에 해달 친구 보너스를 더한 뒤, 해먹 단계만큼 1.1 을 곱한다 */
 export function hammockCapacityNanoFish(boosts: Boosts): number {
   const friendBonus = boosts.otterFriends * OTTER_FRIEND_POLICY.CAPACITY_BONUS_PERCENT;
-  const bonus = friendBonus + hammockLevelBonusPercent(boosts.hammockLevel);
-  return Math.floor((BASE_CAPACITY_NANO_FISH * (BASE_PERCENT + bonus)) / BASE_PERCENT);
+  const withFriends = (BASE_CAPACITY_NANO_FISH * (BASE_PERCENT + friendBonus)) / BASE_PERCENT;
+  return Math.floor(withFriends * HAMMOCK_GROWTH_PER_LEVEL ** boosts.hammockLevel);
 }
 
 export function nanoFishPerMs(percent: number): number {
