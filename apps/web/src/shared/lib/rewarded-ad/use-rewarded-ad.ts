@@ -1,4 +1,9 @@
-import { loadFullScreenAd, showFullScreenAd } from '@apps-in-toss/web-framework';
+import {
+  GoogleAdMob,
+  loadFullScreenAd,
+  type ShowFullScreenAdEvent,
+  showFullScreenAd,
+} from '@apps-in-toss/web-framework';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { adEnvironment, adLog, describeError, inspectAdGroupId } from './ad-debug-log';
@@ -43,8 +48,52 @@ const FIRST_LOAD_DELAY_MS = 1_500;
 /** 불러오기가 실패하면 '다시 시도'를 보여주기 전에 자동으로 다시 불러오는 간격 (기기마다 준비 시간이 달라서) */
 const AUTO_RETRY_DELAYS_MS = [1_000, 2_000] as const;
 
-function canUseFullScreenAd(adGroupId: string | null): adGroupId is string {
-  return adGroupId !== null && loadFullScreenAd.isSupported() && showFullScreenAd.isSupported();
+/**
+ * 광고를 불러오고 띄우는 API.
+ * - fullScreen: 통합 광고 API (토스 애즈 + AdMob, 토스 앱 5.247.0 이상)
+ * - admob: AdMob 전용 API. iOS 에서 통합 API 가 EXECUTION_ERROR [1017] 로 바로 거절하는 경우가 있어,
+ *   통합 API 가 실패하면 이 화면에서는 AdMob 전용으로 바꿔 불러온다 (원인 확인 전 임시 우회)
+ */
+type AdProvider = 'fullScreen' | 'admob';
+
+function isFullScreenSupported(): boolean {
+  return loadFullScreenAd.isSupported() && showFullScreenAd.isSupported();
+}
+
+function isAdMobSupported(): boolean {
+  return (
+    GoogleAdMob.loadAppsInTossAdMob.isSupported() && GoogleAdMob.showAppsInTossAdMob.isSupported()
+  );
+}
+
+function firstProvider(): AdProvider | null {
+  if (isFullScreenSupported()) return 'fullScreen';
+  if (isAdMobSupported()) return 'admob';
+  return null;
+}
+
+type LoadParams = {
+  options: { adGroupId: string };
+  onEvent: (event: { type: 'loaded' }) => void;
+  onError: (error: unknown) => void;
+};
+
+type ShowParams = {
+  options: { adGroupId: string };
+  onEvent: (event: ShowFullScreenAdEvent) => void;
+  onError: (error: unknown) => void;
+};
+
+function loadAd(provider: AdProvider, params: LoadParams): () => void {
+  return provider === 'admob' ? GoogleAdMob.loadAppsInTossAdMob(params) : loadFullScreenAd(params);
+}
+
+function showAd(provider: AdProvider, params: ShowParams): () => void {
+  return provider === 'admob' ? GoogleAdMob.showAppsInTossAdMob(params) : showFullScreenAd(params);
+}
+
+function canUseRewardedAd(adGroupId: string | null): adGroupId is string {
+  return adGroupId !== null && firstProvider() !== null;
 }
 
 /**
@@ -56,7 +105,7 @@ function canUseFullScreenAd(adGroupId: string | null): adGroupId is string {
  * 버튼을 누를 때 load 하지 않는다. 보상은 `userEarnedReward` 에서만 지급한다.
  */
 export function useRewardedAd(adGroupId: string | null): RewardedAd {
-  const isSupported = canUseFullScreenAd(adGroupId);
+  const isSupported = canUseRewardedAd(adGroupId);
   const [status, setStatus] = useState<RewardedAdStatus>(isSupported ? 'loading' : 'unsupported');
   const [loadCount, setLoadCount] = useState(0);
   const showCleanupRef = useRef<(() => void) | null>(null);
@@ -64,6 +113,8 @@ export function useRewardedAd(adGroupId: string | null): RewardedAd {
   const pendingLoadRef = useRef(false);
   /** 지금까지 자동으로 다시 불러온 횟수. 성공하거나 사용자가 다시 시도하면 0 */
   const autoRetryCountRef = useRef(0);
+  /** 지금 쓰는 광고 API. 통합 API 가 실패하면 admob 으로 바뀌고, 이 화면에서는 그대로 유지한다 */
+  const providerRef = useRef<AdProvider | null>(firstProvider());
 
   // 임시 진단: 실행 환경과 광고 그룹 ID 상태, 지원 여부
   useEffect(() => {
@@ -72,6 +123,8 @@ export function useRewardedAd(adGroupId: string | null): RewardedAd {
       adGroupId: inspectAdGroupId(adGroupId),
       loadSupported: loadFullScreenAd.isSupported(),
       showSupported: showFullScreenAd.isSupported(),
+      adMobSupported: isAdMobSupported(),
+      provider: providerRef.current,
     });
   }, [adGroupId]);
 
@@ -82,7 +135,8 @@ export function useRewardedAd(adGroupId: string | null): RewardedAd {
 
   // loadCount 는 reload 트리거용 의존성
   useEffect(() => {
-    if (!isSupported) return;
+    const provider = providerRef.current;
+    if (!isSupported || provider === null) return;
     setStatus('loading');
     const options = { adGroupId };
     const autoRetry = autoRetryCountRef.current;
@@ -96,6 +150,7 @@ export function useRewardedAd(adGroupId: string | null): RewardedAd {
 
     const load = () => {
       adLog('불러오기 호출', {
+        provider,
         attempt: loadCount + 1,
         autoRetry,
         delayMs,
@@ -103,7 +158,7 @@ export function useRewardedAd(adGroupId: string | null): RewardedAd {
         options,
       });
       pendingLoadRef.current = true;
-      unregister = loadFullScreenAd({
+      unregister = loadAd(provider, {
         options,
         onEvent: (event) => {
           pendingLoadRef.current = false;
@@ -115,7 +170,14 @@ export function useRewardedAd(adGroupId: string | null): RewardedAd {
         },
         onError: (error) => {
           pendingLoadRef.current = false;
-          adLog('불러오기 실패', describeError(error));
+          adLog('불러오기 실패', { provider, error: describeError(error) });
+          // 통합 API 가 거절하면 AdMob 전용 API 로 바꿔 바로 다시 불러온다 (자동 재시도 횟수는 쓰지 않음)
+          if (provider === 'fullScreen' && isAdMobSupported()) {
+            providerRef.current = 'admob';
+            adLog('AdMob 전용 API 로 전환');
+            setLoadCount((count) => count + 1);
+            return;
+          }
           if (autoRetryCountRef.current < AUTO_RETRY_DELAYS_MS.length) {
             autoRetryCountRef.current += 1;
             adLog('자동으로 다시 불러오기', { autoRetry: autoRetryCountRef.current });
@@ -161,9 +223,11 @@ export function useRewardedAd(adGroupId: string | null): RewardedAd {
         reload();
       };
 
+      const provider = providerRef.current;
+      if (provider === null) return;
       const options = { adGroupId };
-      adLog('띄우기 호출', { options });
-      showCleanupRef.current = showFullScreenAd({
+      adLog('띄우기 호출', { provider, options });
+      showCleanupRef.current = showAd(provider, {
         options,
         onEvent: (event) => {
           adLog('띄우기 이벤트', event);
@@ -184,7 +248,7 @@ export function useRewardedAd(adGroupId: string | null): RewardedAd {
           }
         },
         onError: (error) => {
-          adLog('띄우기 실패', describeError(error));
+          adLog('띄우기 실패', { provider, error: describeError(error) });
           notifyAdFailure('띄우기');
           onFail?.();
           finish();
