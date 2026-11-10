@@ -12,4 +12,5 @@ export type {
   Warehouse,
   WarehouseEntry,
 } from './model/types';
+export { FishingStats } from './ui/fishing-stats';
 export { HammockGauge } from './ui/hammock-gauge';

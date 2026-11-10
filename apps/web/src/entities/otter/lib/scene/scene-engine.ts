@@ -29,6 +29,8 @@ export type SceneEngineOptions = {
 
 export type SceneEngine = {
   catchFish: () => void;
+  /** 자동으로 잡을 때 물고기 옆에 띄울 글자 (예: +0.0000208). null 이면 띄우지 않는다 */
+  setCatchLabel: (label: string | null) => void;
   destroy: () => void;
 };
 
@@ -57,7 +59,7 @@ export function createSceneEngine(
   options: SceneEngineOptions,
 ): SceneEngine {
   const context = canvas.getContext('2d');
-  if (!context) return { catchFish: () => {}, destroy: () => {} };
+  if (!context) return { catchFish: () => {}, setCatchLabel: () => {}, destroy: () => {} };
   const ctx = context;
 
   const random = Math.random;
@@ -67,8 +69,9 @@ export function createSceneEngine(
   let lastTimestamp: number | null = null;
   let happyTimer: ReturnType<typeof setTimeout> | null = null;
   let destroyed = false;
+  let catchLabel: string | null = null;
 
-  const render = () => drawScene(ctx, state, sprites);
+  const render = () => drawScene(ctx, state, sprites, catchLabel);
 
   const resize = () => {
     const dpr = window.devicePixelRatio || 1;
@@ -138,7 +141,7 @@ export function createSceneEngine(
       ...state,
       happySince: Number.NEGATIVE_INFINITY,
       happyUntil: Number.POSITIVE_INFINITY,
-      hooked: { kind: randomFishKind(random), size: SCENE.FISH_MAX_SIZE },
+      hooked: { kind: randomFishKind(random), size: SCENE.FISH_MAX_SIZE, labeled: false },
     };
     render();
     if (happyTimer) clearTimeout(happyTimer);
@@ -156,5 +159,9 @@ export function createSceneEngine(
     document.removeEventListener('visibilitychange', handleVisibility);
   };
 
-  return { catchFish, destroy };
+  const setCatchLabel = (label: string | null) => {
+    catchLabel = label;
+  };
+
+  return { catchFish, setCatchLabel, destroy };
 }
