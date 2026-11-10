@@ -19,6 +19,7 @@ export function todaySpeedBonusPercent(status: FishingStatus): number {
 /**
  * 오늘 적용 중인 강화 목록. 모두 서버 응답 값에서 계산한다.
  * 해달 친구 몫은 응답에 따로 없어서 전체 속도 보너스에서 낚싯대·미끼 몫을 뺀다.
+ * 해먹 단계는 해먹 광고로만 오르고 한 번에 낚싯대도 함께 오르므로, 낚싯대 중 해먹 넓히기 몫 = 해먹 단계 × 1회당 속도.
  * baitName 은 오늘 단 미끼 이름 (룰렛 정보를 아직 못 받았으면 null)
  */
 export function todayBoostRows(status: FishingStatus, baitName: string | null): TodayBoostRow[] {
@@ -26,15 +27,18 @@ export function todayBoostRows(status: FishingStatus, baitName: string | null): 
   const baitBonus = status.baitSpeedBonusPercent;
   const friendBonus = todaySpeedBonusPercent(status) - rodBonus - baitBonus;
   const hammockBonus = status.hammockLevelBonusPercent;
+  // 정책이 바뀌기 전에 넓힌 해먹 단계는 낚싯대를 올리지 않았으므로 낚싯대 전체를 넘지 않게 한다
+  const hammockRodBonus = Math.min(
+    rodBonus,
+    status.hammockLevel * status.adHammockRodSpeedBonusPercent,
+  );
+  const otherRodBonus = rodBonus - hammockRodBonus;
 
   return [
     {
       key: 'rod',
       title: '낚싯대 강화',
-      detail:
-        status.rodLevel > 0
-          ? `오늘 ${status.rodLevel}단계 · 출석과 광고로 강화`
-          : '출석하거나 광고를 보면 강화돼요',
+      detail: rodDetail(status.rodLevel, otherRodBonus, hammockRodBonus),
       value: `+${rodBonus}%`,
       isActive: rodBonus > 0,
     },
@@ -63,10 +67,20 @@ export function todayBoostRows(status: FishingStatus, baitName: string | null): 
       title: '해먹 넓히기',
       detail:
         status.hammockLevel > 0
-          ? `${status.hammockLevel}단계 · ${hammockName(status.hammockLevel)}`
-          : '광고를 보면 해먹이 넓어져요',
+          ? `${status.hammockLevel}단계 · ${hammockName(status.hammockLevel)}${
+              hammockRodBonus > 0 ? ` · 낚싯대 +${hammockRodBonus}% 함께` : ''
+            }`
+          : '광고를 보면 해먹이 넓어지고 낚싯대도 강화돼요',
       value: `용량 +${hammockBonus}%`,
       isActive: hammockBonus > 0,
     },
   ];
+}
+
+/** 낚싯대 강화 줄 설명: 출석·퀴즈·광고 몫과 해먹 넓히기 몫을 나눠 보여준다 (둘을 더하면 낚싯대 값) */
+function rodDetail(rodLevel: number, otherBonus: number, hammockBonus: number): string {
+  if (rodLevel <= 0) return '출석하거나 광고를 보면 강화돼요';
+  if (hammockBonus <= 0) return `오늘 ${rodLevel}단계 · 출석·퀴즈·광고로 강화`;
+  if (otherBonus <= 0) return `오늘 ${rodLevel}단계 · 해먹 넓히기 +${hammockBonus}%`;
+  return `출석·퀴즈·광고 +${otherBonus}% · 해먹 넓히기 +${hammockBonus}%`;
 }
