@@ -83,7 +83,7 @@ describe('hammockCapacityNanoFish', () => {
   });
 
   it('adds the otter friend and hammock level bonuses together', () => {
-    const boosts = { rodLevel: 0, otterFriends: 2, hammockLevel: 5 };
+    const boosts = { rodLevel: 0, otterFriends: 2, hammockLevel: 5, baitBonusPercent: 0 };
     const percent =
       100 +
       2 * OTTER_FRIEND_POLICY.CAPACITY_BONUS_PERCENT +
@@ -133,5 +133,19 @@ describe('nano-fish precision', () => {
 
   it('holds fractional capacities without rounding to whole fish', () => {
     expect(BASE_CAPACITY / NANO_PER_FISH).toBe(FISHING_POLICY.HAMMOCK_CAPACITY);
+  });
+});
+
+describe('speedPercent bait', () => {
+  it('adds the bait bonus on top of the other speed bonuses', () => {
+    expect(speedPercent({ ...NO_BOOSTS, rodLevel: 2, baitBonusPercent: 5 })).toBe(
+      100 + 2 * ROD_POLICY.SPEED_BONUS_PERCENT_PER_LEVEL + 5,
+    );
+  });
+
+  it('does not change the hammock capacity', () => {
+    expect(hammockCapacityNanoFish({ ...NO_BOOSTS, baitBonusPercent: 5 })).toBe(
+      hammockCapacityNanoFish(NO_BOOSTS),
+    );
   });
 });

@@ -15,6 +15,8 @@ export type FishingStateChanges = Partial<
     | 'otterFriendCount'
     | 'hammockLevel'
     | 'hammockLevelDate'
+    | 'baitBonusPercent'
+    | 'baitDate'
     | 'adRodEnhancedAt'
     | 'adHammockExpandedAt'
     | 'warehouseNanoFish'

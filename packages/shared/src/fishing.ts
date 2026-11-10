@@ -33,6 +33,8 @@ export interface FishingStatusResponse {
   adRodEnhanceAvailableAt: string | null;
   /** 광고 해먹 넓히기 1회로 늘어나는 용량 (%) */
   adHammockBonusPercent: number;
+  /** 오늘 적용한 룰렛 미끼로 오른 낚시 속도 (%). 적용 전이면 0 */
+  baitSpeedBonusPercent: number;
   /** 광고 해먹 넓히기 쿨타임이 끝나는 시각 (ISO 8601). 지금 넓힐 수 있으면 null */
   adHammockExpandAvailableAt: string | null;
   /** 강화·해달 친구·해먹 넓히기가 풀리는 시각 = 다음 KST 자정 (ISO 8601) */
