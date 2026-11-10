@@ -1,5 +1,36 @@
 import { loadFullScreenAd, showFullScreenAd } from '@apps-in-toss/web-framework';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
+
+// ── 임시 진단 로그 (debug/ad-log). 광고 실패 원인을 찾으면 지운다 ──
+const LOG_PREFIX = '[광고]';
+
+function adLog(...args: unknown[]): void {
+  console.info(LOG_PREFIX, ...args);
+}
+
+/** SDK 가 돌려준 오류를 사람이 읽을 수 있게 (이름·메시지·코드·원본) */
+function describeAdError(error: unknown): string {
+  if (error instanceof Error) {
+    const code = (error as Error & { code?: unknown }).code;
+    return [error.name, error.message, code !== undefined ? `code=${String(code)}` : null]
+      .filter(Boolean)
+      .join(' · ');
+  }
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
+/** 실패는 콘솔 + 화면 알림으로 남긴다 (토스 앱 안에서는 콘솔을 바로 볼 수 없어서) */
+function adFail(stage: string, error: unknown): void {
+  const reason = describeAdError(error);
+  console.error(LOG_PREFIX, `${stage} 실패`, reason, error);
+  toast.error(`${LOG_PREFIX} ${stage} 실패: ${reason}`, { duration: 10_000 });
+}
+// ── 임시 진단 로그 끝 ──
 
 /**
  * - unsupported: 이 환경(토스 앱 버전·광고 ID 미설정)에서 광고를 쓸 수 없음
@@ -43,16 +74,42 @@ export function useRewardedAd(adGroupId: string | null): RewardedAd {
   const [loadCount, setLoadCount] = useState(0);
   const showCleanupRef = useRef<(() => void) | null>(null);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: loadCount 는 reload 트리거용 의존성
+  // 임시 진단: 빌드에 들어간 ID·모드와 토스 앱의 광고 지원 여부
+  useEffect(() => {
+    const info = {
+      adGroupId,
+      mode: import.meta.env.MODE,
+      dev: import.meta.env.DEV,
+      loadSupported: loadFullScreenAd.isSupported(),
+      showSupported: showFullScreenAd.isSupported(),
+    };
+    adLog('환경', info);
+    toast.info(
+      `${LOG_PREFIX} ID=${info.adGroupId ?? '없음'} · 모드=${info.mode} · 지원=${info.loadSupported}/${info.showSupported}`,
+      { duration: 10_000 },
+    );
+  }, [adGroupId]);
+
+  // 임시 진단: 버튼 상태가 왜 그런지
+  useEffect(() => {
+    adLog('상태', status);
+  }, [status]);
+
+  // loadCount 는 reload 트리거용 의존성
   useEffect(() => {
     if (!isSupported) return;
     setStatus('loading');
+    adLog('불러오기 시작', { adGroupId, attempt: loadCount + 1 });
     const unregister = loadFullScreenAd({
       options: { adGroupId },
       onEvent: (event) => {
+        adLog('불러오기 이벤트', event);
         if (event.type === 'loaded') setStatus('ready');
       },
-      onError: () => setStatus('failed'),
+      onError: (error) => {
+        adFail('불러오기', error);
+        setStatus('failed');
+      },
     });
     return unregister;
   }, [adGroupId, isSupported, loadCount]);
@@ -75,9 +132,11 @@ export function useRewardedAd(adGroupId: string | null): RewardedAd {
         reload();
       };
 
+      adLog('띄우기 시작', { adGroupId });
       showCleanupRef.current = showFullScreenAd({
         options: { adGroupId },
         onEvent: (event) => {
+          adLog('띄우기 이벤트', event);
           switch (event.type) {
             case 'userEarnedReward':
               earned = true;
@@ -88,12 +147,14 @@ export function useRewardedAd(adGroupId: string | null): RewardedAd {
               finish();
               break;
             case 'failedToShow':
+              adFail('띄우기(failedToShow)', event);
               onFail?.();
               finish();
               break;
           }
         },
-        onError: () => {
+        onError: (error) => {
+          adFail('띄우기', error);
           onFail?.();
           finish();
         },
