@@ -30,8 +30,9 @@ export function HammockGauge({ fish, capacity, level }: Props) {
         role="progressbar"
         aria-label="해먹에 쌓인 물고기"
         aria-valuemin={0}
-        aria-valuemax={Math.floor(capacity)}
-        aria-valuenow={Math.floor(fish)}
+        aria-valuemax={100}
+        aria-valuenow={Math.floor(percent)}
+        aria-valuetext={`${formatFish(fish)} / ${formatFish(capacity)}마리`}
         className="h-3 overflow-hidden rounded-full bg-muted"
       >
         <div

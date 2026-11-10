@@ -7,8 +7,8 @@ import { bigintNumberTransformer } from '../../../common/entities/bigint-number.
 // 강화·해달 친구는 유효 날짜(KST)가 오늘일 때만 적용되므로 자정 초기화 배치가 필요 없다.
 @Entity('fishing_states')
 @Unique('UQ_fishing_states_user_id', ['userId'])
-@Check('CHK_fishing_states_hammock_milli_fish', '"hammock_milli_fish" >= 0')
-@Check('CHK_fishing_states_warehouse_fish', '"warehouse_fish" >= 0')
+@Check('CHK_fishing_states_hammock_nano_fish', '"hammock_nano_fish" >= 0')
+@Check('CHK_fishing_states_warehouse_nano_fish', '"warehouse_nano_fish" >= 0')
 @Check('CHK_fishing_states_rod_level', '"rod_level" >= 0')
 @Check('CHK_fishing_states_otter_friend_count', '"otter_friend_count" >= 0')
 @Check('CHK_fishing_states_hammock_level', '"hammock_level" >= 0')
@@ -16,14 +16,14 @@ export class FishingState extends BaseEntity {
   @Column({ type: 'uuid', name: 'user_id' })
   userId: string;
 
-  // 해먹의 물고기 (1/1000마리 단위)
+  // 해먹의 물고기 (1/10억 마리 단위)
   @Column({
     type: 'bigint',
-    name: 'hammock_milli_fish',
+    name: 'hammock_nano_fish',
     default: 0,
     transformer: bigintNumberTransformer,
   })
-  hammockMilliFish: number;
+  hammockNanoFish: number;
 
   // 마지막으로 해먹을 정산한 시각
   @Column({ type: 'timestamptz', name: 'settled_at' })
@@ -59,12 +59,12 @@ export class FishingState extends BaseEntity {
   @Column({ type: 'timestamptz', name: 'ad_rod_enhanced_at', nullable: true })
   adRodEnhancedAt: Date | null;
 
-  // 창고의 물고기 (영속 재화)
+  // 창고의 물고기 (영속 재화, 1/10억 마리 단위)
   @Column({
     type: 'bigint',
-    name: 'warehouse_fish',
+    name: 'warehouse_nano_fish',
     default: 0,
     transformer: bigintNumberTransformer,
   })
-  warehouseFish: number;
+  warehouseNanoFish: number;
 }

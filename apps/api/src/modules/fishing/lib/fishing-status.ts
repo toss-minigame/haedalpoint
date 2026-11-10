@@ -5,9 +5,9 @@ import type { FishingState } from '../entities/fishing-state.entity.js';
 import type { FishingStateChanges } from '../fishing.repository.js';
 import {
   fishPerHour,
-  hammockCapacityMilliFish,
+  hammockCapacityNanoFish,
   hammockLevelBonusPercent,
-  MILLI_PER_FISH,
+  NANO_PER_FISH,
   rodSpeedBonusPercent,
   speedPercent,
 } from './fishing-rate.js';
@@ -15,7 +15,7 @@ import { boostsOn, type HammockState, predictHammockFullAt } from './settle-hamm
 
 type FishingStateRow = Pick<
   FishingState,
-  | 'hammockMilliFish'
+  | 'hammockNanoFish'
   | 'settledAt'
   | 'rodLevel'
   | 'rodLevelDate'
@@ -28,14 +28,14 @@ type FishingStateRow = Pick<
 /** 현황 응답에 필요한, 해먹 계산 밖의 값 */
 export type FishingAccount = Pick<
   FishingState,
-  'warehouseFish' | 'adRodEnhancedAt' | 'adHammockExpandedAt'
+  'warehouseNanoFish' | 'adRodEnhancedAt' | 'adHammockExpandedAt'
 >;
 
 const MINUTE_MS = 60 * 1000;
 
 export function toHammockState(row: FishingStateRow): HammockState {
   return {
-    milliFish: row.hammockMilliFish,
+    nanoFish: row.hammockNanoFish,
     settledAt: row.settledAt,
     rodLevel: row.rodLevel,
     rodLevelDate: row.rodLevelDate,
@@ -48,7 +48,7 @@ export function toHammockState(row: FishingStateRow): HammockState {
 
 export function toStateChanges(state: HammockState): FishingStateChanges {
   return {
-    hammockMilliFish: state.milliFish,
+    hammockNanoFish: state.nanoFish,
     settledAt: state.settledAt,
     rodLevel: state.rodLevel,
     rodLevelDate: state.rodLevelDate,
@@ -89,8 +89,8 @@ export function buildFishingStatus(
 
   return {
     serverTime: now.toISOString(),
-    hammockFish: hammock.milliFish / MILLI_PER_FISH,
-    hammockCapacity: hammockCapacityMilliFish(boosts) / MILLI_PER_FISH,
+    hammockFish: hammock.nanoFish / NANO_PER_FISH,
+    hammockCapacity: hammockCapacityNanoFish(boosts) / NANO_PER_FISH,
     hammockFullAt: fullAt ? fullAt.toISOString() : null,
     fishPerHour: fishPerHour(percent),
     speedPercent: percent,
@@ -115,6 +115,6 @@ export function buildFishingStatus(
       now,
     ),
     boostsResetAt: nextKstMidnight(now).toISOString(),
-    warehouseFish: account.warehouseFish,
+    warehouseFish: account.warehouseNanoFish / NANO_PER_FISH,
   };
 }

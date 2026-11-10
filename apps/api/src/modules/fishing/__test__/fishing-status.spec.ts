@@ -5,7 +5,12 @@ import {
   OTTER_FRIEND_POLICY,
   ROD_POLICY,
 } from '../../../common/globals/index.js';
-import { fishPerHour, hammockCapacityMilliFish, NO_BOOSTS } from '../lib/fishing-rate.js';
+import {
+  fishPerHour,
+  hammockCapacityNanoFish,
+  NANO_PER_FISH,
+  NO_BOOSTS,
+} from '../lib/fishing-rate.js';
 import { buildFishingStatus, type FishingAccount, toHammockState } from '../lib/fishing-status.js';
 import type { HammockState } from '../lib/settle-hammock.js';
 
@@ -14,12 +19,12 @@ const NOW = new Date('2026-11-02T03:00:00Z');
 const MINUTE_MS = 60 * 1000;
 
 function account(overrides: Partial<FishingAccount> = {}): FishingAccount {
-  return { warehouseFish: 0, adRodEnhancedAt: null, adHammockExpandedAt: null, ...overrides };
+  return { warehouseNanoFish: 0, adRodEnhancedAt: null, adHammockExpandedAt: null, ...overrides };
 }
 
 function hammock(overrides: Partial<HammockState> = {}): HammockState {
   return {
-    milliFish: 1_500,
+    nanoFish: 123_456_789,
     settledAt: NOW,
     rodLevel: 0,
     rodLevelDate: null,
@@ -33,11 +38,15 @@ function hammock(overrides: Partial<HammockState> = {}): HammockState {
 
 describe('buildFishingStatus', () => {
   it('describes a hammock without boosts', () => {
-    const status = buildFishingStatus(hammock(), account({ warehouseFish: 300 }), NOW);
+    const status = buildFishingStatus(
+      hammock(),
+      account({ warehouseNanoFish: 1_500_000_000 }),
+      NOW,
+    );
 
     expect(status).toMatchObject({
       serverTime: NOW.toISOString(),
-      hammockFish: 1.5,
+      hammockFish: 0.123456789,
       hammockCapacity: FISHING_POLICY.HAMMOCK_CAPACITY,
       fishPerHour: fishPerHour(100),
       speedPercent: 100,
@@ -57,7 +66,7 @@ describe('buildFishingStatus', () => {
         AD_ROD_POLICY.LEVELS_PER_AD * ROD_POLICY.SPEED_BONUS_PERCENT_PER_LEVEL,
       adRodEnhanceAvailableAt: null,
       boostsResetAt: '2026-11-02T15:00:00.000Z',
-      warehouseFish: 300,
+      warehouseFish: 1.5,
     });
     expect(typeof status.hammockFullAt).toBe('string');
   });
@@ -75,9 +84,11 @@ describe('buildFishingStatus', () => {
       otterFriendActive: true,
       otterFriendCount: 1,
       speedPercent:
-        100 + 3 * ROD_POLICY.SPEED_BONUS_PERCENT_PER_LEVEL + OTTER_FRIEND_POLICY.SPEED_BONUS_PERCENT,
+        100 +
+        3 * ROD_POLICY.SPEED_BONUS_PERCENT_PER_LEVEL +
+        OTTER_FRIEND_POLICY.SPEED_BONUS_PERCENT,
       hammockCapacity:
-        hammockCapacityMilliFish({ ...NO_BOOSTS, rodLevel: 3, otterFriends: 1 }) / 1000,
+        hammockCapacityNanoFish({ ...NO_BOOSTS, rodLevel: 3, otterFriends: 1 }) / NANO_PER_FISH,
     });
   });
 
@@ -88,7 +99,7 @@ describe('buildFishingStatus', () => {
     expect(status).toMatchObject({
       hammockLevel: 3,
       hammockLevelBonusPercent: 3 * HAMMOCK_EXPAND_POLICY.CAPACITY_BONUS_PERCENT_PER_LEVEL,
-      hammockCapacity: hammockCapacityMilliFish({ ...NO_BOOSTS, hammockLevel: 3 }) / 1000,
+      hammockCapacity: hammockCapacityNanoFish({ ...NO_BOOSTS, hammockLevel: 3 }) / NANO_PER_FISH,
     });
   });
 
@@ -121,7 +132,7 @@ describe('buildFishingStatus', () => {
   });
 
   it('has no fill time when the hammock is full', () => {
-    const full = hammock({ milliFish: FISHING_POLICY.HAMMOCK_CAPACITY * 1000 });
+    const full = hammock({ nanoFish: hammockCapacityNanoFish(NO_BOOSTS) });
 
     expect(buildFishingStatus(full, account(), NOW).hammockFullAt).toBeNull();
   });
@@ -132,7 +143,7 @@ describe('toHammockState', () => {
     const row = {
       id: 'state-1',
       userId: 'user-1',
-      hammockMilliFish: 10,
+      hammockNanoFish: 10,
       settledAt: NOW,
       rodLevel: 2,
       rodLevelDate: TODAY,
@@ -142,13 +153,13 @@ describe('toHammockState', () => {
       hammockLevelDate: null,
       adRodEnhancedAt: null,
       adHammockExpandedAt: null,
-      warehouseFish: 5,
+      warehouseNanoFish: 5,
       createdAt: NOW,
       updatedAt: NOW,
     };
 
     expect(toHammockState(row)).toEqual({
-      milliFish: 10,
+      nanoFish: 10,
       settledAt: NOW,
       rodLevel: 2,
       rodLevelDate: TODAY,

@@ -6,13 +6,13 @@
 // 속도 값을 바꿔 배포하면 각 사용자의 마지막 정산 이후 시간도 새 속도로 계산된다 (해먹 용량 이내).
 export const FISHING_POLICY = {
   /** 토스 포인트 1원으로 바꾸는 데 필요한 물고기 수 (확정, 매월 콘솔 보고 대상) */
-  FISH_PER_TOSS_POINT: 4000,
+  FISH_PER_TOSS_POINT: 1,
   /** 강화 없이 BASE_MONTH_DAYS 동안 쉬지 않고 낚시하면 받는 토스 포인트 → 기본 속도를 정한다
-   *  (54원 × 4,000마리 ÷ 30일 ÷ 24시간 = 시간당 300마리) */
+   *  (54원 × 1마리 ÷ 30일 ÷ 24시간 = 시간당 0.075마리) */
   BASE_MONTHLY_TOSS_POINTS: 54,
   BASE_MONTH_DAYS: 30,
-  /** 해먹 용량 (마리). 가득 차면 더 잡지 않는다 */
-  HAMMOCK_CAPACITY: 1_200,
+  /** 해먹 용량 (마리, 소수 가능). 가득 차면 더 잡지 않는다. 기본 속도로 7시간 28분이면 가득 찬다 */
+  HAMMOCK_CAPACITY: 0.56,
   /** 사용자 1명이 한 달에 받을 수 있는 최대 토스 포인트. 코드로 강제하지 않고 테스트로 지킨다 */
   MONTHLY_TOSS_POINT_BUDGET: 5_000,
 } as const;
@@ -20,7 +20,7 @@ export const FISHING_POLICY = {
 // 낚싯대 강화: 매일 KST 자정에 0단계로 초기화된다
 export const ROD_POLICY = {
   /** 강화 1단계당 오르는 속도 (기본 속도 대비 %, 복리 아님) */
-  SPEED_BONUS_PERCENT_PER_LEVEL: 2,
+  SPEED_BONUS_PERCENT_PER_LEVEL: 1,
   /** 하루 최대 강화 단계 */
   MAX_LEVEL: 10,
 } as const;

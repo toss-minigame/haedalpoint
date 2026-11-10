@@ -3,7 +3,6 @@ import {
   OTTER_FRIEND_POLICY,
   ROD_POLICY,
 } from '../../../common/globals/index.js';
-import { MILLI_PER_FISH } from './fishing-rate.js';
 import { boostsOn, type HammockState } from './settle-hammock.js';
 
 // 해먹 상태 전환 (순수 함수). 모두 `today` 시점으로 정산이 끝난 상태를 받는다.
@@ -39,11 +38,7 @@ export function expandHammock(state: HammockState, levels: number, today: string
   };
 }
 
-/** 해먹에서 정수 마리만 꺼낸다. 1마리 미만 소수는 해먹에 남긴다 */
-export function takeWholeFish(state: HammockState): { state: HammockState; takenFish: number } {
-  const takenFish = Math.floor(state.milliFish / MILLI_PER_FISH);
-  return {
-    state: { ...state, milliFish: state.milliFish - takenFish * MILLI_PER_FISH },
-    takenFish,
-  };
+/** 해먹의 물고기를 소수까지 모두 꺼낸다 */
+export function takeAllFish(state: HammockState): { state: HammockState; takenNanoFish: number } {
+  return { state: { ...state, nanoFish: 0 }, takenNanoFish: state.nanoFish };
 }

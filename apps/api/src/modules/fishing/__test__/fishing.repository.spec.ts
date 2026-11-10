@@ -91,7 +91,7 @@ describe('FishingRepository', () => {
 
   it('updates the state by id', async () => {
     const manager = mocks.manager as unknown as EntityManager;
-    const changes = { hammockMilliFish: 10, settledAt: NOW };
+    const changes = { hammockNanoFish: 10, settledAt: NOW };
 
     await repository.updateState(manager, 'state-1', changes);
 
@@ -100,7 +100,7 @@ describe('FishingRepository', () => {
 
   it('appends a warehouse ledger entry', async () => {
     const manager = mocks.manager as unknown as EntityManager;
-    const entry = { userId: USER_ID, type: 'STORE' as const, amount: 42 };
+    const entry = { userId: USER_ID, type: 'STORE' as const, amountNanoFish: 42 };
 
     await repository.addLedgerEntry(manager, entry);
 

@@ -9,7 +9,7 @@ export type WarehouseLedgerType = WarehouseEntryType;
 // 창고 적립·차감 이력. 행을 고치지 않고 쌓기만 한다.
 // STORE 합계가 매월 콘솔에 보고할 물고기 발행 총액이다 (ADR-0007).
 @Entity('warehouse_ledger')
-@Check('CHK_warehouse_ledger_amount', '"amount" > 0')
+@Check('CHK_warehouse_ledger_amount_nano_fish', '"amount_nano_fish" > 0')
 export class WarehouseLedger extends BaseEntity {
   @Index('IDX_warehouse_ledger_user_id')
   @Column({ type: 'uuid', name: 'user_id' })
@@ -18,6 +18,7 @@ export class WarehouseLedger extends BaseEntity {
   @Column({ type: 'varchar', length: 16 })
   type: WarehouseLedgerType;
 
-  @Column({ type: 'bigint', transformer: bigintNumberTransformer })
-  amount: number;
+  // 1/10억 마리 단위
+  @Column({ type: 'bigint', name: 'amount_nano_fish', transformer: bigintNumberTransformer })
+  amountNanoFish: number;
 }
