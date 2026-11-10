@@ -29,7 +29,13 @@ export function AttendanceStamps({ cycle }: Props) {
               aria-hidden
               className="flex h-4 items-center text-base leading-none font-semibold"
             >
-              {isOtterDay ? '🦦' : checked ? <CheckIcon className="size-4" strokeWidth={3} /> : day}
+              {isOtterDay ? (
+                <span className="font-emoji">🦦</span>
+              ) : checked ? (
+                <CheckIcon className="size-4" strokeWidth={3} />
+              ) : (
+                day
+              )}
             </span>
             <span aria-hidden className="text-[13px] leading-none opacity-80">
               {isOtterDay ? '친구' : `${day}일`}
