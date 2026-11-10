@@ -63,8 +63,8 @@ export function useAdEnhanceRod() {
 export function useAdExpandHammock() {
   return useFishingAdBoost({
     mutationFn: fishingApi.adExpandHammock,
-    successMessage: ({ hammockLevel, hammockLevelBonusPercent }) =>
-      `${hammockName(hammockLevel)}으로 넓혔어요 · 오늘 해먹 용량 +${hammockLevelBonusPercent}%`,
+    successMessage: ({ hammockLevel, hammockLevelBonusPercent, adHammockRodSpeedBonusPercent }) =>
+      `${hammockName(hammockLevel)}으로 넓혔어요 · 오늘 해먹 용량 +${hammockLevelBonusPercent}% · 낚시 속도 +${adHammockRodSpeedBonusPercent}%`,
     failureMessage: '해먹을 넓히지 못했어요. 잠시 후 다시 시도해 주세요.',
   });
 }

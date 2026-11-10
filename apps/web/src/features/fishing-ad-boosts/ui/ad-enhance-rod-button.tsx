@@ -19,7 +19,8 @@ const TITLE = '낚싯대 강화';
 export function AdEnhanceRodButton({ status, receivedAt, ad }: Props) {
   const { mutate, isPending } = useAdEnhanceRod();
   const remainingMs = useCooldown(status.adRodEnhanceAvailableAt, status.serverTime, receivedAt);
-  const isMaxLevel = status.rodLevel >= status.rodMaxLevel;
+  // 하루 최대 단계가 없으면(null) 쿨타임만 본다
+  const isMaxLevel = status.rodMaxLevel !== null && status.rodLevel >= status.rodMaxLevel;
   const bonus = `+${status.adRodSpeedBonusPercent}%`;
 
   // 지금 받을 수 없는 보상이면 광고를 띄우지 않는다

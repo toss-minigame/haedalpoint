@@ -1,19 +1,15 @@
-import {
-  HAMMOCK_EXPAND_POLICY,
-  OTTER_FRIEND_POLICY,
-  ROD_POLICY,
-} from '../../../common/globals/index.js';
+import { HAMMOCK_EXPAND_POLICY, OTTER_FRIEND_POLICY } from '../../../common/globals/index.js';
 import { boostsOn, type HammockState } from './settle-hammock.js';
 
 // 해먹 상태 전환 (순수 함수). 모두 `today` 시점으로 정산이 끝난 상태를 받는다.
 // 정산하지 않고 속도를 바꾸면 정산 전 시간까지 새 속도로 계산되므로, 호출하는 쪽에서 먼저 settleHammock 한다.
 
-/** 오늘 낚싯대를 levels 단계 강화한다 (최대 단계에서 멈춤) */
+/** 오늘 낚싯대를 levels 단계 강화한다 (하루 최대 단계 없음) */
 export function enhanceRod(state: HammockState, levels: number, today: string): HammockState {
   const current = boostsOn(state, today).rodLevel;
   return {
     ...state,
-    rodLevel: Math.min(ROD_POLICY.MAX_LEVEL, current + levels),
+    rodLevel: current + levels,
     rodLevelDate: today,
   };
 }

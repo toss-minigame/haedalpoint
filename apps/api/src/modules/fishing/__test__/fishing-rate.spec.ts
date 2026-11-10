@@ -49,13 +49,12 @@ describe('speedPercent', () => {
 });
 
 describe('hammockLevelBonusPercent', () => {
-  it('adds the per-level bonus for each level, up to the max level', () => {
-    const perLevel = HAMMOCK_EXPAND_POLICY.CAPACITY_BONUS_PERCENT_PER_LEVEL;
-
-    expect(hammockLevelBonusPercent(1)).toBe(perLevel);
-    expect(hammockLevelBonusPercent(HAMMOCK_EXPAND_POLICY.MAX_LEVEL)).toBe(
-      HAMMOCK_EXPAND_POLICY.MAX_LEVEL * perLevel,
-    );
+  it('grows 10% of the previous capacity per level (compounding), rounded to one decimal', () => {
+    expect(hammockLevelBonusPercent(0)).toBe(0);
+    expect(hammockLevelBonusPercent(1)).toBe(10);
+    expect(hammockLevelBonusPercent(2)).toBe(21);
+    expect(hammockLevelBonusPercent(3)).toBe(33.1);
+    expect(hammockLevelBonusPercent(HAMMOCK_EXPAND_POLICY.MAX_LEVEL)).toBe(159.4);
   });
 });
 
@@ -76,20 +75,21 @@ describe('hammockCapacityNanoFish', () => {
     );
   });
 
-  it('grows by the hammock level bonus per level (not compounding)', () => {
+  it('multiplies the capacity by 1.1 per hammock level (compounding)', () => {
     expect(hammockCapacityNanoFish({ ...NO_BOOSTS, hammockLevel: 3 })).toBe(
-      (BASE_CAPACITY * (100 + 3 * HAMMOCK_EXPAND_POLICY.CAPACITY_BONUS_PERCENT_PER_LEVEL)) / 100,
+      Math.floor(BASE_CAPACITY * 1.1 ** 3),
+    );
+    expect(hammockCapacityNanoFish({ ...NO_BOOSTS, hammockLevel: 10 })).toBe(
+      Math.floor(BASE_CAPACITY * 1.1 ** 10),
     );
   });
 
-  it('adds the otter friend and hammock level bonuses together', () => {
+  it('adds the otter friend bonus first, then multiplies by the hammock level', () => {
     const boosts = { rodLevel: 0, otterFriends: 2, hammockLevel: 5, baitBonusPercent: 0 };
-    const percent =
-      100 +
-      2 * OTTER_FRIEND_POLICY.CAPACITY_BONUS_PERCENT +
-      5 * HAMMOCK_EXPAND_POLICY.CAPACITY_BONUS_PERCENT_PER_LEVEL;
+    const withFriends =
+      (BASE_CAPACITY * (100 + 2 * OTTER_FRIEND_POLICY.CAPACITY_BONUS_PERCENT)) / 100;
 
-    expect(hammockCapacityNanoFish(boosts)).toBe((BASE_CAPACITY * percent) / 100);
+    expect(hammockCapacityNanoFish(boosts)).toBe(Math.floor(withFriends * 1.1 ** 5));
   });
 
   it('is not changed by rod upgrades', () => {

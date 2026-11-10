@@ -53,16 +53,16 @@ describe('buildFishingStatus', () => {
       fishPerHour: fishPerHour(100),
       speedPercent: 100,
       rodLevel: 0,
-      rodMaxLevel: ROD_POLICY.MAX_LEVEL,
+      rodMaxLevel: null,
       rodSpeedBonusPercent: 0,
       otterFriendActive: false,
       otterFriendCount: 0,
       hammockLevel: 0,
       hammockMaxLevel: HAMMOCK_EXPAND_POLICY.MAX_LEVEL,
       hammockLevelBonusPercent: 0,
-      adHammockBonusPercent:
-        HAMMOCK_EXPAND_POLICY.LEVELS_PER_AD *
-        HAMMOCK_EXPAND_POLICY.CAPACITY_BONUS_PERCENT_PER_LEVEL,
+      adHammockBonusPercent: HAMMOCK_EXPAND_POLICY.CAPACITY_GROWTH_PERCENT_PER_LEVEL,
+      adHammockRodSpeedBonusPercent:
+        HAMMOCK_EXPAND_POLICY.ROD_LEVELS_PER_EXPAND * ROD_POLICY.SPEED_BONUS_PERCENT_PER_LEVEL,
       adHammockExpandAvailableAt: null,
       adRodSpeedBonusPercent:
         AD_ROD_POLICY.LEVELS_PER_AD * ROD_POLICY.SPEED_BONUS_PERCENT_PER_LEVEL,
@@ -100,7 +100,7 @@ describe('buildFishingStatus', () => {
 
     expect(status).toMatchObject({
       hammockLevel: 3,
-      hammockLevelBonusPercent: 3 * HAMMOCK_EXPAND_POLICY.CAPACITY_BONUS_PERCENT_PER_LEVEL,
+      hammockLevelBonusPercent: 33.1,
       hammockCapacity: hammockCapacityNanoFish({ ...NO_BOOSTS, hammockLevel: 3 }) / NANO_PER_FISH,
     });
   });

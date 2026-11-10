@@ -6,7 +6,7 @@ import type {
 } from '@haedalpoint/shared';
 import { ConflictException, Injectable } from '@nestjs/common';
 import { DataSource, type EntityManager } from 'typeorm';
-import { AD_ROD_POLICY, HAMMOCK_EXPAND_POLICY, ROD_POLICY } from '../../common/globals/index.js';
+import { AD_ROD_POLICY, HAMMOCK_EXPAND_POLICY } from '../../common/globals/index.js';
 import { kstDayStart, kstMonthStart, toKstDateString } from '../../common/utils/kst-date.js';
 import { UsersService } from '../users/users.service.js';
 import type { FishingState } from './entities/fishing-state.entity.js';
@@ -29,7 +29,6 @@ import { boostsOn, type HammockState, settleHammock } from './lib/settle-hammock
 
 const NOTHING_TO_STORE = '해먹에 저장할 물고기가 없어요';
 const AD_ROD_COOLING_DOWN = `낚싯대는 ${AD_ROD_POLICY.COOLDOWN_MINUTES}분마다 강화할 수 있어요`;
-const ROD_AT_MAX_LEVEL = '오늘은 낚싯대를 최대로 강화했어요';
 const HAMMOCK_COOLING_DOWN = `해먹은 ${HAMMOCK_EXPAND_POLICY.COOLDOWN_MINUTES}분마다 넓힐 수 있어요`;
 const HAMMOCK_AT_MAX_LEVEL = '오늘은 해먹을 최대로 넓혔어요';
 /** 창고 화면에 보여줄 최근 이력 수 */
@@ -123,7 +122,7 @@ export class FishingService {
 
   /**
    * 홈 '광고 보고 낚싯대 강화'. 클라이언트가 보상형 광고의 `userEarnedReward` 를 받은 뒤에만 호출한다.
-   * 쿨타임(AD_ROD_POLICY.COOLDOWN_MINUTES) 안이거나 오늘 최대 단계면 409. 행 잠금으로 연타에도 한 번만 반영된다.
+   * 쿨타임(AD_ROD_POLICY.COOLDOWN_MINUTES) 안이면 409 (하루 최대 단계는 없다). 행 잠금으로 연타에도 한 번만 반영된다.
    */
   async adEnhanceRod(userId: string): Promise<FishingAdBoostResponse> {
     await this.usersService.findById(userId);
@@ -137,9 +136,6 @@ export class FishingService {
           if (isCoolingDown(current.adRodEnhancedAt, AD_ROD_POLICY.COOLDOWN_MINUTES, now)) {
             throw new ConflictException(AD_ROD_COOLING_DOWN);
           }
-          if (boostsOn(settled, today).rodLevel >= ROD_POLICY.MAX_LEVEL) {
-            throw new ConflictException(ROD_AT_MAX_LEVEL);
-          }
           return enhanceRod(settled, AD_ROD_POLICY.LEVELS_PER_AD, today);
         },
         { adRodEnhancedAt: now },
@@ -150,7 +146,8 @@ export class FishingService {
 
   /**
    * 홈 '광고 보고 해먹 넓히기'. `userEarnedReward` 뒤에만 호출한다.
-   * 쿨타임(HAMMOCK_EXPAND_POLICY.COOLDOWN_MINUTES)마다 정해진 순서로 한 단계씩 넓힌다. 쿨타임 안이거나 최대 단계면 409.
+   * 쿨타임(HAMMOCK_EXPAND_POLICY.COOLDOWN_MINUTES)마다 정해진 순서로 한 단계씩 넓히고, 낚싯대도 함께 강화한다.
+   * 쿨타임 안이거나 최대 단계면 409.
    */
   async adExpandHammock(userId: string): Promise<FishingAdBoostResponse> {
     await this.usersService.findById(userId);
@@ -169,7 +166,8 @@ export class FishingService {
           if (boostsOn(settled, today).hammockLevel >= HAMMOCK_EXPAND_POLICY.MAX_LEVEL) {
             throw new ConflictException(HAMMOCK_AT_MAX_LEVEL);
           }
-          return expandHammock(settled, HAMMOCK_EXPAND_POLICY.LEVELS_PER_AD, today);
+          const expanded = expandHammock(settled, HAMMOCK_EXPAND_POLICY.LEVELS_PER_AD, today);
+          return enhanceRod(expanded, HAMMOCK_EXPAND_POLICY.ROD_LEVELS_PER_EXPAND, today);
         },
         { adHammockExpandedAt: now },
       );

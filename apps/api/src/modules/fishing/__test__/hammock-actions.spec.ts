@@ -1,8 +1,4 @@
-import {
-  HAMMOCK_EXPAND_POLICY,
-  OTTER_FRIEND_POLICY,
-  ROD_POLICY,
-} from '../../../common/globals/index.js';
+import { HAMMOCK_EXPAND_POLICY, OTTER_FRIEND_POLICY } from '../../../common/globals/index.js';
 import {
   applyBait,
   enhanceRod,
@@ -44,10 +40,10 @@ describe('enhanceRod', () => {
     expect(next).toMatchObject({ rodLevel: 1, rodLevelDate: TODAY });
   });
 
-  it('stops at the max level', () => {
-    const s = state({ rodLevel: ROD_POLICY.MAX_LEVEL - 1, rodLevelDate: TODAY });
+  it('has no daily max level', () => {
+    const s = state({ rodLevel: 50, rodLevelDate: TODAY });
 
-    expect(enhanceRod(s, 3, TODAY).rodLevel).toBe(ROD_POLICY.MAX_LEVEL);
+    expect(enhanceRod(s, 3, TODAY).rodLevel).toBe(53);
   });
 
   it('does not mutate the given state', () => {
