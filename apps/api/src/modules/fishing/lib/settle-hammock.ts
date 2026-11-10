@@ -12,7 +12,7 @@ import {
 // 속도는 (1) 사용자 행동(강화·해달 친구) 직전에 항상 정산하고, (2) KST 자정에 보너스가 풀릴 때만 바뀐다.
 // 그래서 정산 구간은 최대 두 개다.
 //   settledAt ──[그날 보너스]── 다음 자정 ──[보너스 없음]── now
-// 해먹 넓히기도 같은 보너스라 정산 직전에만 바뀐다.
+// 해먹 넓히기·룰렛 미끼도 같은 보너스라 정산 직전에만 바뀐다.
 
 /** 해먹 계산에 필요한 상태 (fishing_states 행의 일부) */
 export interface HammockState {
@@ -29,6 +29,10 @@ export interface HammockState {
   hammockLevel: number;
   /** hammockLevel 이 유효한 KST 날짜. 다른 날이면 0단계 */
   hammockLevelDate: string | null;
+  /** 룰렛 미끼로 오른 속도 (%) */
+  baitBonusPercent: number;
+  /** baitBonusPercent 가 유효한 KST 날짜. 다른 날이면 0% */
+  baitDate: string | null;
 }
 
 /** `date`(KST) 에 적용되는 보너스 */
@@ -37,6 +41,7 @@ export function boostsOn(state: HammockState, date: string): Boosts {
     rodLevel: state.rodLevelDate === date ? state.rodLevel : 0,
     otterFriends: state.otterFriendDate === date ? state.otterFriendCount : 0,
     hammockLevel: state.hammockLevelDate === date ? state.hammockLevel : 0,
+    baitBonusPercent: state.baitDate === date ? state.baitBonusPercent : 0,
   };
 }
 

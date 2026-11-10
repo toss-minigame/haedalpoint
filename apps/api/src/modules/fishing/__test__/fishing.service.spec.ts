@@ -32,6 +32,8 @@ function row(overrides: Record<string, unknown> = {}) {
     otterFriendCount: 0,
     hammockLevel: 0,
     hammockLevelDate: null,
+    baitBonusPercent: 0,
+    baitDate: null,
     adRodEnhancedAt: null,
     adHammockExpandedAt: null,
     warehouseNanoFish: 1_500_000_000,
@@ -156,6 +158,8 @@ describe('FishingService', () => {
         otterFriendCount: 0,
         hammockLevel: 0,
         hammockLevelDate: null,
+        baitBonusPercent: 0,
+        baitDate: null,
         warehouseNanoFish,
       });
       expect(repo.addLedgerEntry).toHaveBeenCalledWith(manager, {
@@ -239,6 +243,26 @@ describe('FishingService', () => {
       await expect(service.enhanceRod(USER_ID, 1, manager, NOW)).resolves.toMatchObject({
         rodLevel: ROD_POLICY.MAX_LEVEL,
       });
+    });
+  });
+
+  describe('applyBait', () => {
+    it("settles first, then sets today's bait inside the caller's transaction", async () => {
+      repo.lockOrCreate.mockResolvedValue(row());
+
+      await service.applyBait(USER_ID, 5, manager, NOW);
+
+      expect(dataSource.transaction).not.toHaveBeenCalled();
+      expect(repo.updateState).toHaveBeenCalledWith(
+        manager,
+        'state-1',
+        expect.objectContaining({
+          hammockNanoFish: CAUGHT_IN_AN_HOUR,
+          settledAt: NOW,
+          baitBonusPercent: 5,
+          baitDate: TODAY,
+        }),
+      );
     });
   });
 

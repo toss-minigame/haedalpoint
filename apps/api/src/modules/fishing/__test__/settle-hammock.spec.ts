@@ -35,6 +35,8 @@ function state(overrides: Partial<HammockState> = {}): HammockState {
     otterFriendCount: 0,
     hammockLevel: 0,
     hammockLevelDate: null,
+    baitBonusPercent: 0,
+    baitDate: null,
     ...overrides,
   };
 }
@@ -56,7 +58,12 @@ describe('boostsOn', () => {
       otterFriendCount: 1,
     });
 
-    expect(boostsOn(s, TODAY)).toEqual({ rodLevel: 3, otterFriends: 1, hammockLevel: 0 });
+    expect(boostsOn(s, TODAY)).toEqual({
+      rodLevel: 3,
+      otterFriends: 1,
+      hammockLevel: 0,
+      baitBonusPercent: 0,
+    });
     expect(boostsOn(s, '2026-11-03')).toEqual(NO_BOOSTS);
   });
 
@@ -68,7 +75,12 @@ describe('boostsOn', () => {
       hammockLevelDate: TODAY,
     });
 
-    expect(boostsOn(s, TODAY)).toEqual({ rodLevel: 0, otterFriends: 2, hammockLevel: 3 });
+    expect(boostsOn(s, TODAY)).toEqual({
+      rodLevel: 0,
+      otterFriends: 2,
+      hammockLevel: 3,
+      baitBonusPercent: 0,
+    });
     expect(boostsOn(s, '2026-11-03')).toEqual(NO_BOOSTS);
   });
 });
@@ -243,5 +255,27 @@ describe('predictHammockFullAt', () => {
     expect(settleHammock(s, fullAt).nanoFish).toBeGreaterThanOrEqual(capacityAt(fullAt));
     const justBefore = shiftMs(fullAt, -1);
     expect(settleHammock(s, justBefore).nanoFish).toBeLessThan(capacityAt(justBefore));
+  });
+});
+
+describe('boostsOn bait', () => {
+  it("applies the bait bonus only on the bait's day", () => {
+    const s = state({ baitBonusPercent: 5, baitDate: TODAY });
+
+    expect(boostsOn(s, TODAY).baitBonusPercent).toBe(5);
+    expect(boostsOn(s, YESTERDAY).baitBonusPercent).toBe(0);
+  });
+
+  it('drops the bait bonus at KST midnight', () => {
+    const settledAtTen = new Date(MIDNIGHT.getTime() - 2 * HOUR_MS);
+    const s = state({ settledAt: settledAtTen, baitBonusPercent: 5, baitDate: TODAY });
+    const withBait = Math.floor(
+      HOUR_MS * nanoFishPerMs(speedPercent({ ...NO_BOOSTS, baitBonusPercent: 5 })),
+    );
+    const plain = Math.floor(HOUR_MS * nanoFishPerMs(100));
+
+    const settled = settleHammock(s, new Date(MIDNIGHT.getTime() + HOUR_MS));
+
+    expect(settled.nanoFish).toBeCloseTo(2 * withBait + plain, -2);
   });
 });

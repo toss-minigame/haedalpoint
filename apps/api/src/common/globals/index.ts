@@ -7,3 +7,8 @@ export {
   ROD_POLICY,
 } from './fishing.policy.js';
 export { QUIZ_POLICY } from './quiz.policy.js';
+export {
+  BAIT_TIERS,
+  SEASONAL_FISH_BY_MONTH,
+  type SeasonalFish,
+} from './roulette.policy.js';
