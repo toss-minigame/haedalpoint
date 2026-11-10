@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { fishingQueries, formatFish } from '@/entities/fishing';
 import { CATCH_INTERVAL_SECONDS, OtterScene } from '@/entities/otter';
 import { currentKstMonth } from '@/entities/roulette';
+import { TodayBoost } from '@/features/today-boost';
 import { env } from '@/shared/config/env';
 import { useRewardedAd } from '@/shared/lib/rewarded-ad';
 import { Button } from '@/shared/ui/button';
@@ -11,7 +12,9 @@ import { FishingBoostSection } from './fishing-boost-section';
 import { FishingSection } from './fishing-section';
 
 const SECONDS_PER_HOUR = 60 * 60;
-const SHORTCUT_CLASS = 'h-12 w-full text-base';
+// 화면 바탕이 연한 하늘색이라 강화 버튼과 같이 흰 바탕 + 바다색 테두리로 경계를 드러낸다
+const SHORTCUT_CLASS =
+  'h-14 w-full rounded-2xl border-primary/40 bg-card text-base font-semibold hover:bg-secondary';
 
 /** 해달이 한 번 잡을 때 늘어나는 양 (예: +0.0000208). 해먹이 가득 찼으면 늘지 않으므로 띄우지 않는다 */
 function useCatchLabel(): string | null {
@@ -26,10 +29,15 @@ export function HomePage() {
   const catchLabel = useCatchLabel();
 
   return (
-    <main className="mx-auto flex max-w-xl flex-col gap-6 p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
-      <h1 className="text-2xl font-bold">해달해달</h1>
+    <main className="mx-auto flex max-w-xl flex-col gap-5 px-5 pt-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+      {/* 앱인토스 상단 바가 앱 이름을 보여주므로 화면에는 그리지 않고 낭독기용으로만 둔다 */}
+      <h1 className="sr-only">해달해달</h1>
       <FishingBoostSection rewardedAd={rewardedAd} />
-      <OtterScene catchLabel={catchLabel} />
+      {/* 오늘의 강화 버튼은 장면(버튼) 안이 아니라 형제로 두고 오른쪽 위에 겹친다 */}
+      <div className="relative">
+        <OtterScene catchLabel={catchLabel} />
+        <TodayBoost className="absolute top-3 right-3" />
+      </div>
       <FishingSection rewardedAd={rewardedAd} />
       <AttendanceSection rewardedAd={rewardedAd} />
       <nav aria-label="오늘 할 일" className="grid grid-cols-2 gap-3">

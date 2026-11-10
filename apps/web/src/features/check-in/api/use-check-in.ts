@@ -1,10 +1,18 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { attendanceApi, attendanceQueries, formatReward } from '@/entities/attendance';
+import { type AttendanceReward, attendanceApi, attendanceQueries } from '@/entities/attendance';
 import { fishingQueries } from '@/entities/fishing';
 import { ApiError } from '@/shared/api';
 
 const HTTP_CONFLICT = 409;
+
+/** 출석으로 오늘 받은 보상을 문장으로 */
+function rewardSentence(reward: AttendanceReward): string {
+  if (reward.type === 'OTTER_FRIEND') return '오늘 해달 친구가 함께 낚시해요';
+  return reward.amount > 1
+    ? `오늘 낚싯대를 ${reward.amount}단계 강화했어요`
+    : '오늘 낚싯대를 강화했어요';
+}
 
 export function useCheckIn() {
   const queryClient = useQueryClient();
@@ -14,9 +22,8 @@ export function useCheckIn() {
   return useMutation({
     mutationFn: attendanceApi.checkIn,
     onSuccess: ({ streakDay, reward, cycleCompleted }) => {
-      const message = cycleCompleted
-        ? `7일 연속 출석 달성! ${formatReward(reward)}가 합류했어요`
-        : `${streakDay}일차 출석 완료! ${formatReward(reward)}`;
+      const attended = cycleCompleted ? '7일 연속 출석했어요' : `${streakDay}일차 출석했어요`;
+      const message = `${attended}. ${rewardSentence(reward)}`;
       toast.success(message);
       // 출석 보상으로 낚시 속도가 바뀌었으니 해먹 현황도 다시 받는다
       return Promise.all([

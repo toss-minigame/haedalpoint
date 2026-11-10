@@ -43,7 +43,8 @@ const CATCH_LABEL_FONT = '600 13px system-ui, -apple-system, "Apple SD Gothic Ne
 const CATCH_LABEL_OUTLINE_WIDTH = 3; // px
 const CATCH_LABEL_GAP = 0.7; // 매달린 물고기 중심에서 글자까지 (물고기 크기 대비)
 const CATCH_LABEL_EDGE_MARGIN = 4; // px, 화면 오른쪽 끝과 글자 사이
-const EMOJI_FONT = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+const EMOJI_FONT =
+  '"Tossface", "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
 
 /** 배경 이미지를 못 불러왔을 때 그리는 단색 그라데이션 하늘·바다 */
 function drawFallbackBackground(ctx: CanvasRenderingContext2D, { width, height }: SceneState) {
