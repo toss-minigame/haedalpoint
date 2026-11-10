@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import { fishingQueries, formatFish } from '@/entities/fishing';
 import { CATCH_INTERVAL_SECONDS, OtterScene } from '@/entities/otter';
+import { currentKstMonth } from '@/entities/roulette';
 import { env } from '@/shared/config/env';
 import { useRewardedAd } from '@/shared/lib/rewarded-ad';
 import { Button } from '@/shared/ui/button';
@@ -10,6 +11,7 @@ import { FishingBoostSection } from './fishing-boost-section';
 import { FishingSection } from './fishing-section';
 
 const SECONDS_PER_HOUR = 60 * 60;
+const SHORTCUT_CLASS = 'h-12 w-full text-base';
 
 /** 해달이 한 번 잡을 때 늘어나는 양 (예: +0.0000208). 해먹이 가득 찼으면 늘지 않으므로 띄우지 않는다 */
 function useCatchLabel(): string | null {
@@ -30,9 +32,14 @@ export function HomePage() {
       <OtterScene catchLabel={catchLabel} />
       <FishingSection rewardedAd={rewardedAd} />
       <AttendanceSection rewardedAd={rewardedAd} />
-      <Button asChild size="lg" variant="outline" className="h-12 w-full text-base">
-        <Link to="/quiz">오늘의 O/X 퀴즈 풀기</Link>
-      </Button>
+      <nav aria-label="오늘 할 일" className="grid grid-cols-2 gap-3">
+        <Button asChild size="lg" variant="outline" className={SHORTCUT_CLASS}>
+          <Link to="/quiz">O/X 퀴즈 풀기</Link>
+        </Button>
+        <Button asChild size="lg" variant="outline" className={SHORTCUT_CLASS}>
+          <Link to="/roulette">{currentKstMonth()}월 미끼 룰렛</Link>
+        </Button>
+      </nav>
     </main>
   );
 }
