@@ -3,6 +3,7 @@ import { ChevronRightIcon } from 'lucide-react';
 import { Link } from 'react-router';
 import { fishingQueries, formatFish } from '@/entities/fishing';
 import { CATCH_INTERVAL_SECONDS, OtterScene } from '@/entities/otter';
+import { TodayBoost } from '@/features/today-boost';
 import { env } from '@/shared/config/env';
 import { useRewardedAd } from '@/shared/lib/rewarded-ad';
 import { Button } from '@/shared/ui/button';
@@ -29,7 +30,11 @@ export function HomePage() {
       {/* 앱인토스 상단 바가 앱 이름을 보여주므로 화면에는 그리지 않고 낭독기용으로만 둔다 */}
       <h1 className="sr-only">해달해달</h1>
       <FishingBoostSection rewardedAd={rewardedAd} />
-      <OtterScene catchLabel={catchLabel} />
+      {/* 오늘의 강화 버튼은 장면(버튼) 안이 아니라 형제로 두고 오른쪽 위에 겹친다 */}
+      <div className="relative">
+        <OtterScene catchLabel={catchLabel} />
+        <TodayBoost className="absolute top-3 right-3" />
+      </div>
       <FishingSection rewardedAd={rewardedAd} />
       <AttendanceSection rewardedAd={rewardedAd} />
       <Button

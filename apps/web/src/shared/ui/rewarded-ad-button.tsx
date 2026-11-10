@@ -1,5 +1,7 @@
+import type { ReactNode } from 'react';
 import { toast } from 'sonner';
 import type { RewardedAd, RewardedAdStatus } from '@/shared/lib/rewarded-ad';
+import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/ui/button';
 import { Spinner } from '@/shared/ui/spinner';
 
@@ -35,6 +37,10 @@ type Props = {
   compact?: boolean;
   /** label 이 짧아 무엇을 하는지 드러나지 않을 때 화면 낭독기가 읽을 문구 (광고를 볼 수 있을 때만 쓴다) */
   accessibleLabel?: string;
+  /** 버튼 모양을 바꿀 때 덧붙이는 클래스 */
+  className?: string;
+  /** 문구(label·상태·처리 중)를 감싸 그린다. 주면 스피너도 이 안에서 그린다 */
+  renderLabel?: (text: string, isPending: boolean) => ReactNode;
   onReward: () => void;
 };
 
@@ -48,6 +54,8 @@ export function RewardedAdButton({
   variant,
   compact = false,
   accessibleLabel,
+  className,
+  renderLabel,
   onReward,
 }: Props) {
   const { status } = ad;
@@ -77,13 +85,19 @@ export function RewardedAdButton({
       type="button"
       variant={variant}
       size="lg"
-      className={compact ? COMPACT_AD_BUTTON_CLASS : AD_BUTTON_CLASS}
+      className={cn(compact ? COMPACT_AD_BUTTON_CLASS : AD_BUTTON_CLASS, className)}
       aria-label={isReady ? accessibleLabel : undefined}
       disabled={!isEnabled}
       onClick={handleClick}
     >
-      {isPending && <Spinner />}
-      {text}
+      {renderLabel ? (
+        renderLabel(text, isPending)
+      ) : (
+        <>
+          {isPending && <Spinner />}
+          {text}
+        </>
+      )}
     </Button>
   );
 }

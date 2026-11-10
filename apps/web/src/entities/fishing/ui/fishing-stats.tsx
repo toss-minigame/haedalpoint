@@ -7,7 +7,7 @@ type Props = {
   receivedAt: number;
 };
 
-// 해먹 게이지 아래 현황: 오늘 낚싯대 강화(%)와 해먹이 가득 차는 시각.
+// 해먹 게이지 아래 현황: 해먹이 가득 차는 시각. (오늘의 강화는 해달 장면 위 '오늘의 강화'에서 보여준다)
 // 부모(FishingContent)가 1초마다 다시 그리므로 남은 시간도 1초마다 줄어든다.
 export function FishingStats({ status, receivedAt }: Props) {
   const elapsedMs = Date.now() - receivedAt;
@@ -17,12 +17,6 @@ export function FishingStats({ status, receivedAt }: Props) {
 
   return (
     <dl className="flex flex-wrap gap-2 text-[15px]">
-      <div className="flex gap-1.5 rounded-full bg-secondary px-3 py-1.5">
-        <dt className="text-muted-foreground">낚싯대 강화</dt>
-        <dd className="font-semibold text-secondary-foreground tabular-nums">
-          +{status.rodSpeedBonusPercent}% ({status.rodLevel}/{status.rodMaxLevel}단계)
-        </dd>
-      </div>
       <div className="flex gap-1.5 rounded-full bg-secondary px-3 py-1.5">
         {/* 칩 문장이 그대로 읽히도록 항목 이름은 낭독기에만 준다 */}
         <dt className="sr-only">해먹이 가득 차는 시각</dt>
