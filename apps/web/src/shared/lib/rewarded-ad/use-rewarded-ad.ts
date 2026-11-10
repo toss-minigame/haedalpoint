@@ -34,6 +34,15 @@ export type RewardedAd = {
   reload: () => void;
 };
 
+/**
+ * 앱을 연 직후(약 0.1초)에 불러오면 토스 앱이 EXECUTION_ERROR [1017] 로 바로 거절한다
+ * (토스 앱의 광고 기능이 아직 준비되지 않은 것으로 보임). 0.5초 늦추면 된다는 보고에 따라
+ * 화면에서 처음 불러올 때 이만큼 기다린다.
+ */
+const FIRST_LOAD_DELAY_MS = 500;
+/** 불러오기가 실패하면 '다시 시도'를 보여주기 전에 자동으로 다시 불러오는 간격 (기기마다 준비 시간이 달라서) */
+const AUTO_RETRY_DELAYS_MS = [1_000, 2_000] as const;
+
 function canUseFullScreenAd(adGroupId: string | null): adGroupId is string {
   return adGroupId !== null && loadFullScreenAd.isSupported() && showFullScreenAd.isSupported();
 }
@@ -53,6 +62,8 @@ export function useRewardedAd(adGroupId: string | null): RewardedAd {
   const showCleanupRef = useRef<(() => void) | null>(null);
   // 임시 진단: 앞선 불러오기가 이벤트를 받기 전에 또 불렀는지
   const pendingLoadRef = useRef(false);
+  /** 지금까지 자동으로 다시 불러온 횟수. 성공하거나 사용자가 다시 시도하면 0 */
+  const autoRetryCountRef = useRef(0);
 
   // 임시 진단: 실행 환경과 광고 그룹 ID 상태, 지원 여부
   useEffect(() => {
@@ -74,29 +85,56 @@ export function useRewardedAd(adGroupId: string | null): RewardedAd {
     if (!isSupported) return;
     setStatus('loading');
     const options = { adGroupId };
-    adLog('불러오기 호출', {
-      attempt: loadCount + 1,
-      previousLoadStillPending: pendingLoadRef.current,
-      options,
-    });
-    pendingLoadRef.current = true;
-    const unregister = loadFullScreenAd({
-      options,
-      onEvent: (event) => {
-        pendingLoadRef.current = false;
-        adLog('불러오기 이벤트', event);
-        if (event.type === 'loaded') setStatus('ready');
-      },
-      onError: (error) => {
-        pendingLoadRef.current = false;
-        adLog('불러오기 실패', describeError(error));
-        notifyAdFailure('불러오기');
-        setStatus('failed');
-      },
-    });
+    const autoRetry = autoRetryCountRef.current;
+    const delayMs =
+      autoRetry > 0
+        ? (AUTO_RETRY_DELAYS_MS[autoRetry - 1] ?? 0)
+        : loadCount === 0
+          ? FIRST_LOAD_DELAY_MS
+          : 0;
+    let unregister: (() => void) | null = null;
+
+    const load = () => {
+      adLog('불러오기 호출', {
+        attempt: loadCount + 1,
+        autoRetry,
+        delayMs,
+        previousLoadStillPending: pendingLoadRef.current,
+        options,
+      });
+      pendingLoadRef.current = true;
+      unregister = loadFullScreenAd({
+        options,
+        onEvent: (event) => {
+          pendingLoadRef.current = false;
+          adLog('불러오기 이벤트', event);
+          if (event.type === 'loaded') {
+            autoRetryCountRef.current = 0;
+            setStatus('ready');
+          }
+        },
+        onError: (error) => {
+          pendingLoadRef.current = false;
+          adLog('불러오기 실패', describeError(error));
+          if (autoRetryCountRef.current < AUTO_RETRY_DELAYS_MS.length) {
+            autoRetryCountRef.current += 1;
+            adLog('자동으로 다시 불러오기', { autoRetry: autoRetryCountRef.current });
+            setLoadCount((count) => count + 1);
+            return;
+          }
+          notifyAdFailure('불러오기');
+          setStatus('failed');
+        },
+      });
+    };
+
+    const timer = window.setTimeout(load, delayMs);
     return () => {
-      adLog('불러오기 콜백 해제', { attempt: loadCount + 1 });
-      unregister();
+      window.clearTimeout(timer);
+      if (unregister) {
+        adLog('불러오기 콜백 해제', { attempt: loadCount + 1 });
+        unregister();
+      }
     };
   }, [adGroupId, isSupported, loadCount]);
 
@@ -105,6 +143,7 @@ export function useRewardedAd(adGroupId: string | null): RewardedAd {
 
   const reload = useCallback(() => {
     adLog('다시 불러오기 요청');
+    autoRetryCountRef.current = 0;
     setLoadCount((count) => count + 1);
   }, []);
 
