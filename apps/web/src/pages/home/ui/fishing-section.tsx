@@ -23,7 +23,7 @@ function FishingContent({ status, receivedAt, rewardedAd }: ContentProps) {
   return (
     <>
       <HammockGauge fish={fish} capacity={status.hammockCapacity} level={status.hammockLevel} />
-      <StoreFishButton canStore={fish >= 1} ad={rewardedAd} />
+      <StoreFishButton canStore={fish > 0} ad={rewardedAd} />
       <WarehouseLink warehouseFish={status.warehouseFish} />
       <div className="flex flex-col gap-2">
         <p className="text-sm text-muted-foreground">

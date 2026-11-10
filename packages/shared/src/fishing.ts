@@ -6,7 +6,7 @@
 // GET /api/fishing/me
 export interface FishingStatusResponse {
   serverTime: string; // ISO 8601
-  /** 해먹의 물고기 (소수점 포함. 화면에는 내림해서 표시) */
+  /** 해먹의 물고기 (소수점 포함. 화면에는 소수 7자리로 내림해서 표시) */
   hammockFish: number;
   hammockCapacity: number;
   /** 해먹이 가득 차는 예상 시각 (ISO 8601). 이미 가득이면 null */
@@ -37,6 +37,7 @@ export interface FishingStatusResponse {
   adHammockExpandAvailableAt: string | null;
   /** 강화·해달 친구·해먹 넓히기가 풀리는 시각 = 다음 KST 자정 (ISO 8601) */
   boostsResetAt: string;
+  /** 창고의 물고기 (소수점 포함) */
   warehouseFish: number;
 }
 
@@ -46,10 +47,10 @@ export type FishingAdBoostResponse = FishingStatusResponse;
 
 // POST /api/fishing/store
 export interface StoreFishResponse {
-  /** 이번에 창고로 옮긴 물고기 */
+  /** 이번에 창고로 옮긴 물고기 (해먹 전체, 소수점 포함) */
   storedFish: number;
   warehouseFish: number;
-  /** 옮기고 남은 해먹의 물고기 (1마리 미만 소수) */
+  /** 옮기고 남은 해먹의 물고기 (모두 옮기므로 0) */
   hammockFish: number;
 }
 

@@ -7,7 +7,7 @@ import {
   enhanceRod,
   expandHammock,
   summonOtterFriend,
-  takeWholeFish,
+  takeAllFish,
 } from '../lib/hammock-actions.js';
 import type { HammockState } from '../lib/settle-hammock.js';
 
@@ -16,7 +16,7 @@ const YESTERDAY = '2026-11-01';
 
 function state(overrides: Partial<HammockState> = {}): HammockState {
   return {
-    milliFish: 0,
+    nanoFish: 0,
     settledAt: new Date('2026-11-02T03:00:00Z'),
     rodLevel: 0,
     rodLevelDate: null,
@@ -106,18 +106,18 @@ describe('expandHammock', () => {
   });
 });
 
-describe('takeWholeFish', () => {
-  it('takes the whole fish and leaves the fraction in the hammock', () => {
-    const { state: next, takenFish } = takeWholeFish(state({ milliFish: 12_345_678 }));
+describe('takeAllFish', () => {
+  it('takes every fish including the fraction and empties the hammock', () => {
+    const { state: next, takenNanoFish } = takeAllFish(state({ nanoFish: 123_456_789 }));
 
-    expect(takenFish).toBe(12_345);
-    expect(next.milliFish).toBe(678);
+    expect(takenNanoFish).toBe(123_456_789);
+    expect(next.nanoFish).toBe(0);
   });
 
-  it('takes nothing when there is less than one fish', () => {
-    const { state: next, takenFish } = takeWholeFish(state({ milliFish: 999 }));
+  it('takes nothing from an empty hammock', () => {
+    const { state: next, takenNanoFish } = takeAllFish(state({ nanoFish: 0 }));
 
-    expect(takenFish).toBe(0);
-    expect(next.milliFish).toBe(999);
+    expect(takenNanoFish).toBe(0);
+    expect(next.nanoFish).toBe(0);
   });
 });

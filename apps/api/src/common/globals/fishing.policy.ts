@@ -6,12 +6,13 @@
 // 속도 값을 바꿔 배포하면 각 사용자의 마지막 정산 이후 시간도 새 속도로 계산된다 (해먹 용량 이내).
 export const FISHING_POLICY = {
   /** 토스 포인트 1원으로 바꾸는 데 필요한 물고기 수 (확정, 매월 콘솔 보고 대상) */
-  FISH_PER_TOSS_POINT: 500,
-  /** 강화 없이 BASE_MONTH_DAYS 동안 쉬지 않고 낚시하면 받는 토스 포인트 → 기본 속도를 정한다 */
-  BASE_MONTHLY_TOSS_POINTS: 1000,
+  FISH_PER_TOSS_POINT: 1,
+  /** 강화 없이 BASE_MONTH_DAYS 동안 쉬지 않고 낚시하면 받는 토스 포인트 → 기본 속도를 정한다
+   *  (54원 × 1마리 ÷ 30일 ÷ 24시간 = 시간당 0.075마리) */
+  BASE_MONTHLY_TOSS_POINTS: 54,
   BASE_MONTH_DAYS: 30,
-  /** 해먹 용량 (마리). 가득 차면 더 잡지 않는다 */
-  HAMMOCK_CAPACITY: 5_000,
+  /** 해먹 용량 (마리, 소수 가능). 가득 차면 더 잡지 않는다. 기본 속도로 7시간 28분이면 가득 찬다 */
+  HAMMOCK_CAPACITY: 0.56,
   /** 사용자 1명이 한 달에 받을 수 있는 최대 토스 포인트. 코드로 강제하지 않고 테스트로 지킨다 */
   MONTHLY_TOSS_POINT_BUDGET: 5_000,
 } as const;
@@ -19,7 +20,7 @@ export const FISHING_POLICY = {
 // 낚싯대 강화: 매일 KST 자정에 0단계로 초기화된다
 export const ROD_POLICY = {
   /** 강화 1단계당 오르는 속도 (기본 속도 대비 %, 복리 아님) */
-  SPEED_BONUS_PERCENT_PER_LEVEL: 10,
+  SPEED_BONUS_PERCENT_PER_LEVEL: 1,
   /** 하루 최대 강화 단계 */
   MAX_LEVEL: 10,
 } as const;
@@ -27,7 +28,7 @@ export const ROD_POLICY = {
 // 해달 친구: 7일 연속 출석한 날 자정까지 함께 낚시한다. 출석 '광고 보고 2배'로 한 명 더 온다
 export const OTTER_FRIEND_POLICY = {
   /** 해달 친구 한 명당 오르는 속도 (기본 속도 대비 %) */
-  SPEED_BONUS_PERCENT: 100,
+  SPEED_BONUS_PERCENT: 50,
   /** 해달 친구 한 명당 늘어나는 해먹 용량 (기본 용량 대비 %) */
   CAPACITY_BONUS_PERCENT: 50,
   /** 하루에 함께 낚시할 수 있는 해달 친구 수 (7일차 출석 1 + 광고 2배 1) */
@@ -46,7 +47,7 @@ export const AD_ROD_POLICY = {
 // 속도는 그대로라 월 예산 최악값(해먹을 한 번도 넘치지 않게 비우는 경우)에는 영향이 없다
 export const HAMMOCK_EXPAND_POLICY = {
   /** 해먹 1단계당 늘어나는 용량 (기본 용량 대비 %, 복리 아님) */
-  CAPACITY_BONUS_PERCENT_PER_LEVEL: 10,
+  CAPACITY_BONUS_PERCENT_PER_LEVEL: 5,
   /** 하루 최대 해먹 단계 */
   MAX_LEVEL: 5,
   /** 광고 1회당 오르는 해먹 단계 */

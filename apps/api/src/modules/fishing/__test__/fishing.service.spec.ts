@@ -5,7 +5,7 @@ import { AD_ROD_POLICY, HAMMOCK_EXPAND_POLICY, ROD_POLICY } from '../../../commo
 import { UsersService } from '../../users/users.service.js';
 import { FishingRepository } from '../fishing.repository.js';
 import { FishingService } from '../fishing.service.js';
-import { milliFishPerMs } from '../lib/fishing-rate.js';
+import { NANO_PER_FISH, NO_BOOSTS, nanoFishPerMs, speedPercent } from '../lib/fishing-rate.js';
 
 const USER_ID = '00000000-0000-4000-8000-000000000001';
 const HOUR_MS = 60 * 60 * 1000;
@@ -13,14 +13,18 @@ const HOUR_MS = 60 * 60 * 1000;
 const NOW = new Date('2026-11-02T03:00:00Z');
 const TODAY = '2026-11-02';
 const AN_HOUR_AGO = new Date(NOW.getTime() - HOUR_MS);
-const CAUGHT_IN_AN_HOUR = Math.floor(HOUR_MS * milliFishPerMs(100));
+const CAUGHT_IN_AN_HOUR = Math.floor(HOUR_MS * nanoFishPerMs(100));
 const MINUTE_MS = 60 * 1000;
+// 강화 2단계 상태로 한 시간 낚시한 양
+const CAUGHT_IN_AN_HOUR_AT_ROD_2 = Math.floor(
+  HOUR_MS * nanoFishPerMs(speedPercent({ ...NO_BOOSTS, rodLevel: 2 })),
+);
 
 function row(overrides: Record<string, unknown> = {}) {
   return {
     id: 'state-1',
     userId: USER_ID,
-    hammockMilliFish: 0,
+    hammockNanoFish: 0,
     settledAt: AN_HOUR_AGO,
     rodLevel: 0,
     rodLevelDate: null,
@@ -30,7 +34,7 @@ function row(overrides: Record<string, unknown> = {}) {
     hammockLevelDate: null,
     adRodEnhancedAt: null,
     adHammockExpandedAt: null,
-    warehouseFish: 100,
+    warehouseNanoFish: 1_500_000_000,
     ...overrides,
   };
 }
@@ -83,8 +87,8 @@ describe('FishingService', () => {
       const status = await service.getStatus(USER_ID);
 
       expect(repo.findOrCreate).toHaveBeenCalledWith(USER_ID, NOW);
-      expect(status.hammockFish).toBe(CAUGHT_IN_AN_HOUR / 1000);
-      expect(status.warehouseFish).toBe(100);
+      expect(status.hammockFish).toBe(CAUGHT_IN_AN_HOUR / NANO_PER_FISH);
+      expect(status.warehouseFish).toBe(1.5);
       expect(repo.updateState).not.toHaveBeenCalled();
     });
 
@@ -98,11 +102,11 @@ describe('FishingService', () => {
 
   describe('getWarehouse', () => {
     it("returns the warehouse with today's and this month's KST totals and recent entries", async () => {
-      repo.findOrCreate.mockResolvedValue(row({ warehouseFish: 5_000 }));
-      repo.sumStoredFish.mockResolvedValue({ today: 300, month: 5_000 });
+      repo.findOrCreate.mockResolvedValue(row({ warehouseNanoFish: 5_000_000_000 }));
+      repo.sumStoredFish.mockResolvedValue({ today: 300_000_000, month: 5_000_000_000 });
       const createdAt = new Date('2026-11-02T02:00:00Z');
       repo.findRecentLedger.mockResolvedValue([
-        { id: 'ledger-1', userId: USER_ID, type: 'STORE', amount: 300, createdAt },
+        { id: 'ledger-1', userId: USER_ID, type: 'STORE', amountNanoFish: 300_000_000, createdAt },
       ]);
 
       const result = await service.getWarehouse(USER_ID);
@@ -117,11 +121,11 @@ describe('FishingService', () => {
       expect(repo.updateState).not.toHaveBeenCalled();
       expect(result).toEqual({
         serverTime: NOW.toISOString(),
-        warehouseFish: 5_000,
-        todayStoredFish: 300,
-        monthStoredFish: 5_000,
+        warehouseFish: 5,
+        todayStoredFish: 0.3,
+        monthStoredFish: 5,
         recentEntries: [
-          { id: 'ledger-1', type: 'STORE', amount: 300, createdAt: createdAt.toISOString() },
+          { id: 'ledger-1', type: 'STORE', amount: 0.3, createdAt: createdAt.toISOString() },
         ],
       });
     });
@@ -135,16 +139,16 @@ describe('FishingService', () => {
   });
 
   describe('storeFish', () => {
-    it('moves the whole fish to the warehouse and records the ledger in one transaction', async () => {
+    it('moves every fish including the fraction to the warehouse in one transaction', async () => {
       repo.lockOrCreate.mockResolvedValue(row());
-      const storedFish = Math.floor(CAUGHT_IN_AN_HOUR / 1000);
+      const warehouseNanoFish = 1_500_000_000 + CAUGHT_IN_AN_HOUR;
 
       const result = await service.storeFish(USER_ID);
 
       expect(dataSource.transaction).toHaveBeenCalledTimes(1);
       expect(repo.lockOrCreate).toHaveBeenCalledWith(manager, USER_ID, NOW);
       expect(repo.updateState).toHaveBeenCalledWith(manager, 'state-1', {
-        hammockMilliFish: CAUGHT_IN_AN_HOUR % 1000,
+        hammockNanoFish: 0,
         settledAt: NOW,
         rodLevel: 0,
         rodLevelDate: null,
@@ -152,22 +156,30 @@ describe('FishingService', () => {
         otterFriendCount: 0,
         hammockLevel: 0,
         hammockLevelDate: null,
-        warehouseFish: 100 + storedFish,
+        warehouseNanoFish,
       });
       expect(repo.addLedgerEntry).toHaveBeenCalledWith(manager, {
         userId: USER_ID,
         type: 'STORE',
-        amount: storedFish,
+        amountNanoFish: CAUGHT_IN_AN_HOUR,
       });
       expect(result).toEqual({
-        storedFish,
-        warehouseFish: 100 + storedFish,
-        hammockFish: (CAUGHT_IN_AN_HOUR % 1000) / 1000,
+        storedFish: CAUGHT_IN_AN_HOUR / NANO_PER_FISH,
+        warehouseFish: warehouseNanoFish / NANO_PER_FISH,
+        hammockFish: 0,
       });
     });
 
-    it('rejects when there is less than one fish', async () => {
-      repo.lockOrCreate.mockResolvedValue(row({ settledAt: NOW, hammockMilliFish: 999 }));
+    it('stores a fraction of a fish', async () => {
+      repo.lockOrCreate.mockResolvedValue(row({ settledAt: NOW, hammockNanoFish: 1 }));
+
+      const result = await service.storeFish(USER_ID);
+
+      expect(result.storedFish).toBe(1 / NANO_PER_FISH);
+    });
+
+    it('rejects when the hammock is empty', async () => {
+      repo.lockOrCreate.mockResolvedValue(row({ settledAt: NOW, hammockNanoFish: 0 }));
 
       await expect(service.storeFish(USER_ID)).rejects.toBeInstanceOf(ConflictException);
       expect(repo.updateState).not.toHaveBeenCalled();
@@ -186,13 +198,16 @@ describe('FishingService', () => {
         manager,
         'state-1',
         expect.objectContaining({
-          hammockMilliFish: Math.floor(HOUR_MS * milliFishPerMs(120)),
+          hammockNanoFish: CAUGHT_IN_AN_HOUR_AT_ROD_2,
           settledAt: NOW,
           rodLevel: 3,
           rodLevelDate: TODAY,
         }),
       );
-      expect(result).toEqual({ rodLevel: 3, rodSpeedBonusPercent: 30 });
+      expect(result).toEqual({
+        rodLevel: 3,
+        rodSpeedBonusPercent: 3 * ROD_POLICY.SPEED_BONUS_PERCENT_PER_LEVEL,
+      });
     });
 
     it('applies the boost to the later day when another server already settled past midnight', async () => {
@@ -237,7 +252,7 @@ describe('FishingService', () => {
         manager,
         'state-1',
         expect.objectContaining({
-          hammockMilliFish: CAUGHT_IN_AN_HOUR,
+          hammockNanoFish: CAUGHT_IN_AN_HOUR,
           settledAt: NOW,
           otterFriendDate: TODAY,
           otterFriendCount: 1,
@@ -269,7 +284,7 @@ describe('FishingService', () => {
         manager,
         'state-1',
         expect.objectContaining({
-          hammockMilliFish: Math.floor(HOUR_MS * milliFishPerMs(120)),
+          hammockNanoFish: CAUGHT_IN_AN_HOUR_AT_ROD_2,
           settledAt: NOW,
           rodLevel: 2 + AD_ROD_POLICY.LEVELS_PER_AD,
           rodLevelDate: TODAY,
@@ -337,7 +352,7 @@ describe('FishingService', () => {
         manager,
         'state-1',
         expect.objectContaining({
-          hammockMilliFish: CAUGHT_IN_AN_HOUR,
+          hammockNanoFish: CAUGHT_IN_AN_HOUR,
           settledAt: NOW,
           hammockLevel: 2 + HAMMOCK_EXPAND_POLICY.LEVELS_PER_AD,
           hammockLevelDate: TODAY,

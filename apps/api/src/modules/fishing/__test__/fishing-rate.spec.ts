@@ -6,10 +6,11 @@ import {
 } from '../../../common/globals/index.js';
 import {
   fishPerHour,
-  hammockCapacityMilliFish,
+  hammockCapacityNanoFish,
   hammockLevelBonusPercent,
-  milliFishPerMs,
+  NANO_PER_FISH,
   NO_BOOSTS,
+  nanoFishPerMs,
   rodSpeedBonusPercent,
   speedPercent,
   tossPointsPerDay,
@@ -17,14 +18,14 @@ import {
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
-const BASE_CAPACITY = FISHING_POLICY.HAMMOCK_CAPACITY * 1000;
+const BASE_CAPACITY = Math.round(FISHING_POLICY.HAMMOCK_CAPACITY * NANO_PER_FISH);
 
 describe('speedPercent', () => {
   it('is 100% without boosts', () => {
     expect(speedPercent(NO_BOOSTS)).toBe(100);
   });
 
-  it('adds 10% of the base speed per rod level (not compounding)', () => {
+  it('adds the per-level bonus of the base speed per rod level (not compounding)', () => {
     expect(speedPercent({ ...NO_BOOSTS, rodLevel: 3 })).toBe(
       100 + 3 * ROD_POLICY.SPEED_BONUS_PERCENT_PER_LEVEL,
     );
@@ -48,9 +49,13 @@ describe('speedPercent', () => {
 });
 
 describe('hammockLevelBonusPercent', () => {
-  it('is 10% per level, up to +50% at the max level', () => {
-    expect(hammockLevelBonusPercent(1)).toBe(10);
-    expect(hammockLevelBonusPercent(HAMMOCK_EXPAND_POLICY.MAX_LEVEL)).toBe(50);
+  it('adds the per-level bonus for each level, up to the max level', () => {
+    const perLevel = HAMMOCK_EXPAND_POLICY.CAPACITY_BONUS_PERCENT_PER_LEVEL;
+
+    expect(hammockLevelBonusPercent(1)).toBe(perLevel);
+    expect(hammockLevelBonusPercent(HAMMOCK_EXPAND_POLICY.MAX_LEVEL)).toBe(
+      HAMMOCK_EXPAND_POLICY.MAX_LEVEL * perLevel,
+    );
   });
 });
 
@@ -60,19 +65,19 @@ describe('rodSpeedBonusPercent', () => {
   });
 });
 
-describe('hammockCapacityMilliFish', () => {
+describe('hammockCapacityNanoFish', () => {
   it('is the base capacity without the otter friend', () => {
-    expect(hammockCapacityMilliFish(NO_BOOSTS)).toBe(BASE_CAPACITY);
+    expect(hammockCapacityNanoFish(NO_BOOSTS)).toBe(BASE_CAPACITY);
   });
 
   it('grows by the otter friend capacity bonus', () => {
-    expect(hammockCapacityMilliFish({ ...NO_BOOSTS, otterFriends: 1 })).toBe(
+    expect(hammockCapacityNanoFish({ ...NO_BOOSTS, otterFriends: 1 })).toBe(
       (BASE_CAPACITY * (100 + OTTER_FRIEND_POLICY.CAPACITY_BONUS_PERCENT)) / 100,
     );
   });
 
   it('grows by the hammock level bonus per level (not compounding)', () => {
-    expect(hammockCapacityMilliFish({ ...NO_BOOSTS, hammockLevel: 3 })).toBe(
+    expect(hammockCapacityNanoFish({ ...NO_BOOSTS, hammockLevel: 3 })).toBe(
       (BASE_CAPACITY * (100 + 3 * HAMMOCK_EXPAND_POLICY.CAPACITY_BONUS_PERCENT_PER_LEVEL)) / 100,
     );
   });
@@ -84,19 +89,20 @@ describe('hammockCapacityMilliFish', () => {
       2 * OTTER_FRIEND_POLICY.CAPACITY_BONUS_PERCENT +
       5 * HAMMOCK_EXPAND_POLICY.CAPACITY_BONUS_PERCENT_PER_LEVEL;
 
-    expect(hammockCapacityMilliFish(boosts)).toBe((BASE_CAPACITY * percent) / 100);
+    expect(hammockCapacityNanoFish(boosts)).toBe((BASE_CAPACITY * percent) / 100);
   });
 
   it('is not changed by rod upgrades', () => {
-    expect(hammockCapacityMilliFish({ ...NO_BOOSTS, rodLevel: 5 })).toBe(
-      hammockCapacityMilliFish(NO_BOOSTS),
+    expect(hammockCapacityNanoFish({ ...NO_BOOSTS, rodLevel: 5 })).toBe(
+      hammockCapacityNanoFish(NO_BOOSTS),
     );
   });
 });
 
 describe('base speed', () => {
   it('earns BASE_MONTHLY_TOSS_POINTS over BASE_MONTH_DAYS at 100%', () => {
-    const fishPerMonth = (milliFishPerMs(100) * FISHING_POLICY.BASE_MONTH_DAYS * DAY_MS) / 1000;
+    const fishPerMonth =
+      (nanoFishPerMs(100) * FISHING_POLICY.BASE_MONTH_DAYS * DAY_MS) / NANO_PER_FISH;
 
     expect(fishPerMonth / FISHING_POLICY.FISH_PER_TOSS_POINT).toBeCloseTo(
       FISHING_POLICY.BASE_MONTHLY_TOSS_POINTS,
@@ -105,11 +111,11 @@ describe('base speed', () => {
   });
 
   it('scales linearly with the speed percent', () => {
-    expect(milliFishPerMs(250)).toBeCloseTo(milliFishPerMs(100) * 2.5, 12);
+    expect(nanoFishPerMs(250)).toBeCloseTo(nanoFishPerMs(100) * 2.5, 12);
   });
 
   it('reports fish per hour', () => {
-    expect(fishPerHour(100)).toBeCloseTo((milliFishPerMs(100) * HOUR_MS) / 1000, 9);
+    expect(fishPerHour(100)).toBeCloseTo((nanoFishPerMs(100) * HOUR_MS) / NANO_PER_FISH, 9);
   });
 
   it('reports toss points per day', () => {
@@ -117,5 +123,15 @@ describe('base speed', () => {
       FISHING_POLICY.BASE_MONTHLY_TOSS_POINTS / FISHING_POLICY.BASE_MONTH_DAYS,
       9,
     );
+  });
+});
+
+describe('nano-fish precision', () => {
+  it('loses less than one nano-fish per settlement at the base speed', () => {
+    expect(nanoFishPerMs(100)).toBeGreaterThan(1);
+  });
+
+  it('holds fractional capacities without rounding to whole fish', () => {
+    expect(BASE_CAPACITY / NANO_PER_FISH).toBe(FISHING_POLICY.HAMMOCK_CAPACITY);
   });
 });

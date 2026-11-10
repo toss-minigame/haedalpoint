@@ -11,7 +11,7 @@ import { kstDayStart, kstMonthStart, toKstDateString } from '../../common/utils/
 import { UsersService } from '../users/users.service.js';
 import type { FishingState } from './entities/fishing-state.entity.js';
 import { FishingRepository, type FishingStateChanges } from './fishing.repository.js';
-import { MILLI_PER_FISH, rodSpeedBonusPercent } from './lib/fishing-rate.js';
+import { NANO_PER_FISH, rodSpeedBonusPercent } from './lib/fishing-rate.js';
 import {
   buildFishingStatus,
   isCoolingDown,
@@ -22,7 +22,7 @@ import {
   enhanceRod,
   expandHammock,
   summonOtterFriend,
-  takeWholeFish,
+  takeAllFish,
 } from './lib/hammock-actions.js';
 import { boostsOn, type HammockState, settleHammock } from './lib/settle-hammock.js';
 
@@ -81,41 +81,41 @@ export class FishingService {
     ]);
     return {
       serverTime: now.toISOString(),
-      warehouseFish: row.warehouseFish,
-      todayStoredFish: stored.today,
-      monthStoredFish: stored.month,
-      recentEntries: entries.map(({ id, type, amount, createdAt }) => ({
+      warehouseFish: row.warehouseNanoFish / NANO_PER_FISH,
+      todayStoredFish: stored.today / NANO_PER_FISH,
+      monthStoredFish: stored.month / NANO_PER_FISH,
+      recentEntries: entries.map(({ id, type, amountNanoFish, createdAt }) => ({
         id,
         type,
-        amount,
+        amount: amountNanoFish / NANO_PER_FISH,
         createdAt: createdAt.toISOString(),
       })),
     };
   }
 
-  /** 해먹의 물고기(정수 부분)를 창고로 옮긴다 */
+  /** 해먹의 물고기를 소수까지 모두 창고로 옮긴다 */
   async storeFish(userId: string): Promise<StoreFishResponse> {
     await this.usersService.findById(userId);
     return this.dataSource.transaction(async (manager) => {
       const now = new Date();
       const row = await this.fishingRepository.lockOrCreate(manager, userId, now);
-      const { state, takenFish } = takeWholeFish(settleHammock(toHammockState(row), now));
-      if (takenFish < 1) throw new ConflictException(NOTHING_TO_STORE);
+      const { state, takenNanoFish } = takeAllFish(settleHammock(toHammockState(row), now));
+      if (takenNanoFish <= 0) throw new ConflictException(NOTHING_TO_STORE);
 
-      const warehouseFish = row.warehouseFish + takenFish;
+      const warehouseNanoFish = row.warehouseNanoFish + takenNanoFish;
       await this.fishingRepository.updateState(manager, row.id, {
         ...toStateChanges(state),
-        warehouseFish,
+        warehouseNanoFish,
       });
       await this.fishingRepository.addLedgerEntry(manager, {
         userId,
         type: 'STORE',
-        amount: takenFish,
+        amountNanoFish: takenNanoFish,
       });
       return {
-        storedFish: takenFish,
-        warehouseFish,
-        hammockFish: state.milliFish / MILLI_PER_FISH,
+        storedFish: takenNanoFish / NANO_PER_FISH,
+        warehouseFish: warehouseNanoFish / NANO_PER_FISH,
+        hammockFish: state.nanoFish / NANO_PER_FISH,
       };
     });
   }

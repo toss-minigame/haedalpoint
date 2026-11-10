@@ -7,7 +7,7 @@ import { WarehouseLedger, type WarehouseLedgerType } from './entities/warehouse-
 export type FishingStateChanges = Partial<
   Pick<
     FishingState,
-    | 'hammockMilliFish'
+    | 'hammockNanoFish'
     | 'settledAt'
     | 'rodLevel'
     | 'rodLevelDate'
@@ -17,17 +17,17 @@ export type FishingStateChanges = Partial<
     | 'hammockLevelDate'
     | 'adRodEnhancedAt'
     | 'adHammockExpandedAt'
-    | 'warehouseFish'
+    | 'warehouseNanoFish'
   >
 >;
 
 export interface WarehouseLedgerEntry {
   userId: string;
   type: WarehouseLedgerType;
-  amount: number;
+  amountNanoFish: number;
 }
 
-/** 기간별 창고 저장량 (STORE 합계) */
+/** 기간별 창고 저장량 (STORE 합계, nano-fish) */
 export interface StoredFishSums {
   today: number;
   month: number;
@@ -75,10 +75,10 @@ export class FishingRepository {
       .getRepository(WarehouseLedger)
       .createQueryBuilder('ledger')
       .select(
-        'COALESCE(SUM(ledger.amount) FILTER (WHERE ledger.createdAt >= :dayStart), 0)',
+        'COALESCE(SUM(ledger.amountNanoFish) FILTER (WHERE ledger.createdAt >= :dayStart), 0)',
         'today',
       )
-      .addSelect('COALESCE(SUM(ledger.amount), 0)', 'month')
+      .addSelect('COALESCE(SUM(ledger.amountNanoFish), 0)', 'month')
       .where('ledger.userId = :userId', { userId })
       .andWhere('ledger.type = :type', { type: 'STORE' satisfies WarehouseLedgerType })
       .andWhere('ledger.createdAt >= :monthStart', { monthStart })
