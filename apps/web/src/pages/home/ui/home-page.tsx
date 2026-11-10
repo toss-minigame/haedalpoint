@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { ChevronRightIcon } from 'lucide-react';
 import { Link } from 'react-router';
 import { fishingQueries, formatFish } from '@/entities/fishing';
 import { CATCH_INTERVAL_SECONDS, OtterScene } from '@/entities/otter';
@@ -24,14 +25,23 @@ export function HomePage() {
   const catchLabel = useCatchLabel();
 
   return (
-    <main className="mx-auto flex max-w-xl flex-col gap-6 p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
-      <h1 className="text-2xl font-bold">해달해달</h1>
+    <main className="mx-auto flex max-w-xl flex-col gap-5 px-5 pt-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+      {/* 앱인토스 상단 바가 앱 이름을 보여주므로 화면에는 그리지 않고 낭독기용으로만 둔다 */}
+      <h1 className="sr-only">해달해달</h1>
       <FishingBoostSection rewardedAd={rewardedAd} />
       <OtterScene catchLabel={catchLabel} />
       <FishingSection rewardedAd={rewardedAd} />
       <AttendanceSection rewardedAd={rewardedAd} />
-      <Button asChild size="lg" variant="outline" className="h-12 w-full text-base">
-        <Link to="/quiz">오늘의 O/X 퀴즈 풀기</Link>
+      <Button
+        asChild
+        size="lg"
+        variant="outline"
+        className="h-14 w-full justify-between rounded-2xl bg-card px-5 text-base font-semibold"
+      >
+        <Link to="/quiz">
+          오늘의 O/X 퀴즈 풀기
+          <ChevronRightIcon aria-hidden="true" className="size-5 text-muted-foreground" />
+        </Link>
       </Button>
     </main>
   );

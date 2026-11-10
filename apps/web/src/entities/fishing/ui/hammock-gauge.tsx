@@ -14,17 +14,24 @@ export function HammockGauge({ fish, capacity, level }: Props) {
   const percent = capacity > 0 ? Math.min(100, (fish / capacity) * 100) : 0;
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <span className="flex items-center gap-2 text-base font-medium">
-          {/* 장식용: 바로 옆 이름이 같은 내용을 읽어 준다 */}
-          <img src={hammockImage(level)} alt="" className="size-12 shrink-0" />
-          {hammockName(level)}
-        </span>
-        <span className="text-base tabular-nums">
-          <strong className="text-lg font-bold">{formatFish(fish)}</strong>
-          <span className="text-muted-foreground"> / {formatFish(capacity)}마리</span>
-        </span>
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-3">
+        {/* 장식용: 바로 옆 이름이 같은 내용을 읽어 준다 */}
+        <img
+          src={hammockImage(level)}
+          alt=""
+          className="size-14 shrink-0 rounded-2xl bg-secondary p-1"
+        />
+        <div className="flex min-w-0 flex-col">
+          <span className="text-[15px] text-muted-foreground">{hammockName(level)}</span>
+          {/* 좁은 화면에서는 용량이 통째로 다음 줄로 내려간다 ('/' 만 떨어지지 않게) */}
+          <span className="flex flex-wrap items-baseline gap-x-1 tabular-nums">
+            <strong className="text-[28px] leading-tight font-bold">{formatFish(fish)}</strong>
+            <span className="text-[15px] whitespace-nowrap text-muted-foreground">
+              / {formatFish(capacity)}마리
+            </span>
+          </span>
+        </div>
       </div>
       <div
         role="progressbar"

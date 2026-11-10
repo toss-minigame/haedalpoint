@@ -23,9 +23,7 @@ export function FishingBoostSection({ rewardedAd }: Props) {
         <AdEnhanceRodCard status={status} receivedAt={dataUpdatedAt} ad={rewardedAd} />
         <AdExpandHammockCard status={status} receivedAt={dataUpdatedAt} ad={rewardedAd} />
       </div>
-      <p className="text-xs text-muted-foreground">
-        광고로 받은 강화와 넓힌 해먹은 오늘 자정까지 유지돼요
-      </p>
+      <p className="px-1 text-[13px] text-muted-foreground">강화 효과는 오늘 자정까지 유지돼요</p>
     </section>
   );
 }
