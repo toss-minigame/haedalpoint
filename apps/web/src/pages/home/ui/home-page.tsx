@@ -33,10 +33,10 @@ export function HomePage() {
       {/* 앱인토스 상단 바가 앱 이름을 보여주므로 화면에는 그리지 않고 낭독기용으로만 둔다 */}
       <h1 className="sr-only">해달해달</h1>
       <FishingBoostSection rewardedAd={rewardedAd} />
-      {/* 오늘의 강화 버튼은 장면(버튼) 안이 아니라 형제로 두고 오른쪽 위에 겹친다 */}
+      {/* 오늘의 강화 버튼은 장면(버튼) 안이 아니라 형제로 두고 왼쪽 위에 겹친다 */}
       <div className="relative">
         <OtterScene catchLabel={catchLabel} />
-        <TodayBoost className="absolute top-3 right-3" />
+        <TodayBoost className="absolute top-1 left-1" />
       </div>
       <FishingSection rewardedAd={rewardedAd} />
       <AttendanceSection rewardedAd={rewardedAd} />
