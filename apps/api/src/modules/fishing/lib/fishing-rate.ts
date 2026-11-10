@@ -21,9 +21,16 @@ export interface Boosts {
   otterFriends: number;
   /** 광고로 넓힌 해먹 단계 */
   hammockLevel: number;
+  /** 룰렛 미끼로 오른 속도 (기본 속도 대비 %) */
+  baitBonusPercent: number;
 }
 
-export const NO_BOOSTS: Readonly<Boosts> = { rodLevel: 0, otterFriends: 0, hammockLevel: 0 };
+export const NO_BOOSTS: Readonly<Boosts> = {
+  rodLevel: 0,
+  otterFriends: 0,
+  hammockLevel: 0,
+  baitBonusPercent: 0,
+};
 
 /** 기본 해먹 용량 (nano-fish). 용량이 소수라 곱셈 오차를 반올림으로 없앤다 */
 const BASE_CAPACITY_NANO_FISH = Math.round(FISHING_POLICY.HAMMOCK_CAPACITY * NANO_PER_FISH);
@@ -41,7 +48,9 @@ export function rodSpeedBonusPercent(rodLevel: number): number {
 /** 기본 속도 대비 속도 (%). 보너스는 더한다 (ADR-0007) */
 export function speedPercent(boosts: Boosts): number {
   const friendBonus = boosts.otterFriends * OTTER_FRIEND_POLICY.SPEED_BONUS_PERCENT;
-  return BASE_PERCENT + rodSpeedBonusPercent(boosts.rodLevel) + friendBonus;
+  return (
+    BASE_PERCENT + rodSpeedBonusPercent(boosts.rodLevel) + friendBonus + boosts.baitBonusPercent
+  );
 }
 
 /** 해먹 단계로 늘어나는 용량 (기본 용량 대비 %) */

@@ -32,6 +32,8 @@ function hammock(overrides: Partial<HammockState> = {}): HammockState {
     otterFriendCount: 0,
     hammockLevel: 0,
     hammockLevelDate: null,
+    baitBonusPercent: 0,
+    baitDate: null,
     ...overrides,
   };
 }
@@ -151,6 +153,8 @@ describe('toHammockState', () => {
       otterFriendCount: 0,
       hammockLevel: 0,
       hammockLevelDate: null,
+      baitBonusPercent: 0,
+      baitDate: null,
       adRodEnhancedAt: null,
       adHammockExpandedAt: null,
       warehouseNanoFish: 5,
@@ -167,6 +171,30 @@ describe('toHammockState', () => {
       otterFriendCount: 0,
       hammockLevel: 0,
       hammockLevelDate: null,
+      baitBonusPercent: 0,
+      baitDate: null,
     });
+  });
+});
+
+describe('buildFishingStatus bait', () => {
+  it("reflects today's bait in the speed", () => {
+    const status = buildFishingStatus(
+      hammock({ baitBonusPercent: 5, baitDate: TODAY }),
+      account(),
+      NOW,
+    );
+
+    expect(status).toMatchObject({ baitSpeedBonusPercent: 5, speedPercent: 105 });
+  });
+
+  it("ignores yesterday's bait", () => {
+    const status = buildFishingStatus(
+      hammock({ baitBonusPercent: 5, baitDate: '2026-11-01' }),
+      account(),
+      NOW,
+    );
+
+    expect(status).toMatchObject({ baitSpeedBonusPercent: 0, speedPercent: 100 });
   });
 });

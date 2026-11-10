@@ -7,6 +7,7 @@ import { AuthModule } from './modules/auth/auth.module.js';
 import { FishingModule } from './modules/fishing/fishing.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { QuizModule } from './modules/quiz/quiz.module.js';
+import { RouletteModule } from './modules/roulette/roulette.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 
 @Module({
@@ -21,6 +22,7 @@ import { UsersModule } from './modules/users/users.module.js';
     AttendanceModule,
     QuizModule,
     FishingModule,
+    RouletteModule,
   ],
 })
 export class AppModule {}

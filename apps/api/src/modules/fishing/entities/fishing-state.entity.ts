@@ -12,6 +12,7 @@ import { bigintNumberTransformer } from '../../../common/entities/bigint-number.
 @Check('CHK_fishing_states_rod_level', '"rod_level" >= 0')
 @Check('CHK_fishing_states_otter_friend_count', '"otter_friend_count" >= 0')
 @Check('CHK_fishing_states_hammock_level', '"hammock_level" >= 0')
+@Check('CHK_fishing_states_bait_bonus_percent', '"bait_bonus_percent" >= 0')
 export class FishingState extends BaseEntity {
   @Column({ type: 'uuid', name: 'user_id' })
   userId: string;
@@ -50,6 +51,13 @@ export class FishingState extends BaseEntity {
 
   @Column({ type: 'date', name: 'hammock_level_date', nullable: true })
   hammockLevelDate: string | null;
+
+  // 룰렛 미끼로 오른 낚시 속도(%)와 그 효과가 유효한 KST 날짜 (modules/roulette)
+  @Column({ type: 'smallint', name: 'bait_bonus_percent', default: 0 })
+  baitBonusPercent: number;
+
+  @Column({ type: 'date', name: 'bait_date', nullable: true })
+  baitDate: string | null;
 
   // 마지막으로 광고를 보고 해먹을 넓힌 시각 (쿨타임 계산용)
   @Column({ type: 'timestamptz', name: 'ad_hammock_expanded_at', nullable: true })

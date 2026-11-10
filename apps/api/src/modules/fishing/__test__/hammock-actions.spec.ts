@@ -4,6 +4,7 @@ import {
   ROD_POLICY,
 } from '../../../common/globals/index.js';
 import {
+  applyBait,
   enhanceRod,
   expandHammock,
   summonOtterFriend,
@@ -24,6 +25,8 @@ function state(overrides: Partial<HammockState> = {}): HammockState {
     otterFriendCount: 0,
     hammockLevel: 0,
     hammockLevelDate: null,
+    baitBonusPercent: 0,
+    baitDate: null,
     ...overrides,
   };
 }
@@ -119,5 +122,27 @@ describe('takeAllFish', () => {
 
     expect(takenNanoFish).toBe(0);
     expect(next.nanoFish).toBe(0);
+  });
+});
+
+describe('applyBait', () => {
+  it("sets today's bait bonus", () => {
+    const next = applyBait(state(), 3, TODAY);
+
+    expect(next).toMatchObject({ baitBonusPercent: 3, baitDate: TODAY });
+  });
+
+  it("replaces another day's bait", () => {
+    const next = applyBait(state({ baitBonusPercent: 5, baitDate: YESTERDAY }), 1, TODAY);
+
+    expect(next).toMatchObject({ baitBonusPercent: 1, baitDate: TODAY });
+  });
+
+  it('does not mutate the given state', () => {
+    const before = state();
+
+    applyBait(before, 2, TODAY);
+
+    expect(before).toMatchObject({ baitBonusPercent: 0, baitDate: null });
   });
 });

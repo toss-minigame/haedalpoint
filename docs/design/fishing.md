@@ -128,6 +128,7 @@ settled_at ──[그날 속도·용량]── 다음 자정 ──[기본 속�
 
 - `enhanceRod(userId, levels, manager)`: 정산 → 오늘 강화 단계 + levels (최대 단계에서 멈춤)
 - `summonOtterFriend(userId, manager)`: 정산 → 오늘 해달 친구 한 명 더 (하루 최대 2명)
+- `applyBait(userId, speedBonusPercent, manager, now)`: 정산 → 오늘 룰렛 미끼 보너스 ([bait-roulette.md](./bait-roulette.md))
 
 ### 동시성
 

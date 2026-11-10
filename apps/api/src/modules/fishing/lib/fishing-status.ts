@@ -23,6 +23,8 @@ type FishingStateRow = Pick<
   | 'otterFriendCount'
   | 'hammockLevel'
   | 'hammockLevelDate'
+  | 'baitBonusPercent'
+  | 'baitDate'
 >;
 
 /** 현황 응답에 필요한, 해먹 계산 밖의 값 */
@@ -43,6 +45,8 @@ export function toHammockState(row: FishingStateRow): HammockState {
     otterFriendCount: row.otterFriendCount,
     hammockLevel: row.hammockLevel,
     hammockLevelDate: row.hammockLevelDate,
+    baitBonusPercent: row.baitBonusPercent,
+    baitDate: row.baitDate,
   };
 }
 
@@ -56,6 +60,8 @@ export function toStateChanges(state: HammockState): FishingStateChanges {
     otterFriendCount: state.otterFriendCount,
     hammockLevel: state.hammockLevel,
     hammockLevelDate: state.hammockLevelDate,
+    baitBonusPercent: state.baitBonusPercent,
+    baitDate: state.baitDate,
   };
 }
 
@@ -109,6 +115,7 @@ export function buildFishingStatus(
       now,
     ),
     adHammockBonusPercent: hammockLevelBonusPercent(HAMMOCK_EXPAND_POLICY.LEVELS_PER_AD),
+    baitSpeedBonusPercent: boosts.baitBonusPercent,
     adHammockExpandAvailableAt: availableAtOrNull(
       account.adHammockExpandedAt,
       HAMMOCK_EXPAND_POLICY.COOLDOWN_MINUTES,

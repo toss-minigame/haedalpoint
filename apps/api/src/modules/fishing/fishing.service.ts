@@ -19,6 +19,7 @@ import {
   toStateChanges,
 } from './lib/fishing-status.js';
 import {
+  applyBait,
   enhanceRod,
   expandHammock,
   summonOtterFriend,
@@ -198,6 +199,21 @@ export class FishingService {
    */
   async summonOtterFriend(userId: string, manager: EntityManager, now: Date): Promise<void> {
     await this.changeHammock(manager, userId, now, summonOtterFriend);
+  }
+
+  /**
+   * `now` 가 속한 날 자정까지 룰렛 미끼 효과(낚시 속도 +speedBonusPercent%)를 적용한다.
+   * 호출하는 쪽(룰렛)의 트랜잭션 안에서 실행한다.
+   */
+  async applyBait(
+    userId: string,
+    speedBonusPercent: number,
+    manager: EntityManager,
+    now: Date,
+  ): Promise<void> {
+    await this.changeHammock(manager, userId, now, (settled, today) =>
+      applyBait(settled, speedBonusPercent, today),
+    );
   }
 
   /** 속도·용량을 바꾸기 전에 반드시 지금까지 잡은 물고기를 먼저 정산한다 */

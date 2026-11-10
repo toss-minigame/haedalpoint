@@ -38,6 +38,15 @@ export function expandHammock(state: HammockState, levels: number, today: string
   };
 }
 
+/** 오늘 자정까지 룰렛 미끼 효과를 적용한다 (하루 한 번, 같은 날 다시 적용하면 덮어쓴다) */
+export function applyBait(
+  state: HammockState,
+  speedBonusPercent: number,
+  today: string,
+): HammockState {
+  return { ...state, baitBonusPercent: speedBonusPercent, baitDate: today };
+}
+
 /** 해먹의 물고기를 소수까지 모두 꺼낸다 */
 export function takeAllFish(state: HammockState): { state: HammockState; takenNanoFish: number } {
   return { state: { ...state, nanoFish: 0 }, takenNanoFish: state.nanoFish };
