@@ -44,12 +44,12 @@ export function FishingSection({ rewardedAd }: Props) {
           <CardTitle id="fishing-heading" className="text-lg font-bold">
             해달 낚시
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-[15px] break-keep">
             해달이 잡은 물고기는 해먹에 쌓여요. 창고에 저장해야 내 물고기가 돼요.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          {isPending && <p className="text-muted-foreground">불러오는 중...</p>}
+          {isPending && <p className="text-muted-foreground">낚시 현황을 불러오고 있어요</p>}
           {/* 주기적 재조회가 실패해도 이전 값이 있으면 그대로 보여준다 */}
           {isError && !status && <p className="text-destructive">{error.message}</p>}
           {status && (

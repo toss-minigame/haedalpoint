@@ -16,17 +16,22 @@ export function FishingStats({ status, receivedAt }: Props) {
   const remainingMs = fullAt ? fullAt.getTime() - now.getTime() : 0;
 
   return (
-    <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-      <dt className="text-muted-foreground">낚싯대 강화</dt>
-      <dd className="tabular-nums">
-        +{status.rodSpeedBonusPercent}% ({status.rodLevel}/{status.rodMaxLevel}단계)
-      </dd>
-      <dt className="text-muted-foreground">해먹 가득</dt>
-      <dd className="tabular-nums">
-        {fullAt && remainingMs > 0
-          ? `${formatFullAt(fullAt, now)} (${formatRemaining(remainingMs)} 남음)`
-          : '가득 찼어요'}
-      </dd>
+    <dl className="flex flex-wrap gap-2 text-[15px]">
+      <div className="flex gap-1.5 rounded-full bg-secondary px-3 py-1.5">
+        <dt className="text-muted-foreground">낚싯대 강화</dt>
+        <dd className="font-semibold text-secondary-foreground tabular-nums">
+          +{status.rodSpeedBonusPercent}% ({status.rodLevel}/{status.rodMaxLevel}단계)
+        </dd>
+      </div>
+      <div className="flex gap-1.5 rounded-full bg-secondary px-3 py-1.5">
+        {/* 칩 문장이 그대로 읽히도록 항목 이름은 낭독기에만 준다 */}
+        <dt className="sr-only">해먹이 가득 차는 시각</dt>
+        <dd className="font-semibold text-secondary-foreground tabular-nums">
+          {fullAt && remainingMs > 0
+            ? `${formatFullAt(fullAt, now)}에 가득 차요 (${formatRemaining(remainingMs)} 뒤)`
+            : '가득 찼어요 · 창고에 저장하세요'}
+        </dd>
+      </div>
     </dl>
   );
 }

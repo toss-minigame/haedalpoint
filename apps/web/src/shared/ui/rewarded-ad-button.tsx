@@ -4,7 +4,7 @@ import { Button } from '@/shared/ui/button';
 import { Spinner } from '@/shared/ui/spinner';
 
 const AD_BUTTON_CLASS = 'h-12 w-full text-base';
-const COMPACT_AD_BUTTON_CLASS = 'h-9 w-full text-sm';
+const COMPACT_AD_BUTTON_CLASS = 'h-11 w-full text-[15px]';
 
 // 광고 상태별 버튼 문구. ready 일 때만 원래 문구를 쓴다.
 const STATUS_LABEL: Record<Exclude<RewardedAdStatus, 'ready'>, string> = {
@@ -30,7 +30,7 @@ type Props = {
   isPending: boolean;
   /** 보상을 처리하는 동안의 문구 (스피너와 함께 보인다) */
   pendingLabel?: string;
-  variant: 'default' | 'outline';
+  variant: 'default' | 'outline' | 'secondary';
   /** 좁은 카드용 작은 버튼과 짧은 상태 문구 */
   compact?: boolean;
   /** label 이 짧아 무엇을 하는지 드러나지 않을 때 화면 낭독기가 읽을 문구 (광고를 볼 수 있을 때만 쓴다) */

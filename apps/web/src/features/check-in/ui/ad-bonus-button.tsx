@@ -13,7 +13,8 @@ export function AdBonusButton({ ad }: Props) {
   return (
     <RewardedAdButton
       ad={ad}
-      label="광고 보고 2배 받기"
+      label="광고 보고 보상 한 번 더 받기"
+      pendingLabel="보상을 받고 있어요"
       incompleteMessage="광고를 끝까지 보면 보상을 한 번 더 받을 수 있어요"
       variant="outline"
       isPending={isPending}
