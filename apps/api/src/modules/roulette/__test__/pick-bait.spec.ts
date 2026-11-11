@@ -49,10 +49,10 @@ describe('monthOf', () => {
 describe('baitsOfMonth', () => {
   it("gives the month's fish the tiers in order", () => {
     expect(baitsOfMonth(11)).toEqual([
-      { code: 'saury', name: '꽁치', speedBonusPercent: 1, probabilityPercent: 40 },
-      { code: 'mullet', name: '숭어', speedBonusPercent: 2, probabilityPercent: 30 },
-      { code: 'hairtail', name: '갈치', speedBonusPercent: 3, probabilityPercent: 20 },
-      { code: 'yellowtail', name: '방어', speedBonusPercent: 5, probabilityPercent: 10 },
+      { code: 'yellowtail', name: '방어', speedBonusPercent: 1, probabilityPercent: 40 },
+      { code: 'sandfish', name: '도루묵', speedBonusPercent: 2, probabilityPercent: 30 },
+      { code: 'sand_lance', name: '양미리', speedBonusPercent: 3, probabilityPercent: 20 },
+      { code: 'pufferfish', name: '복어', speedBonusPercent: 5, probabilityPercent: 10 },
     ]);
   });
 
