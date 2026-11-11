@@ -11,12 +11,14 @@ type Props = {
   /** 해먹에 1마리 이상 있을 때만 저장할 수 있다 */
   canStore: boolean;
   ad: RewardedAd;
+  /** 저장한 뒤 넘친 물고기를 다시 잡아올 수 있을 때. 다시 잡아오기 창을 띄웠으면 true */
+  onCatchBackAvailable?: (storedFish: number) => boolean;
 };
 
 // 광고를 끝까지 보면 해먹의 물고기를 창고에 저장한다.
 // 광고를 쓸 수 없는 환경이거나 불러오지 못하면 광고 없이 저장한다 (내 물고기를 저장하지 못하는 막다른 화면을 만들지 않는다).
-export function StoreFishButton({ canStore, ad }: Props) {
-  const { mutate, isPending } = useStoreFish();
+export function StoreFishButton({ canStore, ad, onCatchBackAvailable }: Props) {
+  const { mutate, isPending } = useStoreFish(onCatchBackAvailable);
   const isAdUnavailable = ad.status === 'unsupported' || ad.status === 'failed';
 
   if (!canStore || isAdUnavailable) {

@@ -1,17 +1,27 @@
 import type {
   FishingAdBoostResponse,
+  FishingCatchBackResponse,
   FishingStatusResponse,
   StoreFishResponse,
   WarehouseResponse,
 } from '@haedalpoint/shared';
 import { ConflictException, Injectable } from '@nestjs/common';
 import { DataSource, type EntityManager } from 'typeorm';
-import { AD_ROD_POLICY, HAMMOCK_EXPAND_POLICY } from '../../common/globals/index.js';
+import {
+  AD_ROD_POLICY,
+  CATCH_BACK_POLICY,
+  HAMMOCK_EXPAND_POLICY,
+} from '../../common/globals/index.js';
 import { kstDayStart, kstMonthStart, toKstDateString } from '../../common/utils/kst-date.js';
 import { UsersService } from '../users/users.service.js';
 import type { FishingState } from './entities/fishing-state.entity.js';
 import { FishingRepository, type FishingStateChanges } from './fishing.repository.js';
-import { NANO_PER_FISH, rodSpeedBonusPercent } from './lib/fishing-rate.js';
+import { catchBackNanoFish, catchBacksUsedOn, MIN_CATCH_BACK_NANO_FISH } from './lib/catch-back.js';
+import {
+  hammockCapacityNanoFish,
+  NANO_PER_FISH,
+  rodSpeedBonusPercent,
+} from './lib/fishing-rate.js';
 import {
   buildFishingStatus,
   isCoolingDown,
@@ -31,6 +41,8 @@ const NOTHING_TO_STORE = '해먹에 저장할 물고기가 없어요';
 const AD_ROD_COOLING_DOWN = `낚싯대는 ${AD_ROD_POLICY.COOLDOWN_MINUTES}분마다 강화할 수 있어요`;
 const HAMMOCK_COOLING_DOWN = `해먹은 ${HAMMOCK_EXPAND_POLICY.COOLDOWN_MINUTES}분마다 넓힐 수 있어요`;
 const HAMMOCK_AT_MAX_LEVEL = '오늘은 해먹을 최대로 넓혔어요';
+const NOTHING_TO_CATCH_BACK = '다시 잡아올 물고기가 없어요';
+const CATCH_BACK_LIMIT_REACHED = `넘친 물고기는 하루 ${CATCH_BACK_POLICY.DAILY_LIMIT}번까지 다시 잡아올 수 있어요`;
 /** 창고 화면에 보여줄 최근 이력 수 */
 const RECENT_LEDGER_LIMIT = 30;
 
@@ -93,18 +105,26 @@ export class FishingService {
     };
   }
 
-  /** 해먹의 물고기를 소수까지 모두 창고로 옮긴다 */
+  /**
+   * 해먹의 물고기를 소수까지 모두 창고로 옮긴다.
+   * 마지막 저장 이후 넘친 물고기가 있으면 다시 잡아올 양을 계산해 두고(넘친 양은 0으로 비움),
+   * 광고를 보면 받을 수 있는지만 알려준다 (양과 넘친 양은 응답에 넣지 않는다).
+   */
   async storeFish(userId: string): Promise<StoreFishResponse> {
     await this.usersService.findById(userId);
     return this.dataSource.transaction(async (manager) => {
       const now = new Date();
+      const today = toKstDateString(now);
       const row = await this.fishingRepository.lockOrCreate(manager, userId, now);
-      const { state, takenNanoFish } = takeAllFish(settleHammock(toHammockState(row), now));
+      const settled = settleHammock(toHammockState(row), now);
+      const { state, takenNanoFish } = takeAllFish(settled);
       if (takenNanoFish <= 0) throw new ConflictException(NOTHING_TO_STORE);
 
+      const catchBack = this.catchBackOffer(settled, row, today);
       const warehouseNanoFish = row.warehouseNanoFish + takenNanoFish;
       await this.fishingRepository.updateState(manager, row.id, {
-        ...toStateChanges(state),
+        ...toStateChanges({ ...state, overflowNanoFish: 0 }),
+        catchBackNanoFish: catchBack,
         warehouseNanoFish,
       });
       await this.fishingRepository.addLedgerEntry(manager, {
@@ -116,8 +136,51 @@ export class FishingService {
         storedFish: takenNanoFish / NANO_PER_FISH,
         warehouseFish: warehouseNanoFish / NANO_PER_FISH,
         hammockFish: state.nanoFish / NANO_PER_FISH,
+        catchBackAvailable: catchBack > 0,
       };
     });
+  }
+
+  /**
+   * 넘친 물고기 다시 잡아오기. 저장 응답의 catchBackAvailable 을 보고, 보상형 광고의
+   * `userEarnedReward` 를 받은 뒤에만 호출한다. 저장 때 계산해 둔 양을 해먹에 넣는다.
+   * 받을 양이 없거나 오늘 횟수를 다 썼으면 409. 행 잠금으로 연타에도 한 번만 반영된다.
+   */
+  async adCatchBack(userId: string): Promise<FishingCatchBackResponse> {
+    await this.usersService.findById(userId);
+    return this.dataSource.transaction(async (manager) => {
+      const now = new Date();
+      const today = toKstDateString(now);
+      const row = await this.fishingRepository.lockOrCreate(manager, userId, now);
+      if (row.catchBackNanoFish <= 0) throw new ConflictException(NOTHING_TO_CATCH_BACK);
+      const used = catchBacksUsedOn(row.catchBackCount, row.catchBackDate, today);
+      if (used >= CATCH_BACK_POLICY.DAILY_LIMIT) {
+        throw new ConflictException(CATCH_BACK_LIMIT_REACHED);
+      }
+
+      // 정산한 뒤에 넣는다. 저장 직후라 대개 비어 있지만, 그 사이 찼더라도 용량을 넘겨 넣는다 (자정에 용량이 줄 때와 같은 처리)
+      const settled = settleHammock(toHammockState(row), now);
+      const next = { ...settled, nanoFish: settled.nanoFish + row.catchBackNanoFish };
+      await this.fishingRepository.updateState(manager, row.id, {
+        ...toStateChanges(next),
+        catchBackNanoFish: 0,
+        catchBackCount: used + 1,
+        catchBackDate: today,
+      });
+      return {
+        caughtBackFish: row.catchBackNanoFish / NANO_PER_FISH,
+        hammockFish: next.nanoFish / NANO_PER_FISH,
+      };
+    });
+  }
+
+  /** 저장할 때 광고를 보면 다시 잡아올 양. 오늘 횟수를 다 썼거나 너무 적으면 0 */
+  private catchBackOffer(settled: HammockState, row: FishingState, today: string): number {
+    const used = catchBacksUsedOn(row.catchBackCount, row.catchBackDate, today);
+    if (used >= CATCH_BACK_POLICY.DAILY_LIMIT) return 0;
+    const capacity = hammockCapacityNanoFish(boostsOn(settled, today));
+    const amount = catchBackNanoFish(settled.overflowNanoFish, capacity);
+    return amount >= MIN_CATCH_BACK_NANO_FISH ? amount : 0;
   }
 
   /**

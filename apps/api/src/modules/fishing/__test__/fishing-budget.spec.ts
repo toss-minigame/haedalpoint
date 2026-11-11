@@ -1,6 +1,7 @@
 import {
   AD_ROD_POLICY,
   BAIT_TIERS,
+  CATCH_BACK_POLICY,
   FISHING_POLICY,
   HAMMOCK_EXPAND_POLICY,
   OTTER_FRIEND_POLICY,
@@ -13,7 +14,7 @@ import { speedPercent, tossPointsPerDay } from '../lib/fishing-rate.js';
 // 월 지급 상한을 코드로 강제하지 않는 대신, 정책값이 예산을 넘으면 이 테스트가 실패한다 (ADR-0007).
 // 최악의 한 달: 31일 내내 하루에 받을 수 있는 강화를 자정 직후 모두 받은 상태로 하루 종일 낚시,
 // 해달 친구가 올 수 있는 최대 일수(그날은 하루 최대 인원), 해먹을 한 번도 넘치지 않게 비움,
-// 매일 가장 높은 룰렛 미끼를 적용. 해먹 용량은 이 최악값에 영향이 없다.
+// 매일 가장 높은 룰렛 미끼를 적용, 넘친 물고기 다시 잡아오기를 매일 최대로. 해먹 용량은 이 최악값에 영향이 없다.
 const MAX_BAIT_BONUS_PERCENT = Math.max(...BAIT_TIERS.map((tier) => tier.speedBonusPercent));
 const MINUTES_PER_DAY = 24 * 60;
 /** 출석 1회 + '광고 보고 2배' 1회 (1~6일차 낚싯대 강화 1단계씩) */
@@ -31,6 +32,12 @@ function maxRodLevelsPerDay(): number {
 const LONGEST_MONTH_DAYS = 31;
 const MAX_OTTER_FRIEND_DAYS = Math.ceil(LONGEST_MONTH_DAYS / ATTENDANCE_CYCLE_DAYS);
 
+/** 넘친 물고기 다시 잡아오기는 속도와 무관하게 하루 횟수 × 1회 상한만큼 더 줄 수 있다 */
+function worstCaseMonthlyCatchBackTossPoints(): number {
+  const fishPerDay = CATCH_BACK_POLICY.DAILY_LIMIT * CATCH_BACK_POLICY.MAX_FISH;
+  return (LONGEST_MONTH_DAYS * fishPerDay) / FISHING_POLICY.FISH_PER_TOSS_POINT;
+}
+
 function worstCaseMonthlyTossPoints(): number {
   const maxRod = {
     rodLevel: maxRodLevelsPerDay(),
@@ -42,7 +49,8 @@ function worstCaseMonthlyTossPoints(): number {
   const normalDays = LONGEST_MONTH_DAYS - MAX_OTTER_FRIEND_DAYS;
   return (
     normalDays * tossPointsPerDay(speedPercent(maxRod)) +
-    MAX_OTTER_FRIEND_DAYS * tossPointsPerDay(speedPercent(maxRodWithFriends))
+    MAX_OTTER_FRIEND_DAYS * tossPointsPerDay(speedPercent(maxRodWithFriends)) +
+    worstCaseMonthlyCatchBackTossPoints()
   );
 }
 
@@ -51,6 +59,10 @@ describe('fishing budget', () => {
     expect(worstCaseMonthlyTossPoints()).toBeLessThanOrEqual(
       FISHING_POLICY.MONTHLY_TOSS_POINT_BUDGET,
     );
+  });
+
+  it('adds at most 2 catch backs of 0.5 fish a day (31 points in the longest month)', () => {
+    expect(worstCaseMonthlyCatchBackTossPoints()).toBe(31);
   });
 
   it('counts the otter friend on at most one day per attendance cycle', () => {

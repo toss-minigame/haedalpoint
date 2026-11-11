@@ -7,6 +7,9 @@ import { FishingRepository } from '../fishing.repository.js';
 import { FishingService } from '../fishing.service.js';
 import { NANO_PER_FISH, NO_BOOSTS, nanoFishPerMs, speedPercent } from '../lib/fishing-rate.js';
 
+// 기본 해먹 용량 (0.56마리)
+const BASE_CAPACITY = 560_000_000;
+
 const USER_ID = '00000000-0000-4000-8000-000000000001';
 const HOUR_MS = 60 * 60 * 1000;
 // KST 2026-11-02 12:00
@@ -34,6 +37,10 @@ function row(overrides: Record<string, unknown> = {}) {
     hammockLevelDate: null,
     baitBonusPercent: 0,
     baitDate: null,
+    overflowNanoFish: 0,
+    catchBackNanoFish: 0,
+    catchBackCount: 0,
+    catchBackDate: null,
     adRodEnhancedAt: null,
     adHammockExpandedAt: null,
     warehouseNanoFish: 1_500_000_000,
@@ -160,6 +167,8 @@ describe('FishingService', () => {
         hammockLevelDate: null,
         baitBonusPercent: 0,
         baitDate: null,
+        overflowNanoFish: 0,
+        catchBackNanoFish: 0,
         warehouseNanoFish,
       });
       expect(repo.addLedgerEntry).toHaveBeenCalledWith(manager, {
@@ -171,6 +180,7 @@ describe('FishingService', () => {
         storedFish: CAUGHT_IN_AN_HOUR / NANO_PER_FISH,
         warehouseFish: warehouseNanoFish / NANO_PER_FISH,
         hammockFish: 0,
+        catchBackAvailable: false,
       });
     });
 
@@ -188,6 +198,126 @@ describe('FishingService', () => {
       await expect(service.storeFish(USER_ID)).rejects.toBeInstanceOf(ConflictException);
       expect(repo.updateState).not.toHaveBeenCalled();
       expect(repo.addLedgerEntry).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('storeFish catch back offer', () => {
+    it('offers to catch back half of what overflowed and clears the overflow', async () => {
+      // 가득 찬 해먹으로 한 시간 → 잡은 양이 모두 넘친다
+      repo.lockOrCreate.mockResolvedValue(row({ hammockNanoFish: BASE_CAPACITY }));
+
+      const result = await service.storeFish(USER_ID);
+
+      expect(result.catchBackAvailable).toBe(true);
+      expect(repo.updateState).toHaveBeenCalledWith(
+        manager,
+        'state-1',
+        expect.objectContaining({
+          overflowNanoFish: 0,
+          catchBackNanoFish: Math.floor(CAUGHT_IN_AN_HOUR / 2),
+        }),
+      );
+    });
+
+    it('does not reveal the amount in the response', async () => {
+      repo.lockOrCreate.mockResolvedValue(row({ hammockNanoFish: BASE_CAPACITY }));
+
+      const result = await service.storeFish(USER_ID);
+
+      expect(Object.keys(result).sort()).toEqual(
+        ['catchBackAvailable', 'hammockFish', 'storedFish', 'warehouseFish'].sort(),
+      );
+    });
+
+    it('offers nothing when too little overflowed', async () => {
+      repo.lockOrCreate.mockResolvedValue(
+        row({ settledAt: NOW, hammockNanoFish: 1, overflowNanoFish: 1_000_000 }),
+      );
+
+      const result = await service.storeFish(USER_ID);
+
+      expect(result.catchBackAvailable).toBe(false);
+      expect(repo.updateState).toHaveBeenCalledWith(
+        manager,
+        'state-1',
+        expect.objectContaining({ catchBackNanoFish: 0 }),
+      );
+    });
+
+    it('offers nothing once the daily limit is used', async () => {
+      repo.lockOrCreate.mockResolvedValue(
+        row({ hammockNanoFish: BASE_CAPACITY, catchBackCount: 2, catchBackDate: TODAY }),
+      );
+
+      const result = await service.storeFish(USER_ID);
+
+      expect(result.catchBackAvailable).toBe(false);
+    });
+
+    it("ignores yesterday's uses", async () => {
+      repo.lockOrCreate.mockResolvedValue(
+        row({ hammockNanoFish: BASE_CAPACITY, catchBackCount: 2, catchBackDate: '2026-11-01' }),
+      );
+
+      const result = await service.storeFish(USER_ID);
+
+      expect(result.catchBackAvailable).toBe(true);
+    });
+  });
+
+  describe('adCatchBack', () => {
+    it('puts the offered fish into the hammock and counts the use', async () => {
+      repo.lockOrCreate.mockResolvedValue(
+        row({ settledAt: NOW, hammockNanoFish: 0, catchBackNanoFish: 300_000_000 }),
+      );
+
+      const result = await service.adCatchBack(USER_ID);
+
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(repo.updateState).toHaveBeenCalledWith(
+        manager,
+        'state-1',
+        expect.objectContaining({
+          hammockNanoFish: 300_000_000,
+          catchBackNanoFish: 0,
+          catchBackCount: 1,
+          catchBackDate: TODAY,
+        }),
+      );
+      expect(result).toEqual({ caughtBackFish: 0.3, hammockFish: 0.3 });
+    });
+
+    it('adds to fish caught since the store, even above capacity', async () => {
+      repo.lockOrCreate.mockResolvedValue(
+        row({ settledAt: NOW, hammockNanoFish: BASE_CAPACITY, catchBackNanoFish: 300_000_000 }),
+      );
+
+      const result = await service.adCatchBack(USER_ID);
+
+      expect(result.hammockFish).toBeCloseTo((BASE_CAPACITY + 300_000_000) / NANO_PER_FISH, 9);
+    });
+
+    it('rejects when there is nothing to catch back', async () => {
+      repo.lockOrCreate.mockResolvedValue(row({ catchBackNanoFish: 0 }));
+
+      await expect(service.adCatchBack(USER_ID)).rejects.toBeInstanceOf(ConflictException);
+      expect(repo.updateState).not.toHaveBeenCalled();
+    });
+
+    it('rejects once the daily limit is used', async () => {
+      repo.lockOrCreate.mockResolvedValue(
+        row({ catchBackNanoFish: 300_000_000, catchBackCount: 2, catchBackDate: TODAY }),
+      );
+
+      await expect(service.adCatchBack(USER_ID)).rejects.toBeInstanceOf(ConflictException);
+      expect(repo.updateState).not.toHaveBeenCalled();
+    });
+
+    it('rejects unknown users before touching the hammock', async () => {
+      usersService.findById.mockRejectedValue(new NotFoundException());
+
+      await expect(service.adCatchBack(USER_ID)).rejects.toBeInstanceOf(NotFoundException);
+      expect(repo.lockOrCreate).not.toHaveBeenCalled();
     });
   });
 

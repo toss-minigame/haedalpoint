@@ -5,16 +5,23 @@ import { ApiError } from '@/shared/api';
 
 const HTTP_CONFLICT = 409;
 
-/** 해먹의 물고기를 창고로 옮긴다. 수량은 서버가 정산한 값이다 */
-export function useStoreFish() {
+/**
+ * 해먹의 물고기를 창고로 옮긴다. 수량은 서버가 정산한 값이다.
+ * 넘친 물고기를 다시 잡아올 수 있으면 저장 안내 대신 onCatchBackAvailable 을 부른다
+ * (그 창이 저장한 양을 함께 보여준다. 넘친 양은 알려주지 않는다)
+ */
+export function useStoreFish(onCatchBackAvailable?: (storedFish: number) => boolean) {
   const queryClient = useQueryClient();
   // 해먹 현황과 창고 화면을 함께 다시 불러온다
   const refreshStatus = () => queryClient.invalidateQueries({ queryKey: fishingQueries.all() });
 
   return useMutation({
     mutationFn: fishingApi.storeFish,
-    onSuccess: ({ storedFish }) => {
-      toast.success(`물고기 ${formatFish(storedFish)}마리를 창고에 저장했어요`);
+    onSuccess: ({ storedFish, catchBackAvailable }) => {
+      // 다시 잡아오기 창을 띄웠으면 그 창이 저장 결과를 보여주므로, 창을 가리는 아래쪽 안내는 띄우지 않는다
+      const openedCatchBack = catchBackAvailable && (onCatchBackAvailable?.(storedFish) ?? false);
+      if (!openedCatchBack)
+        toast.success(`물고기 ${formatFish(storedFish)}마리를 창고에 저장했어요`);
       return refreshStatus();
     },
     onError: (error) => {

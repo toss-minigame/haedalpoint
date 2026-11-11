@@ -8,6 +8,7 @@ export { projectHammockFish } from './lib/project-hammock';
 export { useProjectedHammock } from './lib/use-projected-hammock';
 export type {
   FishingAdBoostResponse,
+  FishingCatchBackResponse,
   FishingStatus,
   StoreFishResponse,
   Warehouse,

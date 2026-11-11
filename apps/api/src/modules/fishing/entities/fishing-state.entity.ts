@@ -13,6 +13,9 @@ import { bigintNumberTransformer } from '../../../common/entities/bigint-number.
 @Check('CHK_fishing_states_otter_friend_count', '"otter_friend_count" >= 0')
 @Check('CHK_fishing_states_hammock_level', '"hammock_level" >= 0')
 @Check('CHK_fishing_states_bait_bonus_percent', '"bait_bonus_percent" >= 0')
+@Check('CHK_fishing_states_overflow_nano_fish', '"overflow_nano_fish" >= 0')
+@Check('CHK_fishing_states_catch_back_nano_fish', '"catch_back_nano_fish" >= 0')
+@Check('CHK_fishing_states_catch_back_count', '"catch_back_count" >= 0')
 export class FishingState extends BaseEntity {
   @Column({ type: 'uuid', name: 'user_id' })
   userId: string;
@@ -58,6 +61,31 @@ export class FishingState extends BaseEntity {
 
   @Column({ type: 'date', name: 'bait_date', nullable: true })
   baitDate: string | null;
+
+  // 마지막 저장 이후 해먹이 가득 차서 버려진 물고기 (1/10억 마리 단위). 서버만 쓰고 응답에는 내보내지 않는다
+  @Column({
+    type: 'bigint',
+    name: 'overflow_nano_fish',
+    default: 0,
+    transformer: bigintNumberTransformer,
+  })
+  overflowNanoFish: number;
+
+  // 저장할 때 계산해 둔, 광고를 보면 다시 잡아올 물고기. 다음 저장 때 새로 계산한다
+  @Column({
+    type: 'bigint',
+    name: 'catch_back_nano_fish',
+    default: 0,
+    transformer: bigintNumberTransformer,
+  })
+  catchBackNanoFish: number;
+
+  // 다시 잡아오기를 한 횟수와 그 KST 날짜 (하루 횟수 제한용)
+  @Column({ type: 'smallint', name: 'catch_back_count', default: 0 })
+  catchBackCount: number;
+
+  @Column({ type: 'date', name: 'catch_back_date', nullable: true })
+  catchBackDate: string | null;
 
   // 마지막으로 광고를 보고 해먹을 넓힌 시각 (쿨타임 계산용)
   @Column({ type: 'timestamptz', name: 'ad_hammock_expanded_at', nullable: true })

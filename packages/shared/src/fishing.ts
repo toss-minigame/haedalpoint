@@ -57,6 +57,15 @@ export interface StoreFishResponse {
   warehouseFish: number;
   /** 옮기고 남은 해먹의 물고기 (모두 옮기므로 0) */
   hammockFish: number;
+  /** 해먹이 넘쳤던 물고기 일부를 광고를 보고 다시 잡아올 수 있으면 true (양은 알려주지 않는다) */
+  catchBackAvailable: boolean;
+}
+
+// POST /api/fishing/ad-catch-back
+export interface FishingCatchBackResponse {
+  /** 해달이 다시 잡아와 해먹에 넣은 물고기 (마리) */
+  caughtBackFish: number;
+  hammockFish: number;
 }
 
 // GET /api/fishing/warehouse

@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import {
   FishingStats,
   type FishingStatus,
@@ -6,6 +7,7 @@ import {
   HammockGauge,
   useProjectedHammock,
 } from '@/entities/fishing';
+import { CatchBackDialog } from '@/features/catch-back-fish';
 import { StoreFishButton } from '@/features/store-fish';
 import type { RewardedAd } from '@/shared/lib/rewarded-ad';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card';
@@ -19,13 +21,26 @@ type ContentProps = {
 
 function FishingContent({ status, receivedAt, rewardedAd }: ContentProps) {
   const fish = useProjectedHammock(status, receivedAt);
+  // 다시 잡아오기 창에 함께 보여줄, 방금 저장한 양. null 이면 창이 닫혀 있다
+  const [catchBackStoredFish, setCatchBackStoredFish] = useState<number | null>(null);
+  // 다시 잡아오기는 광고를 봐야만 받을 수 있어, 광고를 쓸 수 없는 환경에서는 권하지 않는다
+  const openCatchBack = (storedFish: number) => {
+    if (rewardedAd.status === 'unsupported') return false;
+    setCatchBackStoredFish(storedFish);
+    return true;
+  };
 
   return (
     <>
       <HammockGauge fish={fish} capacity={status.hammockCapacity} level={status.hammockLevel} />
       <FishingStats status={status} receivedAt={receivedAt} />
-      <StoreFishButton canStore={fish > 0} ad={rewardedAd} />
+      <StoreFishButton canStore={fish > 0} ad={rewardedAd} onCatchBackAvailable={openCatchBack} />
       <WarehouseLink warehouseFish={status.warehouseFish} />
+      <CatchBackDialog
+        storedFish={catchBackStoredFish}
+        onClose={() => setCatchBackStoredFish(null)}
+        ad={rewardedAd}
+      />
     </>
   );
 }

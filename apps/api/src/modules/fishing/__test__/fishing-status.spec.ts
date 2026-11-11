@@ -34,6 +34,7 @@ function hammock(overrides: Partial<HammockState> = {}): HammockState {
     hammockLevelDate: null,
     baitBonusPercent: 0,
     baitDate: null,
+    overflowNanoFish: 0,
     ...overrides,
   };
 }
@@ -155,6 +156,7 @@ describe('toHammockState', () => {
       hammockLevelDate: null,
       baitBonusPercent: 0,
       baitDate: null,
+      overflowNanoFish: 7,
       adRodEnhancedAt: null,
       adHammockExpandedAt: null,
       warehouseNanoFish: 5,
@@ -173,6 +175,7 @@ describe('toHammockState', () => {
       hammockLevelDate: null,
       baitBonusPercent: 0,
       baitDate: null,
+      overflowNanoFish: 7,
     });
   });
 });
