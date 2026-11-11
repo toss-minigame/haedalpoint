@@ -1,4 +1,4 @@
-import { drawScene, type FishImages, type SceneSprites } from './scene-render';
+import { drawScene, type FishImages, type FriendSprites, type SceneSprites } from './scene-render';
 import {
   createSceneState,
   FISH_KINDS,
@@ -22,6 +22,8 @@ export type SceneEngineOptions = {
     fish: Record<FishKind, string>;
     background: string;
     wave: string;
+    /** 해달 친구 (앉은 모습·들어 올린 모습) */
+    friend: { idle: string; catch: string };
   };
   /** '동작 줄이기' 설정 사용자: 애니메이션 없이 정지 장면만 그리고, 탭하면 표정만 바뀐다 */
   reducedMotion: boolean;
@@ -31,6 +33,10 @@ export type SceneEngine = {
   catchFish: () => void;
   /** 자동으로 잡을 때 물고기 옆에 띄울 글자 (예: +0.0000208). null 이면 띄우지 않는다 */
   setCatchLabel: (label: string | null) => void;
+  /** 해달 친구를 함께 그릴지 */
+  setOtterFriendVisible: (visible: boolean) => void;
+  /** 해달 친구가 낚싯대를 들어 올릴 때 띄울 글자 (친구 몫). null 이면 띄우지 않는다 */
+  setFriendCatchLabel: (label: string | null) => void;
   destroy: () => void;
 };
 
@@ -59,7 +65,15 @@ export function createSceneEngine(
   options: SceneEngineOptions,
 ): SceneEngine {
   const context = canvas.getContext('2d');
-  if (!context) return { catchFish: () => {}, setCatchLabel: () => {}, destroy: () => {} };
+  if (!context) {
+    return {
+      catchFish: () => {},
+      setCatchLabel: () => {},
+      setOtterFriendVisible: () => {},
+      setFriendCatchLabel: () => {},
+      destroy: () => {},
+    };
+  }
   const ctx = context;
 
   const random = Math.random;
@@ -70,8 +84,16 @@ export function createSceneEngine(
   let happyTimer: ReturnType<typeof setTimeout> | null = null;
   let destroyed = false;
   let catchLabel: string | null = null;
+  let friendSprites: FriendSprites | null = null;
+  let otterFriendVisible = false;
+  let friendCatchLabel: string | null = null;
 
-  const render = () => drawScene(ctx, state, sprites, catchLabel);
+  const render = () =>
+    drawScene(ctx, state, sprites, catchLabel, {
+      visible: otterFriendVisible,
+      sprites: friendSprites,
+      catchLabel: friendCatchLabel,
+    });
 
   const resize = () => {
     const dpr = window.devicePixelRatio || 1;
@@ -127,6 +149,14 @@ export function createSceneEngine(
     // 이미지를 못 불러와도 단색 바다·이모지 물고기는 그린다 (선착장·해달·파도만 빠짐)
     .catch(() => {});
 
+  // 해달 친구 그림은 따로 불러와, 못 불러와도 장면의 나머지는 그대로 그린다
+  Promise.all([loadImage(options.sprites.friend.idle), loadImage(options.sprites.friend.catch)])
+    .then(([idle, caught]) => {
+      friendSprites = { idle, catch: caught };
+      render();
+    })
+    .catch(() => {});
+
   resize();
   if (!document.hidden) start();
 
@@ -163,5 +193,15 @@ export function createSceneEngine(
     catchLabel = label;
   };
 
-  return { catchFish, setCatchLabel, destroy };
+  const setOtterFriendVisible = (visible: boolean) => {
+    otterFriendVisible = visible;
+    // 동작 줄이기 모드는 매 프레임 다시 그리지 않으므로 바로 그린다
+    if (!destroyed) render();
+  };
+
+  const setFriendCatchLabel = (label: string | null) => {
+    friendCatchLabel = label;
+  };
+
+  return { catchFish, setCatchLabel, setOtterFriendVisible, setFriendCatchLabel, destroy };
 }

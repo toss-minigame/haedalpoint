@@ -83,10 +83,25 @@ export const SCENE = {
   HOOKED_FISH_DROP: 0.4, // 바늘 끝에서 매달린 물고기 중심까지 (물고기 크기 대비)
   HOOKED_FISH_SWING: 0.12, // rad, 매달린 물고기가 좌우로 흔들리는 각도
   HOOKED_FISH_SWING_SPEED: 3, // rad/s
+  // 해달 친구 스프라이트 (otter-friend-fishing-*.png 기준). 해달 왼쪽에서 선착장 앞 모서리에 걸터앉아 다리를 내린다
+  FRIEND_ASPECT: 698 / 576, // 이미지 세로 / 가로
+  FRIEND_WIDTH_RATIO: 0.64, // 해달 이미지 크기 대비 친구 이미지 너비 (머리 크기가 해달과 비슷해지는 값)
+  FRIEND_SEAT_RATIO: 0.68, // 이미지 안 엉덩이(걸터앉는 곳) 높이
+  FRIEND_CONTENT_RIGHT_RATIO: 0.99, // 이미지 안 그림 오른쪽 끝 (들어 올린 낚싯줄까지)
+  OTTER_CONTENT_LEFT_RATIO: 9 / 576, // 해달 이미지 안 그림 왼쪽 끝 (의자에 건 바구니)
+  FRIEND_GAP: 4, // px, 친구 그림 오른쪽 끝과 해달 그림 왼쪽 끝 사이. 둘이 겹치지 않게 한다
+  PIER_LIP_Y_RATIO: 0.445, // 선착장 이미지 안 앞쪽 모서리 높이 (친구가 걸터앉는 곳)
+  FRIEND_CATCH_PERIOD: 6, // s, 친구가 낚싯대를 들어 올리는 간격
+  FRIEND_CATCH_OFFSET: 1.5, // s, 첫 들어 올림 시각. 해달이 3초마다 잡으므로 그 사이에 들어 올려 동작이 겹치지 않게 한다
+  FRIEND_LABEL_GAP: 6, // px, 친구 머리 위와 잡은 양 글자 사이
+  FRIEND_HEAD_CENTER_RATIO: 0.42, // 이미지 안 머리 가운데 가로 위치 (잡은 양 글자를 머리 위 가운데에 띄운다)
 } as const;
 
 /** 해달이 스스로 물고기를 잡는 간격 (초). 잡을 때 띄우는 양을 계산할 때 쓴다 */
 export const CATCH_INTERVAL_SECONDS = SCENE.AUTO_CATCH_INTERVAL;
+
+/** 해달 친구가 낚싯대를 들어 올리는 간격 (초). 친구 몫으로 띄우는 양을 계산할 때 쓴다 */
+export const FRIEND_CATCH_INTERVAL_SECONDS = SCENE.FRIEND_CATCH_PERIOD;
 
 const between = (random: Random, min: number, max: number) => min + random() * (max - min);
 
@@ -263,6 +278,40 @@ export function happyBlend({ time, happySince, happyUntil }: SceneState): number
   if (time >= happyUntil) return 0;
   const fadeIn = (time - happySince) / SCENE.HAPPY_FADE;
   const fadeOut = (happyUntil - time) / SCENE.HAPPY_FADE;
+  return Math.min(Math.max(Math.min(fadeIn, fadeOut), 0), 1);
+}
+
+/**
+ * 해달 친구의 그리기 위치(왼쪽 위)·크기. 선착장 앞 모서리에 엉덩이를 맞춰 다리가 앞으로 내려오게 하고,
+ * 그림 오른쪽 끝(낚싯줄)이 해달 그림 왼쪽 끝보다 FRIEND_GAP 만큼 왼쪽에 오게 해 둘이 겹치지 않는다.
+ */
+export function otterFriendLayout(state: Pick<SceneState, 'height'>): Rect {
+  const otter = otterLayout(state);
+  const pier = pierLayout(state);
+  const width = otter.size * SCENE.FRIEND_WIDTH_RATIO;
+  const height = width * SCENE.FRIEND_ASPECT;
+  const otterLeft = otter.x + otter.size * SCENE.OTTER_CONTENT_LEFT_RATIO;
+  const lipY = pier.y + pier.height * SCENE.PIER_LIP_Y_RATIO;
+  return {
+    x: otterLeft - SCENE.FRIEND_GAP - width * SCENE.FRIEND_CONTENT_RIGHT_RATIO,
+    y: lipY - height * SCENE.FRIEND_SEAT_RATIO,
+    width,
+    height,
+  };
+}
+
+/**
+ * 해달 친구가 낚싯대를 들어 올린 스프라이트를 얼마나 보여줄지 (0 = 앉은 모습, 1 = 들어 올림).
+ * 장면 시각만으로 정해지는 반복 연출이라 상태를 따로 두지 않는다. 시각 0 에서는 앉은 모습이다
+ * (동작 줄이기 모드는 시각이 흐르지 않아 계속 앉아 있다).
+ */
+export function friendCatchBlend(time: number): number {
+  const sinceFirst = time - SCENE.FRIEND_CATCH_OFFSET;
+  if (sinceFirst < 0) return 0;
+  const phase = sinceFirst % SCENE.FRIEND_CATCH_PERIOD;
+  if (phase >= SCENE.HAPPY_DURATION) return 0;
+  const fadeIn = phase / SCENE.HAPPY_FADE;
+  const fadeOut = (SCENE.HAPPY_DURATION - phase) / SCENE.HAPPY_FADE;
   return Math.min(Math.max(Math.min(fadeIn, fadeOut), 0), 1);
 }
 

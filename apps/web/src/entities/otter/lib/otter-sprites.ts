@@ -1,6 +1,8 @@
 import otterAwkward from '@/shared/assets/otter/otter-awkward.png';
 import otterFishingCatch from '@/shared/assets/otter/otter-fishing-catch.png';
 import otterFishingIdle from '@/shared/assets/otter/otter-fishing-idle.png';
+import otterFriendFishingCatch from '@/shared/assets/otter/otter-friend-fishing-catch.png';
+import otterFriendFishingIdle from '@/shared/assets/otter/otter-friend-fishing-idle.png';
 import otterHappy from '@/shared/assets/otter/otter-happy.png';
 import otterIdle from '@/shared/assets/otter/otter-idle.png';
 import otterSad from '@/shared/assets/otter/otter-sad.png';
@@ -30,6 +32,15 @@ export type OtterMood = keyof typeof OTTER_SPRITES;
 export const OTTER_FISHING_SPRITES = {
   idle: otterFishingIdle, // 의자에 앉아 낚싯대를 드리운 모습
   catch: otterFishingCatch, // 일어나 낚싯대를 들어 올린 모습 (바늘은 비어 있음)
+} as const;
+
+/**
+ * 해달 친구 낚시 스프라이트 (576×698, 투명 배경). 7일차 출석으로 오는 친구가 선착장에서 함께 낚시한다.
+ * 두 장은 같은 영역으로 잘라 몸 위치를 맞춰 두었으므로 같은 자리에 겹쳐 그리면 된다.
+ */
+export const OTTER_FRIEND_FISHING_SPRITES = {
+  idle: otterFriendFishingIdle, // 앉아서 낚싯대를 쥔 모습
+  catch: otterFriendFishingCatch, // 팔을 들고 낚싯대를 들어 올린 모습
 } as const;
 
 /** 해달이 앉아 낚시하는 나무 선착장 (600×455, 투명 배경, 왼쪽 끝은 화면 밖으로 이어지는 모양) */
