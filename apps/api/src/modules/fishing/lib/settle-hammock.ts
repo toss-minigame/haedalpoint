@@ -33,6 +33,8 @@ export interface HammockState {
   baitBonusPercent: number;
   /** baitBonusPercent 가 유효한 KST 날짜. 다른 날이면 0% */
   baitDate: string | null;
+  /** 마지막 저장 이후 해먹이 가득 차서 버려진 물고기 (서버만 안다. 다시 잡아오기 양 계산에 쓴다) */
+  overflowNanoFish: number;
 }
 
 /** `date`(KST) 에 적용되는 보너스 */
@@ -45,12 +47,24 @@ export function boostsOn(state: HammockState, date: string): Boosts {
   };
 }
 
-/** 용량을 넘지 않게 durationMs 동안 잡는다. 이미 용량 이상이면 그대로 둔다 (잡은 물고기는 줄이지 않음) */
-function accrue(nanoFish: number, durationMs: number, boosts: Boosts): number {
+interface Accrued {
+  nanoFish: number;
+  /** 해먹이 가득 차서 담지 못하고 버린 양 */
+  overflow: number;
+}
+
+/**
+ * 용량을 넘지 않게 durationMs 동안 잡는다. 이미 용량 이상이면 그대로 둔다 (잡은 물고기는 줄이지 않음).
+ * 용량을 넘어 담지 못한 양은 overflow 로 돌려준다.
+ */
+function accrue(nanoFish: number, durationMs: number, boosts: Boosts): Accrued {
   const capacity = hammockCapacityNanoFish(boosts);
-  if (nanoFish >= capacity) return nanoFish;
   const caught = Math.floor(durationMs * nanoFishPerMs(speedPercent(boosts)));
-  return Math.min(capacity, nanoFish + caught);
+  if (nanoFish >= capacity) return { nanoFish, overflow: caught };
+  const total = nanoFish + caught;
+  return total > capacity
+    ? { nanoFish: capacity, overflow: total - capacity }
+    : { nanoFish: total, overflow: 0 };
 }
 
 /** 용량까지 남은 시간 (ms). 이미 가득이면 0 */
@@ -70,10 +84,16 @@ export function settleHammock(state: HammockState, now: Date): HammockState {
   const boosts = boostsOn(state, toKstDateString(state.settledAt));
 
   const untilMidnight = accrue(state.nanoFish, Math.min(end, midnight) - start, boosts);
-  const nanoFish =
-    end > midnight ? accrue(untilMidnight, end - midnight, NO_BOOSTS) : untilMidnight;
+  const afterMidnight =
+    end > midnight ? accrue(untilMidnight.nanoFish, end - midnight, NO_BOOSTS) : null;
 
-  return { ...state, nanoFish, settledAt: now };
+  return {
+    ...state,
+    nanoFish: afterMidnight ? afterMidnight.nanoFish : untilMidnight.nanoFish,
+    overflowNanoFish:
+      state.overflowNanoFish + untilMidnight.overflow + (afterMidnight?.overflow ?? 0),
+    settledAt: now,
+  };
 }
 
 /** 정산 직후 상태에서 해먹이 가득 차는 시각. 이미 가득이면 null */
@@ -86,6 +106,6 @@ export function predictHammockFullAt(state: HammockState): Date | null {
   if (msToFill === 0) return null;
   if (start + msToFill <= midnight) return new Date(start + msToFill);
 
-  const atMidnight = accrue(state.nanoFish, midnight - start, boosts);
+  const atMidnight = accrue(state.nanoFish, midnight - start, boosts).nanoFish;
   return new Date(midnight + msUntilFull(atMidnight, NO_BOOSTS));
 }

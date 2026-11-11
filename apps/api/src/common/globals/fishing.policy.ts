@@ -56,3 +56,19 @@ export const HAMMOCK_EXPAND_POLICY = {
   /** 해먹을 넓힐 때 함께 오르는 낚싯대 강화 단계 (단계당 속도는 ROD_POLICY) */
   ROD_LEVELS_PER_EXPAND: 1,
 } as const;
+
+// 넘친 물고기 다시 잡아오기: 해먹이 가득 차서 버려진 물고기를 서버만 세어 두고(사용자에게 보여주지 않음),
+// 저장한 직후 광고를 보면 그 일부를 해먹에 다시 넣는다 (docs/design/fishing.md 10장).
+// 제때 저장하는 것보다 항상 덜 받도록 비율·상한을 둔다 (일부러 넘치게 두는 쪽이 이득이 되지 않게).
+export const CATCH_BACK_POLICY = {
+  /** 넘친 물고기 중 돌려주는 비율 (%) */
+  RETURN_PERCENT: 50,
+  /** 광고 1회로 돌려주는 최대 물고기 (마리) */
+  MAX_FISH: 0.5,
+  /** 지금 해먹 용량 대비 최대 (%). 기본 해먹(0.56)이면 0.448마리까지 */
+  CAPACITY_PERCENT: 80,
+  /** 하루(KST) 최대 횟수 */
+  DAILY_LIMIT: 2,
+  /** 이보다 적으면 다시 잡아오기를 권하지 않는다 (마리) */
+  MIN_FISH: 0.01,
+} as const;

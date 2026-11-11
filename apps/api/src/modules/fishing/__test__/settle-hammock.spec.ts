@@ -37,6 +37,7 @@ function state(overrides: Partial<HammockState> = {}): HammockState {
     hammockLevelDate: null,
     baitBonusPercent: 0,
     baitDate: null,
+    overflowNanoFish: 0,
     ...overrides,
   };
 }
@@ -277,5 +278,48 @@ describe('boostsOn bait', () => {
     const settled = settleHammock(s, new Date(MIDNIGHT.getTime() + HOUR_MS));
 
     expect(settled.nanoFish).toBeCloseTo(2 * withBait + plain, -2);
+  });
+});
+
+describe('settleHammock overflow', () => {
+  it('counts nothing as overflow while the hammock has room', () => {
+    const settled = settleHammock(state(), shiftMs(NOON, HOUR_MS));
+
+    expect(settled.overflowNanoFish).toBe(0);
+  });
+
+  it('counts the fish that did not fit once the hammock fills up', () => {
+    const tenHours = 10 * HOUR_MS;
+    const settled = settleHammock(state(), shiftMs(NOON, tenHours));
+
+    expect(settled.nanoFish).toBe(BASE_CAPACITY);
+    expect(settled.overflowNanoFish).toBe(caught(tenHours) - BASE_CAPACITY);
+  });
+
+  it('counts every fish caught while the hammock is already full', () => {
+    const s = state({ nanoFish: BASE_CAPACITY, overflowNanoFish: 5 });
+
+    const settled = settleHammock(s, shiftMs(NOON, HOUR_MS));
+
+    expect(settled.nanoFish).toBe(BASE_CAPACITY);
+    expect(settled.overflowNanoFish).toBe(5 + caught(HOUR_MS));
+  });
+
+  it('adds the overflow after midnight, when the day bonus is gone', () => {
+    const s = state({
+      nanoFish: BASE_CAPACITY,
+      settledAt: shiftMs(MIDNIGHT, -HOUR_MS),
+      otterFriendDate: TODAY,
+      otterFriendCount: 1,
+    });
+
+    const settled = settleHammock(s, shiftMs(MIDNIGHT, HOUR_MS));
+
+    // 자정 전에는 친구 덕에 용량이 남아 그만큼 담고, 자정 뒤에는 기본 용량을 넘어 있으므로 모두 넘친다
+    const roomBeforeMidnight = hammockCapacityNanoFish(FRIEND_DAY) - BASE_CAPACITY;
+    const beforeMidnight = caught(HOUR_MS, FRIEND_DAY);
+    expect(settled.overflowNanoFish).toBe(
+      Math.max(0, beforeMidnight - roomBeforeMidnight) + caught(HOUR_MS),
+    );
   });
 });

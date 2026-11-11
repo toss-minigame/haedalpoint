@@ -25,6 +25,7 @@ type FishingStateRow = Pick<
   | 'hammockLevelDate'
   | 'baitBonusPercent'
   | 'baitDate'
+  | 'overflowNanoFish'
 >;
 
 /** 현황 응답에 필요한, 해먹 계산 밖의 값 */
@@ -47,6 +48,7 @@ export function toHammockState(row: FishingStateRow): HammockState {
     hammockLevelDate: row.hammockLevelDate,
     baitBonusPercent: row.baitBonusPercent,
     baitDate: row.baitDate,
+    overflowNanoFish: row.overflowNanoFish,
   };
 }
 
@@ -62,6 +64,7 @@ export function toStateChanges(state: HammockState): FishingStateChanges {
     hammockLevelDate: state.hammockLevelDate,
     baitBonusPercent: state.baitBonusPercent,
     baitDate: state.baitDate,
+    overflowNanoFish: state.overflowNanoFish,
   };
 }
 

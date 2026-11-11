@@ -32,4 +32,10 @@ export class FishingController {
   adExpandHammock(@CurrentUserId() userId: string) {
     return this.fishingService.adExpandHammock(userId);
   }
+
+  // 저장 응답의 catchBackAvailable 이 true 일 때, 보상형 광고를 끝까지 본 뒤에만 호출한다
+  @Post('ad-catch-back')
+  adCatchBack(@CurrentUserId() userId: string) {
+    return this.fishingService.adCatchBack(userId);
+  }
 }

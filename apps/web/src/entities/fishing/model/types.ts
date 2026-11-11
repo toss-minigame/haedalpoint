@@ -1,5 +1,6 @@
 export type {
   FishingAdBoostResponse,
+  FishingCatchBackResponse,
   FishingStatusResponse as FishingStatus,
   StoreFishResponse,
   WarehouseEntry,
