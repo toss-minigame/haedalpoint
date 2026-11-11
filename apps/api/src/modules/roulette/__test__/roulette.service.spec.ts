@@ -19,8 +19,8 @@ function spinRow(overrides: Record<string, unknown> = {}) {
     id: 'spin-1',
     userId: USER_ID,
     spinDate: TODAY,
-    fishCode: 'hairtail',
-    fishName: '갈치',
+    fishCode: 'sand_lance',
+    fishName: '양미리',
     speedBonusPercent: 3,
     appliedAt: null,
     createdAt: SPUN_AT,
@@ -99,8 +99,8 @@ describe('RouletteService', () => {
 
       await expect(service.getToday(USER_ID)).resolves.toMatchObject({
         spin: {
-          fishCode: 'hairtail',
-          fishName: '갈치',
+          fishCode: 'sand_lance',
+          fishName: '양미리',
           speedBonusPercent: 3,
           spunAt: SPUN_AT.toISOString(),
           appliedAt: null,
@@ -130,10 +130,10 @@ describe('RouletteService', () => {
 
   describe('spin', () => {
     it.each([
-      [0, 'saury', 1],
-      [40, 'mullet', 2],
-      [70, 'hairtail', 3],
-      [99, 'yellowtail', 5],
+      [0, 'yellowtail', 1],
+      [40, 'sandfish', 2],
+      [70, 'sand_lance', 3],
+      [99, 'pufferfish', 5],
     ])('saves the bait picked by roll %i without applying it', async (roll, code, bonus) => {
       roller.roll.mockReturnValue(roll);
 
@@ -184,7 +184,7 @@ describe('RouletteService', () => {
       expect(dataSource.transaction).toHaveBeenCalledTimes(1);
       expect(repo.markApplied).toHaveBeenCalledWith('spin-1', NOW, manager);
       expect(fishingService.applyBait).toHaveBeenCalledWith(USER_ID, 3, manager, NOW);
-      expect(result).toMatchObject({ fishCode: 'hairtail', appliedAt: NOW.toISOString() });
+      expect(result).toMatchObject({ fishCode: 'sand_lance', appliedAt: NOW.toISOString() });
     });
 
     it('rejects when there is no spin today', async () => {
