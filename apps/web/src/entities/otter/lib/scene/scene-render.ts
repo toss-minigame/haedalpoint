@@ -1,10 +1,12 @@
 import {
   type FishKind,
+  friendCatchBlend,
   happyBlend,
   hookedFishCenter,
   hookedFishOpacity,
   hookedFishSwing,
   jumpPosition,
+  otterFriendLayout,
   otterLayout,
   pierLayout,
   SCENE,
@@ -21,6 +23,20 @@ export type SceneSprites = {
   fish: FishImages;
   background: HTMLImageElement;
   wave: HTMLImageElement;
+};
+
+/** 해달 친구 스프라이트. 앉은 모습과 들어 올린 모습을 같은 자리에 겹쳐 그린다 */
+export type FriendSprites = {
+  idle: HTMLImageElement;
+  catch: HTMLImageElement;
+};
+
+/** 함께 낚시하는 해달 친구. 그림을 못 불러왔으면 sprites 가 null 이라 그리지 않는다 */
+export type SceneFriend = {
+  visible: boolean;
+  sprites: FriendSprites | null;
+  /** 낚싯대를 들어 올릴 때 머리 위에 띄울 글자 (친구 몫, 예: +0.0000104). null 이면 띄우지 않는다 */
+  catchLabel: string | null;
 };
 
 // 장면 색 토큰 (캔버스는 CSS 변수를 직접 못 쓰므로 여기 한 곳에 모은다)
@@ -163,24 +179,60 @@ function drawHookedFish(ctx: CanvasRenderingContext2D, state: SceneState, images
 }
 
 /** 자동으로 잡은 물고기 옆에 잡은 양(예: +0.0000208)을 띄운다. 매달린 물고기와 함께 사라진다 */
-function drawCatchLabel(ctx: CanvasRenderingContext2D, state: SceneState, label: string | null) {
-  const opacity = hookedFishOpacity(state);
-  if (!label || !state.hooked?.labeled || opacity === 0) return;
-  const { x, y } = hookedFishCenter(state, state.hooked.size);
+/** 잡은 양 글자. 하늘·바다 어느 배경에서도 읽히게 흰 글자에 짙은 바다색 테두리를 두른다 */
+function drawLabel(
+  ctx: CanvasRenderingContext2D,
+  label: string,
+  x: number,
+  y: number,
+  align: CanvasTextAlign,
+  opacity: number,
+) {
   ctx.save();
   ctx.font = CATCH_LABEL_FONT;
-  ctx.textAlign = 'left';
+  ctx.textAlign = align;
   ctx.textBaseline = 'middle';
   ctx.lineJoin = 'round';
   ctx.lineWidth = CATCH_LABEL_OUTLINE_WIDTH;
   ctx.strokeStyle = PALETTE.catchLabelOutline;
   ctx.fillStyle = PALETTE.catchLabel;
   ctx.globalAlpha = opacity;
-  const maxX = state.width - ctx.measureText(label).width - CATCH_LABEL_EDGE_MARGIN;
-  const labelX = Math.min(x + state.hooked.size * CATCH_LABEL_GAP, maxX);
-  ctx.strokeText(label, labelX, y);
-  ctx.fillText(label, labelX, y);
+  ctx.strokeText(label, x, y);
+  ctx.fillText(label, x, y);
   ctx.restore();
+}
+
+function drawCatchLabel(ctx: CanvasRenderingContext2D, state: SceneState, label: string | null) {
+  const opacity = hookedFishOpacity(state);
+  if (!label || !state.hooked?.labeled || opacity === 0) return;
+  const { x, y } = hookedFishCenter(state, state.hooked.size);
+  ctx.save();
+  ctx.font = CATCH_LABEL_FONT;
+  const maxX = state.width - ctx.measureText(label).width - CATCH_LABEL_EDGE_MARGIN;
+  ctx.restore();
+  const labelX = Math.min(x + state.hooked.size * CATCH_LABEL_GAP, maxX);
+  drawLabel(ctx, label, labelX, y, 'left', opacity);
+}
+
+/** 해달 친구가 낚싯대를 들어 올리는 동안 머리 위 가운데에 친구 몫을 띄운다 (들어 올리는 동작과 함께 나타나고 사라진다) */
+function drawFriendCatchLabel(
+  ctx: CanvasRenderingContext2D,
+  state: SceneState,
+  friend: SceneFriend,
+) {
+  const opacity = friendCatchBlend(state.time);
+  if (!friend.visible || !friend.sprites || !friend.catchLabel || opacity === 0) return;
+  const { x, y, width } = otterFriendLayout(state);
+  ctx.save();
+  ctx.font = CATCH_LABEL_FONT;
+  const halfWidth = ctx.measureText(friend.catchLabel).width / 2;
+  ctx.restore();
+  // 친구는 화면 왼쪽 끝에 앉으므로 글자가 왼쪽으로 잘리지 않게 한다
+  const centerX = Math.max(
+    x + width * SCENE.FRIEND_HEAD_CENTER_RATIO,
+    halfWidth + CATCH_LABEL_EDGE_MARGIN,
+  );
+  drawLabel(ctx, friend.catchLabel, centerX, y - SCENE.FRIEND_LABEL_GAP, 'center', opacity);
 }
 
 function drawSplashes(ctx: CanvasRenderingContext2D, state: SceneState) {
@@ -213,12 +265,30 @@ function drawOtter(ctx: CanvasRenderingContext2D, state: SceneState, sprites: Sc
   ctx.restore();
 }
 
+/** 앉은 모습·들어 올린 모습을 같은 자리에 겹쳐 그려 동작 전환을 페이드로 잇는다 */
+function drawOtterFriend(ctx: CanvasRenderingContext2D, state: SceneState, friend: SceneFriend) {
+  if (!friend.visible || !friend.sprites) return;
+  const { x, y, width, height } = otterFriendLayout(state);
+  const blend = friendCatchBlend(state.time);
+  ctx.save();
+  if (blend < 1) {
+    ctx.globalAlpha = 1 - blend;
+    ctx.drawImage(friend.sprites.idle, x, y, width, height);
+  }
+  if (blend > 0) {
+    ctx.globalAlpha = blend;
+    ctx.drawImage(friend.sprites.catch, x, y, width, height);
+  }
+  ctx.restore();
+}
+
 /** 장면 한 프레임을 그린다. 좌표는 CSS px 기준 (devicePixelRatio 변환은 호출 측에서 설정) */
 export function drawScene(
   ctx: CanvasRenderingContext2D,
   state: SceneState,
   sprites: SceneSprites | null,
   catchLabel: string | null,
+  friend: SceneFriend,
 ) {
   ctx.clearRect(0, 0, state.width, state.height);
   if (sprites) drawBackground(ctx, state, sprites.background);
@@ -230,6 +300,7 @@ export function drawScene(
   if (sprites) {
     const pier = pierLayout(state);
     ctx.drawImage(sprites.pier, pier.x, pier.y, pier.width, pier.height);
+    drawOtterFriend(ctx, state, friend);
     drawOtter(ctx, state, sprites);
     drawHookedFish(ctx, state, sprites.fish);
   }
@@ -246,4 +317,5 @@ export function drawScene(
   }
 
   if (sprites) drawCatchLabel(ctx, state, catchLabel);
+  drawFriendCatchLabel(ctx, state, friend);
 }

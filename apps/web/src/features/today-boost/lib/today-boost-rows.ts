@@ -1,4 +1,4 @@
-import { type FishingStatus, hammockName } from '@/entities/fishing';
+import { type FishingStatus, hammockName, otterFriendSpeedBonusPercent } from '@/entities/fishing';
 
 const BASE_SPEED_PERCENT = 100;
 
@@ -18,14 +18,13 @@ export function todaySpeedBonusPercent(status: FishingStatus): number {
 
 /**
  * 오늘 적용 중인 강화 목록. 모두 서버 응답 값에서 계산한다.
- * 해달 친구 몫은 응답에 따로 없어서 전체 속도 보너스에서 낚싯대·미끼 몫을 뺀다.
  * 해먹 단계는 해먹 광고로만 오르고 한 번에 낚싯대도 함께 오르므로, 낚싯대 중 해먹 넓히기 몫 = 해먹 단계 × 1회당 속도.
  * baitName 은 오늘 단 미끼 이름 (룰렛 정보를 아직 못 받았으면 null)
  */
 export function todayBoostRows(status: FishingStatus, baitName: string | null): TodayBoostRow[] {
   const rodBonus = status.rodSpeedBonusPercent;
   const baitBonus = status.baitSpeedBonusPercent;
-  const friendBonus = todaySpeedBonusPercent(status) - rodBonus - baitBonus;
+  const friendBonus = otterFriendSpeedBonusPercent(status);
   const hammockBonus = status.hammockLevelBonusPercent;
   // 정책이 바뀌기 전에 넓힌 해먹 단계는 낚싯대를 올리지 않았으므로 낚싯대 전체를 넘지 않게 한다
   const hammockRodBonus = Math.min(

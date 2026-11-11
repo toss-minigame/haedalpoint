@@ -3,6 +3,7 @@ export { fishingApi } from './api/fishing-api';
 export { fishingQueries } from './api/fishing-queries';
 export { formatFish } from './lib/format-fishing';
 export { hammockName } from './lib/hammock-name';
+export { otterFriendFishPerHour, otterFriendSpeedBonusPercent } from './lib/otter-friend-share';
 export { projectHammockFish } from './lib/project-hammock';
 export { useProjectedHammock } from './lib/use-projected-hammock';
 export type {
