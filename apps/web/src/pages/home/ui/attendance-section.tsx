@@ -1,14 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
 import { AttendanceStamps, attendanceQueries } from '@/entities/attendance';
 import { AdBonusButton, CheckInButton } from '@/features/check-in';
+import { tutorialTarget } from '@/features/welcome-tutorial';
 import type { RewardedAd } from '@/shared/lib/rewarded-ad';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card';
 
 type Props = {
   rewardedAd: RewardedAd;
+  /** 튜토리얼 동안은 출석 광고 2배를 감춘다 (튜토리얼 안에서는 광고를 보게 하지 않는다) */
+  hideAdBonus?: boolean;
 };
 
-export function AttendanceSection({ rewardedAd }: Props) {
+export function AttendanceSection({ rewardedAd, hideAdBonus = false }: Props) {
   const { data: status, isPending, isError, error } = useQuery(attendanceQueries.me());
 
   const description = status
@@ -16,7 +19,7 @@ export function AttendanceSection({ rewardedAd }: Props) {
     : '매일 출석하고 그날 낚싯대를 강화해요';
 
   return (
-    <section aria-labelledby="attendance-heading">
+    <section aria-labelledby="attendance-heading" {...tutorialTarget('check-in')}>
       <Card>
         <CardHeader>
           <CardTitle id="attendance-heading" className="text-lg font-bold">
@@ -32,7 +35,7 @@ export function AttendanceSection({ rewardedAd }: Props) {
               <AttendanceStamps cycle={status.cycle} />
               <div className="flex flex-col gap-2">
                 <CheckInButton status={status} />
-                {status.adBonusAvailable && <AdBonusButton ad={rewardedAd} />}
+                {status.adBonusAvailable && !hideAdBonus && <AdBonusButton ad={rewardedAd} />}
               </div>
             </>
           )}

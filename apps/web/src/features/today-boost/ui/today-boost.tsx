@@ -61,7 +61,7 @@ export function TodayBoost({ className }: Props) {
             오늘의 강화 <span className="text-primary tabular-nums">{speedBonus}</span>
           </SheetTitle>
           <SheetDescription className="text-[15px] break-keep">
-            오늘 자정까지 적용되는 강화예요. 자정이 지나면 모두 초기화돼요.
+            낚싯대·미끼·해먹은 오늘 자정까지, 해달 친구는 온 때부터 24시간 함께해요.
           </SheetDescription>
         </SheetHeader>
         <ul className="flex flex-col px-6">

@@ -13,6 +13,11 @@ import {
 } from '@/entities/otter';
 import { currentKstMonth } from '@/entities/roulette';
 import { TodayBoost } from '@/features/today-boost';
+import {
+  tutorialTarget,
+  useWelcomeTutorial,
+  WelcomeTutorialOverlay,
+} from '@/features/welcome-tutorial';
 import { env } from '@/shared/config/env';
 import { useRewardedAd } from '@/shared/lib/rewarded-ad';
 import { Button } from '@/shared/ui/button';
@@ -51,14 +56,19 @@ export function HomePage() {
   const rewardedAd = useRewardedAd(env.rewardedAdGroupId);
   const { data: fishingStatus } = useQuery(fishingQueries.me());
   const catchLabels = catchLabelsOf(fishingStatus);
+  const tutorial = useWelcomeTutorial();
 
   return (
     <main className="mx-auto flex max-w-xl flex-col gap-5 px-5 pt-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
       {/* 앱인토스 상단 바가 앱 이름을 보여주므로 화면에는 그리지 않고 낭독기용으로만 둔다 */}
       <h1 className="sr-only">해달해달</h1>
-      <FishingBoostSection rewardedAd={rewardedAd} />
+      <FishingBoostSection
+        rewardedAd={rewardedAd}
+        rodTrial={tutorial?.trialFor('ROD')}
+        hammockTrial={tutorial?.trialFor('HAMMOCK')}
+      />
       {/* 오늘의 강화 버튼은 장면(버튼) 안이 아니라 형제로 두고 왼쪽 위에 겹친다 */}
-      <div className="relative">
+      <div className="relative" {...tutorialTarget('scene')}>
         <OtterScene
           catchLabel={catchLabels.otter}
           withOtterFriend={fishingStatus?.otterFriendActive ?? false}
@@ -66,16 +76,21 @@ export function HomePage() {
         />
         <TodayBoost className="absolute top-1 left-1" />
       </div>
-      <FishingSection rewardedAd={rewardedAd} />
-      <AttendanceSection rewardedAd={rewardedAd} />
+      <FishingSection rewardedAd={rewardedAd} onTutorialStored={tutorial?.onStored} />
+      <AttendanceSection rewardedAd={rewardedAd} hideAdBonus={tutorial !== null} />
       <nav aria-label="오늘 할 일" className="grid grid-cols-2 gap-3">
         <Button asChild size="lg" variant="outline" className={SHORTCUT_CLASS}>
-          <Link to="/quiz">O/X 퀴즈 풀기</Link>
+          <Link to="/quiz" {...tutorialTarget('quiz')}>
+            O/X 퀴즈 풀기
+          </Link>
         </Button>
         <Button asChild size="lg" variant="outline" className={SHORTCUT_CLASS}>
-          <Link to="/roulette">{currentKstMonth()}월 미끼 룰렛</Link>
+          <Link to="/roulette" {...tutorialTarget('roulette')}>
+            {currentKstMonth()}월 미끼 룰렛
+          </Link>
         </Button>
       </nav>
+      {tutorial && <WelcomeTutorialOverlay tutorial={tutorial} />}
     </main>
   );
 }
