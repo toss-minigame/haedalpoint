@@ -4,7 +4,7 @@ import { bigintNumberTransformer } from '../../../common/entities/bigint-number.
 
 // 사용자당 한 행. users 와 TypeORM 관계를 걸지 않고 user_id 컬럼으로만 참조 (모듈 경계 유지)
 // 해먹 수량은 settled_at 시점 값이다. 지금 수량은 lib/settle-hammock.ts 로 계산한다 (docs/design/fishing.md 3장).
-// 강화·해달 친구는 유효 날짜(KST)가 오늘일 때만 적용되므로 자정 초기화 배치가 필요 없다.
+// 강화는 유효 날짜(KST)가 오늘일 때만, 해달 친구는 떠나는 시각 전에만 적용되므로 초기화 배치가 필요 없다.
 @Entity('fishing_states')
 @Unique('UQ_fishing_states_user_id', ['userId'])
 @Check('CHK_fishing_states_hammock_nano_fish', '"hammock_nano_fish" >= 0')
@@ -40,11 +40,15 @@ export class FishingState extends BaseEntity {
   @Column({ type: 'date', name: 'rod_level_date', nullable: true })
   rodLevelDate: string | null;
 
-  // 해달 친구가 오는 KST 날짜
+  // 해달 친구가 온 KST 날짜. 이전 버전 서버가 읽는 값이라 배포하는 동안만 함께 적는다 (다음 마이그레이션에서 지움)
   @Column({ type: 'date', name: 'otter_friend_date', nullable: true })
   otterFriendDate: string | null;
 
-  // otter_friend_date 에 함께 낚시하는 해달 친구 수
+  // 해달 친구가 떠나는 시각 (온 때부터 OTTER_FRIEND_POLICY.STAY_HOURS 뒤)
+  @Column({ type: 'timestamptz', name: 'otter_friend_until', nullable: true })
+  otterFriendUntil: Date | null;
+
+  // otter_friend_until 전까지 함께 낚시하는 해달 친구 수
   @Column({ type: 'smallint', name: 'otter_friend_count', default: 0 })
   otterFriendCount: number;
 

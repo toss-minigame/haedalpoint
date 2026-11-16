@@ -17,6 +17,7 @@ import type { HammockState } from '../lib/settle-hammock.js';
 const TODAY = '2026-11-02';
 const NOW = new Date('2026-11-02T03:00:00Z');
 const MINUTE_MS = 60 * 1000;
+const HOUR_MS = 60 * MINUTE_MS;
 
 function account(overrides: Partial<FishingAccount> = {}): FishingAccount {
   return { warehouseNanoFish: 0, adRodEnhancedAt: null, adHammockExpandedAt: null, ...overrides };
@@ -28,7 +29,7 @@ function hammock(overrides: Partial<HammockState> = {}): HammockState {
     settledAt: NOW,
     rodLevel: 0,
     rodLevelDate: null,
-    otterFriendDate: null,
+    otterFriendUntil: null,
     otterFriendCount: 0,
     hammockLevel: 0,
     hammockLevelDate: null,
@@ -75,8 +76,14 @@ describe('buildFishingStatus', () => {
   });
 
   it("reflects today's rod level and otter friend", () => {
+    const friendLeaves = new Date(NOW.getTime() + 20 * HOUR_MS);
     const status = buildFishingStatus(
-      hammock({ rodLevel: 3, rodLevelDate: TODAY, otterFriendDate: TODAY, otterFriendCount: 1 }),
+      hammock({
+        rodLevel: 3,
+        rodLevelDate: TODAY,
+        otterFriendUntil: friendLeaves,
+        otterFriendCount: 1,
+      }),
       account(),
       NOW,
     );
@@ -86,12 +93,27 @@ describe('buildFishingStatus', () => {
       rodSpeedBonusPercent: 3 * ROD_POLICY.SPEED_BONUS_PERCENT_PER_LEVEL,
       otterFriendActive: true,
       otterFriendCount: 1,
+      otterFriendUntil: friendLeaves.toISOString(),
       speedPercent:
         100 +
         3 * ROD_POLICY.SPEED_BONUS_PERCENT_PER_LEVEL +
         OTTER_FRIEND_POLICY.SPEED_BONUS_PERCENT,
       hammockCapacity:
         hammockCapacityNanoFish({ ...NO_BOOSTS, rodLevel: 3, otterFriends: 1 }) / NANO_PER_FISH,
+    });
+  });
+
+  it('shows no otter friend once the friend has left', () => {
+    const status = buildFishingStatus(
+      hammock({ otterFriendUntil: new Date(NOW.getTime() - 1), otterFriendCount: 2 }),
+      account(),
+      NOW,
+    );
+
+    expect(status).toMatchObject({
+      otterFriendActive: false,
+      otterFriendCount: 0,
+      otterFriendUntil: null,
     });
   });
 
@@ -151,6 +173,7 @@ describe('toHammockState', () => {
       rodLevel: 2,
       rodLevelDate: TODAY,
       otterFriendDate: null,
+      otterFriendUntil: null,
       otterFriendCount: 0,
       hammockLevel: 0,
       hammockLevelDate: null,
@@ -169,7 +192,7 @@ describe('toHammockState', () => {
       settledAt: NOW,
       rodLevel: 2,
       rodLevelDate: TODAY,
-      otterFriendDate: null,
+      otterFriendUntil: null,
       otterFriendCount: 0,
       hammockLevel: 0,
       hammockLevelDate: null,

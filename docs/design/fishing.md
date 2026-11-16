@@ -36,7 +36,8 @@
 | `ROD_POLICY.SPEED_BONUS_PERCENT_PER_LEVEL` | 1 | 강화 1단계 = 기본 속도의 +1% |
 | `OTTER_FRIEND_POLICY.SPEED_BONUS_PERCENT` | 50 | 해달 친구 한 명당 속도 +50% |
 | `OTTER_FRIEND_POLICY.CAPACITY_BONUS_PERCENT` | 50 | 해달 친구 한 명당 해먹 용량 +50% |
-| `OTTER_FRIEND_POLICY.MAX_PER_DAY` | 2 | 하루 해달 친구 최대 인원 (7일차 출석 1 + 출석 광고 2배 1) |
+| `OTTER_FRIEND_POLICY.MAX_FRIENDS` | 2 | 동시에 함께 있는 해달 친구 최대 인원 (7일차 출석 1 + 출석 광고 2배 1) |
+| `OTTER_FRIEND_POLICY.STAY_HOURS` | 24 | 해달 친구가 머무는 시간. 자정과 상관없이 온 때부터 센다 ([tutorial.md](./tutorial.md) 5장) |
 | `QUIZ_POLICY.ROD_LEVELS_PER_REWARD` | 1 | 퀴즈 광고 1회당 강화 단계 |
 | `AD_ROD_POLICY.LEVELS_PER_AD` | 1 | 홈 광고 강화 1회당 강화 단계 |
 | `AD_ROD_POLICY.COOLDOWN_MINUTES` | 20 | 홈 광고 강화 쿨타임 (분) |
@@ -67,7 +68,7 @@
 `modules/fishing/__test__/fishing-budget.spec.ts`가 최악의 한 달을 계산한다.
 
 - 31일 내내 하루에 오를 수 있는 강화(87단계)를 자정 직후 모두 받고, 매일 가장 높은 룰렛 미끼(+5%)를 단 상태로 하루 종일 낚시,
-  해달 친구가 올 수 있는 최대 일수(⌈31 ÷ 7⌉ = 5일, 그날은 최대 2명), 해먹을 한 번도 넘치지 않게 비움
+  해달 친구가 있는 최대 일수(출석 주기 ⌈31 ÷ 7⌉ = 5일 + 지난달에서 넘어온 하루 + 튜토리얼 하루 = 7일, 그날은 종일 최대 2명), 해먹을 한 번도 넘치지 않게 비움
 - 현재값 기준 (26일 × 192% + 5일 × 292%) × 1.8원 ≈ **116원** ≤ 5,000원
 - 해먹 용량은 이 최악값에 영향이 없다 (넓힐 때 함께 오르는 낚싯대 단계는 위 87단계에 포함). 자주 들어오지 않는 사용자가 덜 놓치게 할 뿐이다.
 - 정책값을 바꿔 5,000원을 넘으면 테스트가 실패해 배포 전에 걸린다.
@@ -81,7 +82,7 @@
 | `hammock_nano_fish` | 해먹의 물고기 (1/10억 마리 단위 정수). 소수점을 버리지 않고 이어서 센다. 화면은 소수 7자리로 내림해서 보여준다 |
 | `settled_at` | 마지막으로 해먹을 정산한 시각 |
 | `rod_level`, `rod_level_date` | 강화 단계와 그 단계가 유효한 날짜 (KST). 날짜가 오늘이 아니면 0단계 |
-| `otter_friend_date`, `otter_friend_count` | 해달 친구가 오는 날짜 (KST)와 인원. 날짜가 오늘이 아니면 0명 |
+| `otter_friend_until`, `otter_friend_count` | 해달 친구가 떠나는 시각과 인원. 그 시각이 지나면 0명. `otter_friend_date`는 이전 버전 서버용으로 함께 적고 다음 배포에서 지운다 |
 | `hammock_level`, `hammock_level_date` | 광고로 넓힌 해먹 단계와 그 단계가 유효한 날짜 (KST). 날짜가 오늘이 아니면 0단계 |
 | `ad_hammock_expanded_at` | 마지막 홈 광고 해먹 넓히기 시각. 이 시각 + 1시간이 지나야 다시 넓힐 수 있다 |
 | `ad_rod_enhanced_at` | 마지막 홈 광고 강화 시각. 이 시각 + 20분이 지나야 다시 강화할 수 있다 |
@@ -98,7 +99,8 @@
 속도가 바뀌는 때는 두 가지뿐이다.
 
 1. **사용자 행동** (강화, 해달 친구, 해먹 넓히기): 바꾸기 직전에 정산한다. 그래서 정산 시점 사이에는 속도·용량이 일정하다.
-2. **KST 자정**: 강화·해달 친구·해먹 넓히기가 풀린다. 자정 이후는 행동이 없는 한 기본 속도·기본 용량이다.
+2. **KST 자정**: 강화·해먹 넓히기·미끼가 풀린다.
+3. **해달 친구가 떠날 때** (`otter_friend_until`): 친구 속도·용량이 빠진다. 그래서 정산 구간은 최대 세 개다.
 
 따라서 정산은 최대 두 구간이다.
 
@@ -134,7 +136,8 @@ settled_at ──[그날 속도·용량]── 다음 자정 ──[기본 속�
 다른 모듈이 쓰는 `FishingService` 메서드 (호출하는 쪽의 트랜잭션 안에서 실행):
 
 - `enhanceRod(userId, levels, manager)`: 정산 → 오늘 강화 단계 + levels (하루 최대 단계 없음)
-- `summonOtterFriend(userId, manager)`: 정산 → 오늘 해달 친구 한 명 더 (하루 최대 2명)
+- `summonOtterFriend(userId, manager, now)`: 정산 → 해달 친구 한 명 더 (최대 2명), 모두 지금부터 24시간 머문다
+- `expandHammock(userId, manager, now)`, `fillHammock(userId, maxFish, manager, now)`: 튜토리얼 체험·첫 선물 (쿨타임 없음, [tutorial.md](./tutorial.md))
 - `applyBait(userId, speedBonusPercent, manager, now)`: 정산 → 오늘 룰렛 미끼 보너스 ([bait-roulette.md](./bait-roulette.md))
 
 ### 동시성

@@ -21,8 +21,10 @@ export interface FishingStatusResponse {
   /** 낚싯대 강화로 오른 속도 (%) */
   rodSpeedBonusPercent: number;
   otterFriendActive: boolean;
-  /** 오늘 함께 낚시하는 해달 친구 수 (7일차 출석 1, 출석 광고 2배로 +1) */
+  /** 지금 함께 낚시하는 해달 친구 수 (7일차 출석 1, 출석 광고 2배로 +1, 튜토리얼 완료 1. 최대 2명) */
   otterFriendCount: number;
+  /** 해달 친구가 떠나는 시각 (ISO 8601, 온 때부터 24시간). 함께 있는 친구가 없으면 null */
+  otterFriendUntil: string | null;
   /** 오늘 광고로 넓힌 해먹 단계 (0이면 기본 해먹) */
   hammockLevel: number;
   hammockMaxLevel: number;
@@ -40,7 +42,7 @@ export interface FishingStatusResponse {
   baitSpeedBonusPercent: number;
   /** 광고 해먹 넓히기 쿨타임이 끝나는 시각 (ISO 8601). 지금 넓힐 수 있으면 null */
   adHammockExpandAvailableAt: string | null;
-  /** 강화·해달 친구·해먹 넓히기가 풀리는 시각 = 다음 KST 자정 (ISO 8601) */
+  /** 낚싯대 강화·해먹 넓히기·미끼가 풀리는 시각 = 다음 KST 자정 (ISO 8601). 해달 친구는 otterFriendUntil */
   boostsResetAt: string;
   /** 창고의 물고기 (소수점 포함) */
   warehouseFish: number;

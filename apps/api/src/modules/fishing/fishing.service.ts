@@ -32,10 +32,11 @@ import {
   applyBait,
   enhanceRod,
   expandHammock,
+  fillHammock,
   summonOtterFriend,
   takeAllFish,
 } from './lib/hammock-actions.js';
-import { boostsOn, type HammockState, settleHammock } from './lib/settle-hammock.js';
+import { boostsAt, dayBoostsOn, type HammockState, settleHammock } from './lib/settle-hammock.js';
 
 const NOTHING_TO_STORE = '해먹에 저장할 물고기가 없어요';
 const AD_ROD_COOLING_DOWN = `낚싯대는 ${AD_ROD_POLICY.COOLDOWN_MINUTES}분마다 강화할 수 있어요`;
@@ -57,6 +58,12 @@ type HammockChange = (settled: HammockState, today: string, row: FishingState) =
 interface HammockChangeResult {
   row: FishingState;
   next: HammockState;
+}
+
+/** 해먹을 정해진 순서로 한 단계 넓히고 낚싯대도 함께 강화한다 (광고 해먹 넓히기·튜토리얼 체험) */
+function expandHammockWithRod(settled: HammockState, today: string): HammockState {
+  const expanded = expandHammock(settled, HAMMOCK_EXPAND_POLICY.LEVELS_PER_AD, today);
+  return enhanceRod(expanded, HAMMOCK_EXPAND_POLICY.ROD_LEVELS_PER_EXPAND, today);
 }
 
 // 비즈니스 로직 계층 (docs/design/fishing.md)
@@ -178,7 +185,7 @@ export class FishingService {
   private catchBackOffer(settled: HammockState, row: FishingState, today: string): number {
     const used = catchBacksUsedOn(row.catchBackCount, row.catchBackDate, today);
     if (used >= CATCH_BACK_POLICY.DAILY_LIMIT) return 0;
-    const capacity = hammockCapacityNanoFish(boostsOn(settled, today));
+    const capacity = hammockCapacityNanoFish(boostsAt(settled, settled.settledAt));
     const amount = catchBackNanoFish(settled.overflowNanoFish, capacity);
     return amount >= MIN_CATCH_BACK_NANO_FISH ? amount : 0;
   }
@@ -226,11 +233,10 @@ export class FishingService {
           ) {
             throw new ConflictException(HAMMOCK_COOLING_DOWN);
           }
-          if (boostsOn(settled, today).hammockLevel >= HAMMOCK_EXPAND_POLICY.MAX_LEVEL) {
+          if (dayBoostsOn(settled, today).hammockLevel >= HAMMOCK_EXPAND_POLICY.MAX_LEVEL) {
             throw new ConflictException(HAMMOCK_AT_MAX_LEVEL);
           }
-          const expanded = expandHammock(settled, HAMMOCK_EXPAND_POLICY.LEVELS_PER_AD, today);
-          return enhanceRod(expanded, HAMMOCK_EXPAND_POLICY.ROD_LEVELS_PER_EXPAND, today);
+          return expandHammockWithRod(settled, today);
         },
         { adHammockExpandedAt: now },
       );
@@ -255,8 +261,34 @@ export class FishingService {
   }
 
   /**
-   * `now` 가 속한 날 자정까지 해달 친구가 한 명 더 함께 낚시한다 (하루 최대 인원에서 멈춤).
-   * 호출하는 쪽(출석)의 트랜잭션 안에서 실행한다.
+   * `now` 가 속한 날 해먹을 한 단계 넓히고 낚싯대도 함께 강화한다. 광고 해먹 넓히기와 같은 보상이지만
+   * 쿨타임을 시작하지 않는다 (튜토리얼 체험). 이미 최대 단계면 낚싯대만 오른다.
+   * 호출하는 쪽(튜토리얼)의 트랜잭션 안에서 실행한다.
+   */
+  async expandHammock(userId: string, manager: EntityManager, now: Date): Promise<void> {
+    await this.changeHammock(manager, userId, now, expandHammockWithRod);
+  }
+
+  /**
+   * 해먹을 지금 용량까지 채운다 (더 넣는 양은 maxFish 마리까지). 넘친 양으로 세지 않아 다시 잡아오기에 영향이 없다.
+   * 호출하는 쪽(튜토리얼 첫 선물)의 트랜잭션 안에서 실행한다.
+   */
+  async fillHammock(
+    userId: string,
+    maxFish: number,
+    manager: EntityManager,
+    now: Date,
+  ): Promise<void> {
+    const maxNanoFish = Math.round(maxFish * NANO_PER_FISH);
+    await this.changeHammock(manager, userId, now, (settled) => {
+      const capacity = hammockCapacityNanoFish(boostsAt(settled, settled.settledAt));
+      return fillHammock(settled, capacity, maxNanoFish).state;
+    });
+  }
+
+  /**
+   * 해달 친구가 한 명 더 와서 `now` 부터 OTTER_FRIEND_POLICY.STAY_HOURS 동안 함께 낚시한다 (최대 인원에서 멈춤).
+   * 호출하는 쪽(출석·튜토리얼)의 트랜잭션 안에서 실행한다.
    */
   async summonOtterFriend(userId: string, manager: EntityManager, now: Date): Promise<void> {
     await this.changeHammock(manager, userId, now, summonOtterFriend);

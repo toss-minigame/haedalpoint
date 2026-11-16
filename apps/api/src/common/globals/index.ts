@@ -13,3 +13,4 @@ export {
   SEASONAL_FISH_BY_MONTH,
   type SeasonalFish,
 } from './roulette.policy.js';
+export { TUTORIAL_REWARD_POLICY } from './tutorial.policy.js';

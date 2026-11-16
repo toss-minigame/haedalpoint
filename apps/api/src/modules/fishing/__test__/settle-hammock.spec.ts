@@ -8,8 +8,10 @@ import {
   speedPercent,
 } from '../lib/fishing-rate.js';
 import {
-  boostsOn,
+  boostsAt,
+  dayBoostsOn,
   type HammockState,
+  otterFriendsAt,
   predictHammockFullAt,
   settleHammock,
 } from '../lib/settle-hammock.js';
@@ -31,7 +33,7 @@ function state(overrides: Partial<HammockState> = {}): HammockState {
     settledAt: NOON,
     rodLevel: 0,
     rodLevelDate: null,
-    otterFriendDate: null,
+    otterFriendUntil: null,
     otterFriendCount: 0,
     hammockLevel: 0,
     hammockLevelDate: null,
@@ -50,39 +52,53 @@ function shiftMs(at: Date, ms: number): Date {
   return new Date(at.getTime() + ms);
 }
 
-describe('boostsOn', () => {
-  it('applies the rod level and otter friend only on their own date', () => {
+describe('dayBoostsOn', () => {
+  it('applies the rod level and the expanded hammock only on their own date', () => {
+    const s = state({ rodLevel: 3, rodLevelDate: TODAY, hammockLevel: 2, hammockLevelDate: TODAY });
+
+    expect(dayBoostsOn(s, TODAY)).toEqual({
+      rodLevel: 3,
+      otterFriends: 0,
+      hammockLevel: 2,
+      baitBonusPercent: 0,
+    });
+    expect(dayBoostsOn(s, '2026-11-03')).toEqual(NO_BOOSTS);
+  });
+
+  it('never counts the otter friends (they do not follow the date)', () => {
+    const s = state({ otterFriendUntil: MIDNIGHT, otterFriendCount: 2 });
+
+    expect(dayBoostsOn(s, TODAY).otterFriends).toBe(0);
+  });
+});
+
+describe('otterFriendsAt', () => {
+  it('counts the otter friends until they leave', () => {
+    const s = state({ otterFriendUntil: MIDNIGHT, otterFriendCount: 2 });
+
+    expect(otterFriendsAt(s, NOON)).toBe(2);
+    expect(otterFriendsAt(s, shiftMs(MIDNIGHT, -1))).toBe(2);
+    expect(otterFriendsAt(s, MIDNIGHT)).toBe(0);
+  });
+
+  it('counts no otter friend when none has come', () => {
+    expect(otterFriendsAt(state({ otterFriendCount: 1 }), NOON)).toBe(0);
+  });
+});
+
+describe('boostsAt', () => {
+  it('combines the day boosts of that date with the otter friends at that time', () => {
+    const nextNoon = shiftMs(NOON, 24 * HOUR_MS);
     const s = state({
       rodLevel: 3,
       rodLevelDate: TODAY,
-      otterFriendDate: TODAY,
+      otterFriendUntil: shiftMs(nextNoon, HOUR_MS),
       otterFriendCount: 1,
     });
 
-    expect(boostsOn(s, TODAY)).toEqual({
-      rodLevel: 3,
-      otterFriends: 1,
-      hammockLevel: 0,
-      baitBonusPercent: 0,
-    });
-    expect(boostsOn(s, '2026-11-03')).toEqual(NO_BOOSTS);
-  });
-
-  it('counts the otter friends and the expanded hammock only on their own date', () => {
-    const s = state({
-      otterFriendDate: TODAY,
-      otterFriendCount: 2,
-      hammockLevel: 3,
-      hammockLevelDate: TODAY,
-    });
-
-    expect(boostsOn(s, TODAY)).toEqual({
-      rodLevel: 0,
-      otterFriends: 2,
-      hammockLevel: 3,
-      baitBonusPercent: 0,
-    });
-    expect(boostsOn(s, '2026-11-03')).toEqual(NO_BOOSTS);
+    expect(boostsAt(s, NOON)).toEqual({ ...NO_BOOSTS, rodLevel: 3, otterFriends: 1 });
+    // 다음 날: 낚싯대는 풀리고 친구는 남는다
+    expect(boostsAt(s, nextNoon)).toEqual({ ...NO_BOOSTS, otterFriends: 1 });
   });
 });
 
@@ -101,18 +117,18 @@ describe('settleHammock', () => {
     const s = state({
       rodLevel: 3,
       rodLevelDate: TODAY,
-      otterFriendDate: TODAY,
+      otterFriendUntil: MIDNIGHT,
       otterFriendCount: 1,
     });
 
     expect(settleHammock(s, shiftMs(NOON, HOUR_MS)).nanoFish).toBe(caught(HOUR_MS, boosts));
   });
 
-  it('ignores a rod level and otter friend from another day', () => {
+  it('ignores a rod level from another day and an otter friend who has left', () => {
     const s = state({
       rodLevel: 5,
       rodLevelDate: YESTERDAY,
-      otterFriendDate: YESTERDAY,
+      otterFriendUntil: shiftMs(NOON, -HOUR_MS),
       otterFriendCount: 1,
     });
 
@@ -137,6 +153,42 @@ describe('settleHammock', () => {
     expect(settleHammock(s, shiftMs(NOON, HOUR_MS)).nanoFish).toBe(BASE_CAPACITY + 2_000_000);
   });
 
+  it('keeps the otter friend past midnight until the friend leaves', () => {
+    const friendLeaves = shiftMs(MIDNIGHT, 2 * HOUR_MS);
+    const s = state({
+      settledAt: shiftMs(MIDNIGHT, -HOUR_MS),
+      rodLevel: 5,
+      rodLevelDate: TODAY,
+      otterFriendUntil: friendLeaves,
+      otterFriendCount: 1,
+    });
+
+    const settled = settleHammock(s, shiftMs(friendLeaves, HOUR_MS));
+
+    // 자정 전: 낚싯대 + 친구, 자정 뒤 2시간: 친구만, 친구가 떠난 뒤 1시간: 기본
+    const beforeMidnight = { ...NO_BOOSTS, rodLevel: 5, otterFriends: 1 };
+    expect(settled.nanoFish).toBe(
+      caught(HOUR_MS, beforeMidnight) + caught(2 * HOUR_MS, FRIEND_DAY) + caught(HOUR_MS),
+    );
+  });
+
+  it('drops the otter friend before midnight when the friend leaves first', () => {
+    const friendLeaves = shiftMs(NOON, HOUR_MS);
+    const s = state({
+      rodLevel: 2,
+      rodLevelDate: TODAY,
+      otterFriendUntil: friendLeaves,
+      otterFriendCount: 2,
+    });
+
+    const settled = settleHammock(s, shiftMs(NOON, 3 * HOUR_MS));
+
+    const rod = { ...NO_BOOSTS, rodLevel: 2 };
+    expect(settled.nanoFish).toBe(
+      caught(HOUR_MS, { ...rod, otterFriends: 2 }) + caught(2 * HOUR_MS, rod),
+    );
+  });
+
   it('switches to the base speed at KST midnight', () => {
     const boosts = { ...NO_BOOSTS, rodLevel: 5 };
     const s = state({
@@ -155,7 +207,7 @@ describe('settleHammock', () => {
     const s = state({
       settledAt: shiftMs(MIDNIGHT, -HOUR_MS),
       nanoFish: friendCapacity - 10,
-      otterFriendDate: TODAY,
+      otterFriendUntil: MIDNIGHT,
       otterFriendCount: 1,
     });
 
@@ -165,7 +217,7 @@ describe('settleHammock', () => {
   it('keeps catching at the base speed after midnight when below the base capacity', () => {
     const s = state({
       settledAt: shiftMs(MIDNIGHT, -HOUR_MS),
-      otterFriendDate: TODAY,
+      otterFriendUntil: MIDNIGHT,
       otterFriendCount: 1,
     });
 
@@ -222,13 +274,22 @@ describe('predictHammockFullAt', () => {
     expect(predictHammockFullAt(s)).toEqual(shiftMs(MIDNIGHT, msAfterMidnight));
   });
 
+  it('continues at the slower speed after the otter friend leaves', () => {
+    const friendLeaves = shiftMs(NOON, HOUR_MS);
+    const s = state({ otterFriendUntil: friendLeaves, otterFriendCount: 1 });
+    const whenLeaving = caught(HOUR_MS, FRIEND_DAY);
+    const msAfter = Math.ceil((BASE_CAPACITY - whenLeaving) / nanoFishPerMs(100));
+
+    expect(predictHammockFullAt(s)).toEqual(shiftMs(friendLeaves, msAfter));
+  });
+
   it('is full at midnight when the otter friend capacity shrinks below the current fish', () => {
     // 기본 용량과 해달 친구 용량 사이 (친구가 떠나면 넘치는 양)
     const betweenCapacities = (BASE_CAPACITY + hammockCapacityNanoFish(FRIEND_DAY)) / 2;
     const s = state({
       settledAt: shiftMs(MIDNIGHT, -1000),
       nanoFish: betweenCapacities,
-      otterFriendDate: TODAY,
+      otterFriendUntil: MIDNIGHT,
       otterFriendCount: 1,
     });
 
@@ -241,7 +302,7 @@ describe('predictHammockFullAt', () => {
     [
       'otter friend',
       state({
-        otterFriendDate: TODAY,
+        otterFriendUntil: MIDNIGHT,
         otterFriendCount: 1,
         settledAt: shiftMs(MIDNIGHT, -HOUR_MS),
       }),
@@ -249,7 +310,7 @@ describe('predictHammockFullAt', () => {
   ])('agrees with settleHammock (%s)', (_label, s) => {
     const fullAt = predictHammockFullAt(s) as Date;
     const capacityAt = (at: Date) =>
-      at < MIDNIGHT && s.otterFriendDate === TODAY
+      at < MIDNIGHT && s.otterFriendUntil !== null
         ? hammockCapacityNanoFish(FRIEND_DAY)
         : BASE_CAPACITY;
 
@@ -259,12 +320,12 @@ describe('predictHammockFullAt', () => {
   });
 });
 
-describe('boostsOn bait', () => {
+describe('dayBoostsOn bait', () => {
   it("applies the bait bonus only on the bait's day", () => {
     const s = state({ baitBonusPercent: 5, baitDate: TODAY });
 
-    expect(boostsOn(s, TODAY).baitBonusPercent).toBe(5);
-    expect(boostsOn(s, YESTERDAY).baitBonusPercent).toBe(0);
+    expect(dayBoostsOn(s, TODAY).baitBonusPercent).toBe(5);
+    expect(dayBoostsOn(s, YESTERDAY).baitBonusPercent).toBe(0);
   });
 
   it('drops the bait bonus at KST midnight', () => {
@@ -309,7 +370,7 @@ describe('settleHammock overflow', () => {
     const s = state({
       nanoFish: BASE_CAPACITY,
       settledAt: shiftMs(MIDNIGHT, -HOUR_MS),
-      otterFriendDate: TODAY,
+      otterFriendUntil: MIDNIGHT,
       otterFriendCount: 1,
     });
 
