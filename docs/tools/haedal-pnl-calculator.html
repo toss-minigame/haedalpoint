@@ -4,72 +4,42 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
 <style>
-  /* 레이아웃: 위에 공통 가정, 아래에 사용자 유형 3장. 장마다 입력과 결과를 한 카드에 둔 정산서 형식 */
+  /* 레이아웃: 결론 → 흑자 전환 기준 → 설정 → 유형별 결과 → 추가 강화 → 참고 자료 순. 위에서부터 읽으면 끝나도록 */
   :root {
-    --bg: #eef2f4;
-    --surface: #ffffff;
-    --surface-2: #f4f7f8;
-    --line: #d5dde1;
-    --fg: #14232b;
-    --muted: #5b6e78;
-    --accent: #0b6e7f;
-    --accent-soft: #d9eef1;
-    --gain: #0f7a4a;
-    --gain-soft: #dcf2e6;
-    --loss: #b42d2d;
-    --loss-soft: #f8e0e0;
+    --bg: #eef2f4; --surface: #ffffff; --surface-2: #f4f7f8; --line: #d5dde1;
+    --fg: #14232b; --muted: #5b6e78; --accent: #0b6e7f; --accent-soft: #d9eef1;
+    --gain: #0f7a4a; --gain-soft: #dcf2e6; --loss: #b42d2d; --loss-soft: #f8e0e0;
     --font-body: "Noto Sans KR", system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif;
     --font-num: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #0d171c;
-      --surface: #14232b;
-      --surface-2: #1a2d37;
-      --line: #28404c;
-      --fg: #e6eff2;
-      --muted: #93a9b3;
-      --accent: #5cc4d4;
-      --accent-soft: #163a43;
-      --gain: #5fd49a;
-      --gain-soft: #143a2a;
-      --loss: #ff8f8f;
-      --loss-soft: #402021;
+      --bg: #0d171c; --surface: #14232b; --surface-2: #1a2d37; --line: #28404c;
+      --fg: #e6eff2; --muted: #93a9b3; --accent: #5cc4d4; --accent-soft: #163a43;
+      --gain: #5fd49a; --gain-soft: #143a2a; --loss: #ff8f8f; --loss-soft: #402021;
       color-scheme: dark;
     }
   }
   :root[data-theme="dark"] {
-    --bg: #0d171c;
-    --surface: #14232b;
-    --surface-2: #1a2d37;
-    --line: #28404c;
-    --fg: #e6eff2;
-    --muted: #93a9b3;
-    --accent: #5cc4d4;
-    --accent-soft: #163a43;
-    --gain: #5fd49a;
-    --gain-soft: #143a2a;
-    --loss: #ff8f8f;
-    --loss-soft: #402021;
+    --bg: #0d171c; --surface: #14232b; --surface-2: #1a2d37; --line: #28404c;
+    --fg: #e6eff2; --muted: #93a9b3; --accent: #5cc4d4; --accent-soft: #163a43;
+    --gain: #5fd49a; --gain-soft: #143a2a; --loss: #ff8f8f; --loss-soft: #402021;
     color-scheme: dark;
   }
 
   * { box-sizing: border-box; }
   body {
-    background: var(--bg);
-    color: var(--fg);
-    font-family: var(--font-body);
-    font-size: 15px;
-    line-height: 1.55;
-    padding-block: 24px 48px;
+    background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.55;
+    padding-block: 24px 56px;
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
   }
   .wrap { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
   h1 { font-size: 24px; line-height: 1.3; margin: 0; text-wrap: balance; }
-  h2 { font-size: 16px; margin: 0; }
+  h2 { font-size: 17px; margin: 0; }
+  h3 { font-size: 14px; margin: 0; }
   p { margin: 0; }
-  .lede { color: var(--muted); max-width: 62ch; }
+  .sub { color: var(--muted); font-size: 13px; }
   .num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
 
   .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
@@ -77,227 +47,831 @@
   .chips { display: flex; flex-wrap: wrap; gap: 8px; }
   button.chip {
     font: inherit; font-size: 13px; color: var(--accent); background: var(--accent-soft);
-    border: 1px solid transparent; border-radius: 999px; padding: 6px 12px; cursor: pointer; min-height: 32px;
+    border: 1px solid transparent; border-radius: 999px; padding: 6px 12px; cursor: pointer; min-height: 36px;
   }
   button.chip:hover { border-color: var(--accent); }
-  button.chip:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button.chip.plain { color: var(--muted); background: var(--surface-2); border-color: var(--line); }
+  button.chip:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-  .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
-  .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-  .field label { font-size: 12px; color: var(--muted); }
-  .field .box { display: flex; align-items: center; gap: 6px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 0 10px; min-height: 38px; }
-  .field input { flex: 1; min-width: 0; width: 100%; border: 0; background: transparent; color: var(--fg); font-family: var(--font-num); font-size: 15px; padding: 8px 0; outline-offset: 6px; }
-  .field .unit { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .legendbox { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+  .legendbox b { font-weight: 500; }
 
-  .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .verdict { border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 8px; }
+  .verdict.gain { background: var(--gain-soft); } .verdict.loss { background: var(--loss-soft); }
+  .verdict .pill { align-self: flex-start; font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--surface); }
+  .verdict.gain .pill { color: var(--gain); } .verdict.loss .pill { color: var(--loss); }
+  .verdict .big { font-family: var(--font-num); font-size: 30px; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; }
+  .verdict.gain .big { color: var(--gain); } .verdict.loss .big { color: var(--loss); }
+  .verdict .msg { font-size: 15px; max-width: 70ch; }
+  .verdict .d { font-family: var(--font-num); font-size: 12px; }
+  .d.up { color: var(--gain); } .d.down { color: var(--loss); }
+
+  .flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
   .stat { background: var(--surface-2); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .stat .k { font-size: 12px; color: var(--muted); }
-  .stat .v { font-family: var(--font-num); font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-  .stat .s { font-size: 12px; color: var(--muted); }
-  .stat.gain { background: var(--gain-soft); }
-  .stat.gain .v { color: var(--gain); }
-  .stat.loss { background: var(--loss-soft); }
-  .stat.loss .v { color: var(--loss); }
+  .stat .v { font-family: var(--font-num); font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .stat .s { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+  .stat.loss .v { color: var(--loss); } .stat.gain .v { color: var(--gain); }
 
-  .types { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 16px; align-items: start; }
+  .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+  .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .field label { font-size: 12px; color: var(--muted); }
+  .field .box { display: flex; align-items: center; gap: 6px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 0 10px; min-height: 40px; }
+  .field input, .field select {
+    flex: 1; min-width: 0; width: 100%; border: 0; background: transparent; color: var(--fg);
+    font-family: var(--font-num); font-size: 15px; padding: 8px 0; outline-offset: 6px;
+  }
+  .field input.text { font-family: var(--font-body); }
+  select { background: var(--surface-2); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font-family: var(--font-body); font-size: 15px; min-height: 40px; }
+  .field select { border: 0; padding: 8px 0; }
+  .field .unit { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+  details.group { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+  details.group > summary { cursor: pointer; padding: 11px 14px; font-weight: 500; min-height: 44px; display: flex; align-items: center; }
+  details.group[open] > summary { border-bottom: 1px solid var(--line); }
+  details.group .fields, details.group .inner { padding: 14px; }
+  .groups { display: flex; flex-direction: column; gap: 10px; }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 500; background: var(--surface-2); font-size: 13px; white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  td.n, th.n { text-align: right; font-family: var(--font-num); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td .hint { display: block; color: var(--muted); font-size: 12px; }
+  td.good { color: var(--gain); font-weight: 600; } td.bad { color: var(--loss); font-weight: 600; }
+  table.sens td, table.sens th { text-align: right; font-family: var(--font-num); font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 13px; }
+  table.sens th:first-child { text-align: left; font-family: var(--font-body); }
+  table.sens td.gain { background: var(--gain-soft); color: var(--gain); }
+  table.sens td.loss { background: var(--loss-soft); color: var(--loss); }
+  table.sens td.now { outline: 2px solid var(--accent); outline-offset: -2px; font-weight: 600; }
+
+  .types { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; align-items: start; }
   .type h2 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-  .type .tag { font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: 999px; }
-  .tag.gain { color: var(--gain); background: var(--gain-soft); }
-  .tag.loss { color: var(--loss); background: var(--loss-soft); }
+  .tag { font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+  .tag.gain { color: var(--gain); background: var(--gain-soft); } .tag.loss { color: var(--loss); background: var(--loss-soft); }
   .type .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .rows { display: flex; flex-direction: column; margin: 0; border-top: 1px solid var(--line); }
   .rows div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); }
   .rows dt { color: var(--muted); font-size: 13px; }
   .rows dd { margin: 0; text-align: right; font-family: var(--font-num); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-  .rows .strong dd { font-weight: 600; }
-  .rows .gain dd { color: var(--gain); }
-  .rows .loss dd { color: var(--loss); }
+  .rows .strong dd { font-weight: 600; } .rows .gain dd { color: var(--gain); } .rows .loss dd { color: var(--loss); }
+  .bars { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; align-items: end; height: 64px; }
+  .bar { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; height: 100%; font-size: 11px; color: var(--muted); font-family: var(--font-num); }
+  .bar i { display: block; width: 100%; max-width: 28px; border-radius: 3px 3px 0 0; min-height: 2px; }
+  .bar i.gain { background: var(--gain); } .bar i.loss { background: var(--loss); }
 
+  .customs { display: flex; flex-direction: column; gap: 12px; }
+  .custom { border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: flex; flex-direction: column; gap: 12px; background: var(--surface-2); }
+  .custom .head { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
+  .custom .head .field { flex: 1; min-width: 160px; }
+  .custom .fields { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .custom .field .box { background: var(--surface); }
+  .empty { color: var(--muted); font-size: 14px; padding: 6px 0; }
+
+  .chart-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+  .chart { width: 100%; height: auto; display: block; }
+  .chart text { fill: var(--muted); font-size: 11px; font-family: var(--font-num); }
+  .chart .grid { stroke: var(--line); stroke-width: 1; }
+  .chart .rev { stroke: var(--accent); fill: none; stroke-width: 2.2; }
+  .chart .pay { stroke: var(--loss); fill: none; stroke-width: 2.2; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; }
+  .legend span::before { content: ""; display: inline-block; width: 14px; height: 3px; margin-right: 6px; vertical-align: middle; border-radius: 2px; background: var(--accent); }
+  .legend .l-pay::before { background: var(--loss); }
+  textarea { width: 100%; min-height: 92px; font-family: var(--font-num); font-size: 12px; background: var(--surface-2); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 10px; resize: vertical; }
   .notes { color: var(--muted); font-size: 13px; padding-left: 18px; margin: 0; display: flex; flex-direction: column; gap: 4px; }
   .notes b { color: var(--fg); font-weight: 500; }
-  @media (max-width: 420px) { .type .fields { grid-template-columns: 1fr 1fr; } .stat .v { font-size: 19px; } }
+  .status { font-size: 13px; color: var(--muted); min-height: 20px; }
+  @media (max-width: 420px) { .type .fields { grid-template-columns: 1fr 1fr; } .verdict .big { font-size: 25px; } }
 </style>
 
 <div class="wrap">
   <header style="display:flex;flex-direction:column;gap:8px">
-    <h1>해달 손익 계산기</h1>
-    <p class="lede">광고 1회 수익, 환율, 낚시 속도를 바꾸면 사용자 유형별 하루·한 달 손익이 바로 계산돼요. 코드의 정책값(500마리 = 1원, 시간당 약 694마리, 해먹 5,000마리)이 기본으로 들어 있어요.</p>
+    <h1>해달 손익 계산기 <span style="font-size:13px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--surface);color:var(--muted);vertical-align:middle;margin-left:6px">v5</span></h1>
+    <div class="legendbox">
+      <span><b>흑자와 적자는 운영하는 우리 기준이에요.</b> 우리 손익 = 광고 수익 − 사용자에게 주는 토스 포인트</span>
+      <span>사용자가 받는 돈은 "사용자 지급"으로 따로 보여 줘요. 사용자가 많이 받을수록 우리 손익은 나빠져요.</span>
+    </div>
   </header>
 
-  <section class="panel" aria-labelledby="g-head">
+  <!-- 1. 결론 -->
+  <section class="panel" aria-labelledby="v-head">
     <div class="panel-head">
-      <h2 id="g-head">공통 가정</h2>
-      <div class="chips" role="group" aria-label="프리셋">
-        <button class="chip" type="button" data-set="ad" data-v="1.5">광고 1.5원</button>
-        <button class="chip" type="button" data-set="ad" data-v="2">광고 2.0원</button>
-        <button class="chip" type="button" data-preset="current">현재 정책</button>
-        <button class="chip" type="button" data-preset="example">예시 정책</button>
+      <h2 id="v-head">결론: 사용자 1명 기준 한 달</h2>
+      <div class="chips">
+        <button class="chip" type="button" id="btn-base">지금 결과를 기준으로 저장</button>
+        <button class="chip plain" type="button" id="btn-base-clear">기준 지우기</button>
       </div>
     </div>
-    <div class="fields" id="globals"></div>
+    <div id="verdict"></div>
+    <div class="flow" id="flow"></div>
+    <p class="sub" id="base-note"></p>
   </section>
 
-  <section class="panel" aria-labelledby="all-head">
-    <h2 id="all-head">전체 사용자 평균</h2>
-    <div class="summary" id="blended"></div>
+  <!-- 2. 흑자 전환 기준 -->
+  <section class="panel" aria-labelledby="be-head">
+    <h2 id="be-head">우리가 흑자가 되는 최소 기준</h2>
+    <p class="sub" id="be-sub"></p>
+    <div class="tablewrap"><table id="be"></table></div>
   </section>
 
-  <section class="types" id="types" aria-label="사용자 유형별 계산"></section>
+  <!-- 3. 설정 -->
+  <section class="panel" aria-labelledby="set-head">
+    <div class="panel-head">
+      <h2 id="set-head">설정</h2>
+      <div class="chips" role="group" aria-label="프리셋">
+        <button class="chip" type="button" data-preset="current">기본 (1마리 = 1원, 0.075마리/시간)</button>
+        <button class="chip" type="button" data-preset="rod2">낚싯대 2%·상한 없음</button>
+        <button class="chip" type="button" data-preset="old">기존 정책 (500마리 = 1원, 694마리/시간)</button>
+        <button class="chip" type="button" data-preset="lean">보수 정책 (4,000마리 = 1원)</button>
+        <button class="chip plain" type="button" data-preset="reset">초기화</button>
+      </div>
+    </div>
+    <div class="chips">
+      <button class="chip" type="button" data-set="ad" data-v="1.5">광고 1회 1.5원</button>
+      <button class="chip" type="button" data-set="ad" data-v="2">광고 1회 2.0원</button>
+    </div>
+    <div class="groups" id="globals"></div>
+    <details class="group">
+      <summary>설정 복사·붙여넣기 (팀원과 숫자 공유)</summary>
+      <div class="inner" style="display:flex;flex-direction:column;gap:10px">
+        <textarea id="json" aria-label="설정 JSON" spellcheck="false"></textarea>
+        <div class="chips">
+          <button class="chip" type="button" id="btn-copy">복사</button>
+          <button class="chip" type="button" id="btn-load">붙여넣은 설정 적용</button>
+        </div>
+        <p class="status" id="json-status" role="status"></p>
+      </div>
+    </details>
+  </section>
+
+  <!-- 4. 유형별 -->
+  <section aria-labelledby="ty-head" style="display:flex;flex-direction:column;gap:12px">
+    <h2 id="ty-head">사용자 유형별 결과 (1명 기준)</h2>
+    <div class="types" id="types"></div>
+  </section>
+
+  <!-- 5. 추가 강화 -->
+  <section class="panel" aria-labelledby="cu-head">
+    <div class="panel-head">
+      <h2 id="cu-head">추가 강화 기능 (앞으로 넣을 것)</h2>
+      <button class="chip" type="button" id="btn-add-custom">추가 강화 칸 만들기</button>
+    </div>
+    <p class="sub">미끼, 옷, 날씨 이벤트처럼 새로 넣을 강화 기능을 칸으로 만들어 손익에 바로 반영해요. 효과는 낚싯대처럼 그날 자정까지 유지되는 것으로 계산해요. 칸은 이 페이지를 연 브라우저에 저장되고, "설정 복사"에 함께 들어가요.</p>
+    <div class="customs" id="customs"></div>
+  </section>
+
+  <!-- 5-b. 속도와 용량 조합 -->
+  <section class="panel" aria-labelledby="opt-head">
+    <h2 id="opt-head">기본 속도와 해먹 용량 조합 (흑자 기준)</h2>
+    <p class="sub" id="opt-sub"></p>
+    <div class="tablewrap"><table class="sens" id="opt"></table></div>
+  </section>
+
+  <!-- 6. 참고 -->
+  <section class="panel" aria-labelledby="sens-head">
+    <h2 id="sens-head">환율과 광고 단가를 바꾸면 우리 손익은?</h2>
+    <p class="sub">사용자 1명의 한 달 평균 우리 손익(원)이에요. 파란 테두리가 지금 설정이고, 초록은 흑자, 빨강은 적자예요.</p>
+    <div class="tablewrap"><table class="sens" id="sens"></table></div>
+  </section>
+
+  <section class="panel" aria-labelledby="ch-head">
+    <h2 id="ch-head">하루 동안 수익과 지급이 쌓이는 모습</h2>
+    <div class="chart-controls">
+      <div class="field" style="min-width:150px"><label for="chart-type">유형</label><select id="chart-type"></select></div>
+      <div class="field" style="min-width:150px"><label for="chart-day">출석 주기의 몇 일차</label>
+        <select id="chart-day"><option value="1">1일차</option><option value="2">2일차</option><option value="3" selected>3일차</option><option value="4">4일차</option><option value="5">5일차</option><option value="6">6일차</option><option value="7">7일차 (해달 친구)</option></select></div>
+    </div>
+    <svg class="chart" id="chart" viewBox="0 0 640 250" role="img" aria-label="하루 동안 누적 광고 수익과 누적 사용자 지급"></svg>
+    <div class="legend" id="legend"></div>
+  </section>
 
   <section class="panel" aria-labelledby="note-head">
     <h2 id="note-head">계산 방식과 가정</h2>
     <ul class="notes">
-      <li><b>속도</b> = 100% + 낚싯대 단계 × 단계당 % + 해달 친구 × 친구당 %. 보너스는 더해요.</li>
-      <li><b>해먹 용량</b> = 기본 용량 × (100% + 해달 친구 × 친구당 % + 해먹 단계 × 단계당 %).</li>
-      <li><b>저장 1회 물고기</b> = 저장 간격 동안 쌓인 양과 해먹 용량 중 작은 값. 간격이 길어도 용량을 넘기면 쌓이지 않아요.</li>
-      <li><b>광고 수익</b> = (저장 횟수 × 광고가 뜬 비율 + 저장 외 광고 시청) × 광고 1회 수익. 저장 외 광고는 낚싯대 강화, 해먹 넓히기, 퀴즈, 출석 2배예요.</li>
-      <li>광고 1회 수익은 토스 수수료를 뺀 순수익으로 가정했어요. 사용자 유형별 행동과 비중은 예시값이라 실제 데이터로 바꿔야 해요.</li>
-      <li>최소 전환 단위는 아직 정해지지 않아 임의값(10원)을 넣었어요. 첫 전환까지 걸리는 시간 계산에만 쓰여요.</li>
-      <li>이 계산기는 앱 코드와 별개예요. 값이 정해지면 정책값 파일에 따로 반영해요.</li>
+      <li><b>하루 시뮬레이션:</b> 방문 시각마다 저장(광고 1회) → 출석·퀴즈(첫 방문) → 낚싯대·해먹·추가 강화 광고 순서로 처리해요. 쿨타임이 안 지났으면 광고를 못 봐요. 마지막 방문 시각이 첫 방문보다 작으면 다음 날 새벽까지 이어지는 것으로 봐요.</li>
+      <li><b>속도·용량:</b> 기본 × (100% + 낚싯대 + 해달 친구 + 추가 강화). 보너스는 더하고, 해먹이 가득 차면 더 쌓이지 않아요. 강화는 매일 KST 자정에 초기화되고 물고기는 이어져요.</li>
+      <li><b>자정에 용량보다 많은 물고기:</b> 해먹 넓히기 등이 풀려 용량이 줄면 실제 코드는 "이미 있는 물고기는 줄이지 않고 더 쌓이지만 않게" 해요. 기본값은 이 동작(유지)이고, "버림"을 고르면 넘치는 만큼 사라지는 것으로 계산해요.</li>
+      <li><b>출석 주기:</b> 방문하는 날 비율이 100%면 7일 주기를 두 번 돌려 두 번째 주기를 평균내요. 100% 미만이면 결석일을 균등하게 정해 두고(무작위 없음), 하루라도 빠지면 연속 기록이 1일차로 돌아가는 실제 규칙대로 84일을 돌려 뒤쪽 70일을 평균내요. 그래서 결석이 늘면 7일차(해달 친구)에 닿기 어려워져요. 1~6일차는 낚싯대 강화, 7일차는 해달 친구예요.</li>
+      <li><b>광고 수익과 노출률:</b> 광고를 띄울 때마다 1회 수익을 더하고, 노출률을 곱해요. 광고가 안 뜨면 강화도 못 받아서 강화량도 같은 비율로 줄여요(평균값 계산). 저장 때는 광고가 안 떠도 저장은 돼요. 광고 수익은 토스 수수료를 뺀 순수익으로 가정했어요.</li>
+      <li><b>해먹 단계 방식:</b> "합산"은 기본 용량에 (단계 x 단계당 %)를 더하고, "등비"는 단계마다 직전 용량에 (1 + 단계당 %)를 곱해요. 해달 친구와 추가 강화 용량은 어느 쪽이든 합산이에요. 단계당 %가 작고 단계가 몇 개 안 되면 두 방식의 차이는 아주 작아요.</li>
+      <li><b>저장 최소 물고기:</b> 이 값보다 적게 쌓였으면 저장 버튼을 눌러도 저장되지 않는 것으로 봐요(현재 코드는 1마리). 해먹 용량이 이 값보다 작으면 그 용량으로는 저장이 아예 안 되니, 1:1 소수점에서 용량을 1마리 미만으로 둘 때는 이 값도 같이 낮춰야 해요.</li>
+      <li><b>기본 설정 (1:1 소수점):</b> 환율 1마리 = 1원, 기본 속도 0.075마리/시간(0.00125마리/분, 약 0.0000208마리/초), 해먹 용량 0.85마리, 저장 최소 0.01마리를 출발점으로 해요. 환율이 20 미만이면 물고기를 소수로 저장하고, 그보다 크면 정수 마리로 저장해요. 예전 정책(500마리 = 1원, 694.44마리/시간, 용량 5,000마리, 저장 최소 1마리)은 "기존 정책" 버튼으로 불러와요. 환율만 바꾸고 속도와 용량을 그대로 두면 지급이 환율 비율만큼 달라져요.</li>
+      <li><b>전환 방식:</b> "소수점까지 바로 지급"은 저장할 때마다 물고기 ÷ 환율을 그대로 지급으로 봐요. "정수 원 단위로 전환"은 포인트 지급이 정수 원 단위라는 점을 반영해, 창고에 모은 물고기를 원 단위로 바꾸고 남는 물고기는 이월해요. 최소 전환 단위를 켜면 그 금액이 모일 때까지 지급하지 않아요.</li>
+      <li><b>한도와 상한:</b> 월 지급 한도 "계산에 적용"을 켜면 유형별 월 지급을 한도로 잘라요(현재 코드는 한도를 강제하지 않고 표시와 테스트로만 지켜요). 하루 지급 상한에 걸린 물고기는 기본적으로 사라지고, "이월"을 고르면 다음 저장에서 지급해요. 아직 구현되지 않은 가정이에요.</li>
+      <li><b>최소 기준:</b> 다른 값은 그대로 두고 한 값만 바꿔서 목표(수익 대비 지급 비율 이하)를 맞추는 값을 이진 탐색으로 찾아요. 입력이 멈춘 뒤 0.25초 뒤에 갱신돼요.</li>
+      <li>사용자 유형별 행동과 비중, 최소 전환 단위는 예시값이에요. 앱 코드와 별개의 계산기라 값이 정해지면 정책값 파일에 따로 반영해요.</li>
     </ul>
   </section>
 </div>
 
 <script>
 (function () {
-  var GLOBALS = [
-    { k: 'ad', label: '광고 1회 수익', unit: '원', step: 0.1, v: 1.5 },
-    { k: 'noAd', label: '저장 때 광고 없이 저장되는 비율', unit: '%', step: 1, v: 0 },
-    { k: 'fishPerWon', label: '환율 (1원당 물고기)', unit: '마리', step: 100, v: 500 },
-    { k: 'baseRate', label: '기본 낚시 속도', unit: '마리/시간', step: 10, v: 694.44 },
-    { k: 'baseCap', label: '기본 해먹 용량', unit: '마리', step: 100, v: 5000 },
-    { k: 'rodPct', label: '낚싯대 1단계당 속도', unit: '%', step: 1, v: 10 },
-    { k: 'otterSpeed', label: '해달 친구 1명당 속도', unit: '%', step: 10, v: 100 },
-    { k: 'otterCap', label: '해달 친구 1명당 용량', unit: '%', step: 10, v: 50 },
-    { k: 'hamPct', label: '해먹 1단계당 용량', unit: '%', step: 1, v: 10 },
-    { k: 'minWon', label: '최소 전환 단위 (가정)', unit: '원', step: 1, v: 10 }
+  var STORE_KEY = 'haedal-pnl-v4', OLD_KEY = 'haedal-pnl-v3';
+  var YES_NO = function (yes, no) { return [[1, yes], [0, no]]; };
+
+  var GROUPS = [
+    { id: 'ads', title: '광고 수익', open: true, fields: [
+      { k: 'ad', label: '보상형 광고 1회 수익', unit: '원', step: 0.1, any: true, v: 1.5 },
+      { k: 'interRev', label: '전면 광고 1회 수익', unit: '원', step: 0.1, any: true, v: 1 },
+      { k: 'adFill', label: '광고 노출률 (광고가 실제로 뜨는 비율)', unit: '%', step: 5, v: 100 },
+      { k: 'noAd', label: '저장 광고를 건너뛰고 저장하는 비율', unit: '%', step: 1, v: 0 }] },
+    { id: 'eco', title: '낚시와 환율', open: true, fields: [
+      { k: 'fishPerWon', label: '환율 (1원당 물고기)', unit: '마리', step: 1, v: 1 },
+      { k: 'baseRate', label: '기본 낚시 속도', unit: '마리/시간', step: 0.005, any: true, v: 0.075 },
+      { k: 'baseCap', label: '기본 해먹 용량', unit: '마리', step: 0.05, any: true, v: 0.85 },
+      { k: 'minStore', label: '저장에 필요한 최소 물고기 (저장 가능 기준)', unit: '마리', step: 0.01, any: true, v: 0.01 },
+      { k: 'midnightKeep', label: '자정에 용량보다 많은 물고기', sel: YES_NO('유지 (실제 코드 동작)', '버림'), v: 1 }] },
+    { id: 'conv', title: '토스 포인트 전환', open: false, fields: [
+      { k: 'minWon', label: '최소 전환 단위 (가정)', unit: '원', step: 1, v: 10 },
+      { k: 'convMode', label: '전환 방식', sel: [[0, '소수점까지 바로 지급'], [1, '정수 원 단위로 전환, 나머지 이월']], v: 0 },
+      { k: 'convMin', label: '정수 전환일 때 최소 단위', sel: YES_NO('최소 전환 단위까지 모은 뒤 전환', '바로 전환'), v: 1 }] },
+    { id: 'safe', title: '목표와 안전장치', open: true, fields: [
+      { k: 'target', label: '목표: 수익 대비 지급 비율 이하 (100 = 본전)', unit: '%', step: 5, v: 100 },
+      { k: 'monthlyLimit', label: '1인당 월 지급 한도', unit: '원', step: 100, v: 5000 },
+      { k: 'limitOn', label: '월 지급 한도 처리', sel: [[0, '표시만 (계산에 넣지 않음)'], [1, '계산에 적용 (월 지급을 한도로 자름)']], v: 0 },
+      { k: 'dailyCap', label: '하루 지급 상한 (0 = 없음)', unit: '원', step: 1, v: 0 },
+      { k: 'capCarry', label: '하루 상한에 걸린 물고기', sel: [[0, '사라짐'], [1, '다음 저장으로 이월']], v: 0 }] },
+    { id: 'rod', title: '낚싯대', open: false, fields: [
+      { k: 'rodPct', label: '1단계당 속도', unit: '%', step: 1, v: 10 },
+      { k: 'rodMax', label: '하루 최대 단계 (0 = 제한 없음)', unit: '단계', step: 1, v: 10 },
+      { k: 'rodCd', label: '광고 쿨타임', unit: '분', step: 5, v: 20 },
+      { k: 'rodPerAd', label: '광고 1회당 단계', unit: '단계', step: 1, v: 1 }] },
+    { id: 'ham', title: '해먹', open: false, fields: [
+      { k: 'hamPct', label: '1단계당 용량', unit: '%', step: 1, v: 10 },
+      { k: 'hamGeo', label: '단계가 쌓이는 방식', sel: [[0, '합산 (기본 용량 + 단계 x %)'], [1, '등비 (단계마다 직전 용량에 x % 곱함)']], v: 0 },
+      { k: 'hamMax', label: '하루 최대 단계 (0 = 제한 없음)', unit: '단계', step: 1, v: 5 },
+      { k: 'hamCd', label: '광고 쿨타임', unit: '분', step: 5, v: 60 },
+      { k: 'hamPerAd', label: '광고 1회당 단계', unit: '단계', step: 1, v: 1 }] },
+    { id: 'otter', title: '해달 친구', open: false, fields: [
+      { k: 'otterSpeed', label: '1명당 속도', unit: '%', step: 10, v: 100 },
+      { k: 'otterCap', label: '1명당 용량', unit: '%', step: 10, v: 50 },
+      { k: 'otterMax', label: '하루 최대 인원', unit: '명', step: 1, v: 2 }] },
+    { id: 'reward', title: '출석·퀴즈 보상', open: false, fields: [
+      { k: 'attLevels', label: '출석(1~6일차) 낚싯대 단계', unit: '단계', step: 1, v: 1 },
+      { k: 'quizLevels', label: '퀴즈 정답 광고당 낚싯대 단계', unit: '단계', step: 1, v: 1 }] }
   ];
-  var FIELDS = [
-    { k: 'stores', label: '하루 저장 횟수', unit: '회', step: 1 },
-    { k: 'interval', label: '저장 사이 간격', unit: '시간', step: 0.1 },
-    { k: 'other', label: '저장 외 광고', unit: '회/일', step: 1 },
-    { k: 'rod', label: '낚싯대 단계', unit: '단계', step: 1 },
-    { k: 'otter', label: '해달 친구', unit: '명', step: 1 },
-    { k: 'ham', label: '해먹 단계', unit: '단계', step: 1 },
-    { k: 'share', label: '사용자 비중', unit: '%', step: 5 }
+
+  var TFIELDS = [
+    { k: 'share', label: '사용자 비중', unit: '%', step: 5 },
+    { k: 'attRate', label: '방문하는 날 비율 (출석률)', unit: '%', step: 10 },
+    { k: 'visits', label: '하루 방문 횟수', unit: '회', step: 1 },
+    { k: 'startH', label: '첫 방문 시각', unit: '시', step: 1 },
+    { k: 'endH', label: '마지막 방문 시각 (첫 방문보다 작으면 다음 날 새벽)', unit: '시', step: 1 },
+    { k: 'storePct', label: '저장하는 방문 비율', unit: '%', step: 10 },
+    { k: 'rod', label: '낚싯대 광고', unit: '회/방문', step: 1 },
+    { k: 'ham', label: '해먹 광고', unit: '회/방문', step: 1 },
+    { k: 'att', label: '출석 (1 = 함)', unit: '', step: 1 },
+    { k: 'attAd', label: '출석 2배 광고 (1 = 봄)', unit: '', step: 1 },
+    { k: 'quiz', label: '푸는 퀴즈 (최대 3)', unit: '문제', step: 1 },
+    { k: 'wrong', label: '퀴즈 오답 비율', unit: '%', step: 10 },
+    { k: 'inter', label: '전면 광고', unit: '회/방문', step: 1 }
   ];
+
   var TYPES = [
-    { id: 'idle', name: '방치형', hint: '광고 없이 가끔 들어와 저장만', v: { stores: 3, interval: 8, other: 0, rod: 0, otter: 0, ham: 0, share: 60 } },
-    { id: 'some', name: '가끔 보는 유형', hint: '출석·퀴즈와 강화를 조금', v: { stores: 4, interval: 6, other: 6, rod: 5, otter: 0, ham: 0, share: 30 } },
-    { id: 'heavy', name: '꾸준히 보는 유형', hint: '강화와 해먹을 최대로', v: { stores: 6, interval: 2.7, other: 20, rod: 10, otter: 0, ham: 5, share: 10 } }
+    { id: 'idle', name: '방치형', hint: '가끔 들어와 저장만 해요', v: { share: 60, attRate: 100, visits: 3, startH: 7, endH: 23, storePct: 100, rod: 0, ham: 0, att: 0, attAd: 0, quiz: 0, wrong: 0, inter: 0 } },
+    { id: 'some', name: '가끔 보는 유형', hint: '출석·퀴즈, 낚싯대 광고를 조금', v: { share: 30, attRate: 100, visits: 4, startH: 8, endH: 22, storePct: 100, rod: 1, ham: 0, att: 1, attAd: 1, quiz: 3, wrong: 30, inter: 0 } },
+    { id: 'heavy', name: '꾸준히 보는 유형', hint: '자주 들어와 강화와 해먹을 최대로', v: { share: 10, attRate: 100, visits: 12, startH: 8, endH: 22, storePct: 50, rod: 1, ham: 1, att: 1, attAd: 1, quiz: 3, wrong: 30, inter: 0 } }
   ];
-  var PRESETS = {
-    current: { fishPerWon: 500, baseRate: 694.44, baseCap: 5000 },
-    example: { fishPerWon: 4000, baseRate: 300, baseCap: 1200 }
-  };
 
-  var state = {};
-  GLOBALS.forEach(function (f) { state[f.k] = f.v; });
-  TYPES.forEach(function (t) { state[t.id] = Object.assign({}, t.v); });
+  var PRESETS = { current: {}, rod2: { rodPct: 2, rodMax: 0 }, old: { fishPerWon: 500, baseRate: 694.44, baseCap: 5000, minStore: 1 }, lean: { fishPerWon: 4000, baseRate: 300, baseCap: 1200, minStore: 1 } };
 
+  var gDefaults = {}, tDefaults = {};
+  GROUPS.forEach(function (gr) { gr.fields.forEach(function (f) { gDefaults[f.k] = f.v; }); });
+  TYPES.forEach(function (t) { tDefaults[t.id] = Object.assign({}, t.v); });
+
+  var customItems = [];
+  var baseline = null;
+  var slowTimer = null;
+  var SLOW_DELAY_MS = 250;
+  var SEARCH_STEPS = 28;
+
+  /* ---------- 화면 뼈대 ---------- */
   function fieldHtml(id, f, value) {
+    if (f.sel) {
+      return '<div class="field"><label for="' + id + '">' + f.label + '</label><div class="box"><select id="' + id + '" class="gsel">' +
+        f.sel.map(function (o) { return '<option value="' + o[0] + '"' + (String(o[0]) === String(value) ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') +
+        '</select></div></div>';
+    }
     return '<div class="field"><label for="' + id + '">' + f.label + '</label>' +
-      '<div class="box"><input id="' + id + '" type="number" inputmode="decimal" min="0" step="' + f.step + '" value="' + value + '">' +
-      '<span class="unit">' + f.unit + '</span></div></div>';
+      '<div class="box"><input id="' + id + '" type="number" inputmode="decimal" min="0" step="' + (f.any ? 'any' : f.step) + '"' + (f.any ? ' data-inc="' + f.step + '"' : '') + ' value="' + value + '">' +
+      (f.unit ? '<span class="unit">' + f.unit + '</span>' : '') + '</div></div>';
   }
-
-  document.getElementById('globals').innerHTML = GLOBALS.map(function (f) {
-    return fieldHtml('g-' + f.k, f, state[f.k]);
+  document.getElementById('globals').innerHTML = GROUPS.map(function (gr) {
+    return '<details class="group"' + (gr.open ? ' open' : '') + '><summary>' + gr.title + '</summary><div class="fields">' +
+      gr.fields.map(function (f) { return fieldHtml('g-' + f.k, f, f.v); }).join('') + '</div></details>';
   }).join('');
-
   document.getElementById('types').innerHTML = TYPES.map(function (t) {
     return '<article class="panel type" aria-labelledby="t-' + t.id + '">' +
-      '<div><h2 id="t-' + t.id + '"><span>' + t.name + '</span><span class="tag" id="tag-' + t.id + '"></span></h2>' +
-      '<p style="color:var(--muted);font-size:13px">' + t.hint + '</p></div>' +
-      '<div class="fields">' + FIELDS.map(function (f) { return fieldHtml(t.id + '-' + f.k, f, t.v[f.k]); }).join('') + '</div>' +
-      '<dl class="rows" id="rows-' + t.id + '"></dl></article>';
+      '<div><h2 id="t-' + t.id + '"><span>' + t.name + '</span><span class="tag" id="tag-' + t.id + '"></span></h2><p class="sub">' + t.hint + '</p></div>' +
+      '<dl class="rows" id="rows-' + t.id + '"></dl>' +
+      '<div class="bars" id="bars-' + t.id + '" aria-hidden="true"></div>' +
+      '<p class="sub">출석 연속 1~7일차별 하루 우리 손익 (7일차에 해달 친구가 와요)</p>' +
+      '<details class="group"><summary>이 유형의 행동 설정</summary><div class="fields">' +
+      TFIELDS.map(function (f) { return fieldHtml(t.id + '-' + f.k, f, t.v[f.k]); }).join('') + '</div></details></article>';
   }).join('');
+  document.getElementById('chart-type').innerHTML = TYPES.map(function (t) { return '<option value="' + t.id + '">' + t.name + '</option>'; }).join('');
 
+  /* ---------- 추가 강화 칸 ---------- */
+  function newCustom() { return { name: '새 강화', kind: 'speed', pct: 3, cd: 60, max: 0, ad: 1, use: { idle: 0, some: 1, heavy: 1 } }; }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function renderCustoms() {
+    var el = document.getElementById('customs');
+    if (!customItems.length) { el.innerHTML = '<p class="empty">아직 추가한 강화가 없어요. "추가 강화 칸 만들기"를 눌러 시작해요.</p>'; return; }
+    el.innerHTML = customItems.map(function (it, i) {
+      function f(field, label, unit, step) {
+        return '<div class="field"><label for="c' + i + '-' + field + '">' + label + '</label><div class="box"><input id="c' + i + '-' + field + '" type="number" min="0" step="' + step + '" inputmode="decimal" data-ci="' + i + '" data-cf="' + field + '" value="' + it[field] + '"><span class="unit">' + unit + '</span></div></div>';
+      }
+      function u(tid, label) {
+        return '<div class="field"><label for="c' + i + '-u-' + tid + '">' + label + ' 사용</label><div class="box"><input id="c' + i + '-u-' + tid + '" type="number" min="0" step="1" inputmode="decimal" data-ci="' + i + '" data-cu="' + tid + '" value="' + it.use[tid] + '"><span class="unit">회/방문</span></div></div>';
+      }
+      return '<div class="custom">' +
+        '<div class="head"><div class="field"><label for="c' + i + '-name">강화 이름</label><div class="box"><input class="text" id="c' + i + '-name" type="text" data-ci="' + i + '" data-cf="name" value="' + esc(it.name) + '"></div></div>' +
+        '<div class="field" style="max-width:170px"><label for="c' + i + '-kind">효과 종류</label><div class="box"><select id="c' + i + '-kind" data-ci="' + i + '" data-cf="kind"><option value="speed"' + (it.kind === 'speed' ? ' selected' : '') + '>낚시 속도</option><option value="cap"' + (it.kind === 'cap' ? ' selected' : '') + '>해먹 용량</option></select></div></div>' +
+        '<button class="chip plain" type="button" data-del="' + i + '">삭제</button></div>' +
+        '<div class="fields">' + f('pct', '1회 사용 효과', '%', 1) + f('cd', '쿨타임', '분', 5) + f('max', '하루 최대 사용 (0 = 제한 없음)', '회', 1) +
+        '<div class="field"><label for="c' + i + '-ad">광고를 보고 사용</label><div class="box"><select id="c' + i + '-ad" data-ci="' + i + '" data-cf="ad"><option value="1"' + (it.ad >= 1 ? ' selected' : '') + '>예 (광고 수익 발생)</option><option value="0"' + (it.ad >= 1 ? '' : ' selected') + '>아니요 (무료)</option></select></div></div></div>' +
+        '<div class="fields">' + u('idle', '방치형') + u('some', '가끔 보는 유형') + u('heavy', '꾸준히 보는 유형') + '</div></div>';
+    }).join('');
+  }
+
+  /* ---------- 입력 읽기·쓰기 ---------- */
   function num(v) { var n = parseFloat(v); return isFinite(n) && n >= 0 ? n : 0; }
+  function readState() {
+    var g = {}, t = {};
+    Object.keys(gDefaults).forEach(function (k) { g[k] = num(document.getElementById('g-' + k).value); });
+    TYPES.forEach(function (ty) {
+      t[ty.id] = {};
+      TFIELDS.forEach(function (f) { t[ty.id][f.k] = num(document.getElementById(ty.id + '-' + f.k).value); });
+    });
+    g.custom = customItems.map(function (it) {
+      return { name: it.name, kind: it.kind, pct: num(it.pct), cd: num(it.cd), max: num(it.max), ad: num(it.ad), use: { idle: num(it.use.idle), some: num(it.use.some), heavy: num(it.use.heavy) } };
+    });
+    return { g: g, t: t };
+  }
+  // 없는 값은 기본값으로 채운다 (예전 설정을 붙여넣어도 동작). fillCustom: 추가 강화 칸이 없으면 비운다
+  function writeState(s, fillCustom) {
+    Object.keys(gDefaults).forEach(function (k) {
+      document.getElementById('g-' + k).value = s.g && s.g[k] != null ? s.g[k] : gDefaults[k];
+    });
+    TYPES.forEach(function (ty) {
+      TFIELDS.forEach(function (f) {
+        var has = s.t && s.t[ty.id] && s.t[ty.id][f.k] != null;
+        document.getElementById(ty.id + '-' + f.k).value = has ? s.t[ty.id][f.k] : tDefaults[ty.id][f.k];
+      });
+    });
+    if (s.g && Array.isArray(s.g.custom)) {
+      customItems = s.g.custom.map(function (it) {
+        var d = newCustom(); d.use = Object.assign({}, d.use, it.use || {});
+        return Object.assign(d, it, { use: d.use });
+      });
+      renderCustoms();
+    } else if (fillCustom) { customItems = []; renderCustoms(); }
+  }
+
+  /* ---------- 하루 시뮬레이션 ---------- */
+  function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+
+  // streakDay: 출석 연속 일차(1~7). present=false 면 그날은 방문하지 않아 물고기만 쌓인다
+  function runDay(g, c, streakDay, fishIn, whIn, record, present) {
+    var t = 0, fish = fishIn, wh = whIn, rodL = 0, hamL = 0, otter = 0;
+    var lastRod = -1e9, lastHam = -1e9;
+    var cust = g.custom || [], cCount = cust.map(function () { return 0; }), cLast = cust.map(function () { return -1e9; });
+    var pay = 0, rev = 0, ads = 0, over = 0, prod = 0, fullH = 0, capLost = 0;
+    var tl = record ? [{ t: 0, rev: 0, pay: 0 }] : null;
+    var rodCdH = g.rodCd / 60, hamCdH = g.hamCd / 60, noAd = Math.min(g.noAd, 100) / 100;
+    var adF = clamp(g.adFill, 0, 100) / 100, adRev = g.ad * adF, keep = g.midnightKeep >= 1;
+
+    function addRod(n) { rodL = g.rodMax > 0 ? Math.min(g.rodMax, rodL + n) : rodL + n; }
+    function customPct(kind) { var s = 0; cust.forEach(function (it, i) { if (it.kind === kind) s += it.pct * cCount[i]; }); return s; }
+    function speed() { return g.baseRate * (1 + (rodL * g.rodPct + otter * g.otterSpeed + customPct('speed')) / 100); }
+    function cap() {
+      if (g.hamGeo >= 1) return g.baseCap * (1 + (otter * g.otterCap + customPct('cap')) / 100) * Math.pow(1 + g.hamPct / 100, hamL);   // 단계마다 직전 용량에 곱함
+      return g.baseCap * (1 + (otter * g.otterCap + hamL * g.hamPct + customPct('cap')) / 100);
+    }
+    function advance(to) {
+      var dt = to - t; if (dt <= 0) { t = Math.max(t, to); return; }
+      var sp = speed(), cp = cap(), raw = fish + sp * dt;
+      prod += sp * dt;
+      if (raw > cp) {
+        if (keep && fish >= cp * (1 - 1e-9)) { over += sp * dt; fullH += dt; }          // 이미 가득: 있는 물고기는 두고 더 쌓이지 않음
+        else {
+          var tFull = sp > 0 ? Math.max(0, (cp - fish) / sp) : dt;
+          fullH += Math.max(0, dt - tFull); over += raw - cp; fish = cp;
+        }
+      } else { fish = raw; }
+      t = to;
+    }
+    function mark() { if (tl) tl.push({ t: t, rev: rev, pay: pay }); }
+    function attendReward(scale) { if (streakDay <= 6) addRod(g.attLevels * scale); else otter = Math.min(g.otterMax, otter + scale); }
+
+    var ev = [];
+    if (present) {
+      var visits = Math.floor(c.visits);
+      var sH = clamp(c.startH, 0, 24), eH = clamp(c.endH, 0, 24);
+      var span = eH >= sH ? eH - sH : eH + 24 - sH;           // 마지막 방문이 첫 방문보다 작으면 다음 날 새벽까지
+      for (var i = 0; i < visits; i++) {
+        var vt = visits === 1 ? sH : sH + i * span / (visits - 1);
+        if (vt > 24) vt -= 24;
+        var k;
+        ev.push({ t: vt, p: 0, type: 'store', i: i });
+        if (i === 0) ev.push({ t: vt, p: 1, type: 'daily' });
+        for (k = 0; k < Math.floor(c.rod); k++) if (vt + k * rodCdH <= 24) ev.push({ t: vt + k * rodCdH, p: 2, type: 'rod' });
+        for (k = 0; k < Math.floor(c.ham); k++) if (vt + k * hamCdH <= 24) ev.push({ t: vt + k * hamCdH, p: 2, type: 'ham' });
+        for (k = 0; k < Math.floor(c.inter); k++) ev.push({ t: vt, p: 3, type: 'inter' });
+        cust.forEach(function (it, ci) {
+          var times = Math.floor((it.use && it.use[c._id]) || 0);
+          for (var m = 0; m < times; m++) { var tt = vt + m * it.cd / 60; if (tt <= 24) ev.push({ t: tt, p: 2, type: 'custom', ci: ci }); }
+        });
+      }
+      ev.sort(function (a, b) { return a.t - b.t || a.p - b.p; });
+    }
+
+    var frac = Math.min(c.storePct, 100) / 100;
+    ev.forEach(function (e) {
+      advance(e.t);
+      if (e.type === 'store') {
+        var doStore = Math.floor((e.i + 1) * frac + 1e-9) > Math.floor(e.i * frac + 1e-9);
+        if (doStore && fish >= g.minStore - 1e-12) {
+          var stored = g.fishPerWon < 20 ? fish : Math.floor(fish); fish -= stored;   // 1:1 소수점 모드(환율 20 미만)는 물고기를 소수로 저장
+          var fpw = g.fishPerWon > 0 ? g.fishPerWon : 1e12, lost;
+          if (g.convMode >= 1) {                              // 정수 원 단위 전환, 나머지는 이월
+            wh += stored;
+            var won = Math.floor(wh / fpw);
+            if (g.convMin >= 1 && won < g.minWon) won = 0;
+            var allowed = g.dailyCap > 0 ? Math.max(0, Math.min(won, Math.floor(g.dailyCap - pay))) : won;
+            if (g.capCarry >= 1) wh -= allowed * fpw;
+            else { wh -= won * fpw; capLost += (won - allowed) * fpw; }
+            pay += allowed;
+          } else {                                            // 소수점까지 바로 지급
+            var avail = stored + (g.capCarry >= 1 ? wh : 0);
+            var pp = avail / fpw, ok = g.dailyCap > 0 ? Math.max(0, Math.min(pp, g.dailyCap - pay)) : pp;
+            lost = (pp - ok) * fpw;
+            if (g.capCarry >= 1) wh = lost; else { wh = 0; capLost += lost; }
+            pay += ok;
+          }
+          rev += adRev * (1 - noAd); ads += adF * (1 - noAd);
+        }
+      } else if (e.type === 'daily') {
+        if (c.att >= 1) { attendReward(1); if (c.attAd >= 1) { attendReward(adF); rev += adRev; ads += adF; } }
+        var q = Math.min(3, Math.floor(c.quiz));
+        for (var j = 0; j < q; j++) { addRod(g.quizLevels * adF); rev += adRev; ads += adF; }
+        var retries = q * Math.min(c.wrong, 100) / 100;
+        rev += adRev * retries; ads += adF * retries;
+      } else if (e.type === 'rod') {
+        if (t >= lastRod + rodCdH - 1e-9 && (g.rodMax === 0 || rodL < g.rodMax)) { addRod(g.rodPerAd * adF); rev += adRev; ads += adF; lastRod = t; }
+      } else if (e.type === 'ham') {
+        if (t >= lastHam + hamCdH - 1e-9 && (g.hamMax === 0 || hamL < g.hamMax)) {
+          var add = g.hamPerAd * adF; hamL = g.hamMax > 0 ? Math.min(g.hamMax, hamL + add) : hamL + add; rev += adRev; ads += adF; lastHam = t;
+        }
+      } else if (e.type === 'custom') {
+        var it2 = cust[e.ci];
+        if (t >= cLast[e.ci] + it2.cd / 60 - 1e-9 && (it2.max === 0 || cCount[e.ci] < it2.max)) {
+          cLast[e.ci] = t;
+          if (it2.ad >= 1) { cCount[e.ci] += adF; rev += adRev; ads += adF; } else cCount[e.ci] += 1;
+        }
+      } else if (e.type === 'inter') { rev += g.interRev * adF; ads += adF; }
+      mark();
+    });
+    advance(24); mark();
+    return { pay: pay, rev: rev, ads: ads, over: over, prod: prod, fullH: fullH, capLost: capLost, fishEnd: fish, whEnd: wh, tl: tl };
+  }
+
+  // 출석률 100%면 7일 주기를 두 번 돌려 두 번째 주기를 평균낸다 (기존과 같음).
+  // 100% 미만이면 결정적인 결석일(균등 배치)을 두고 연속 기록이 끊기면 1일차로 돌아가는 규칙으로 더 길게 돌린다.
+  function simulateType(g, c, chartDay) {
+    var rate = clamp((c.attRate == null ? 100 : c.attRate) / 100, 0, 1), full = rate >= 1;
+    var total = full ? 14 : 84, from = full ? 7 : 14;
+    var fish = 0, wh = 0, consec = 0, tl = null, count = 0, whEnd = 0;
+    var sum = { pay: 0, rev: 0, ads: 0, over: 0, prod: 0, fullH: 0, capLost: 0 };
+    var byDay = [[], [], [], [], [], [], []];
+    for (var n = 0; n < total; n++) {
+      var present = full || Math.floor((n + 1) * rate + 1e-9) > Math.floor(n * rate + 1e-9);
+      consec = present ? consec + 1 : 0;
+      var sd = consec ? ((consec - 1) % 7) + 1 : 0;
+      var rec = !!chartDay && !tl && n >= from && present && sd === chartDay;
+      var r = runDay(g, c, sd || 1, fish, wh, rec, present);
+      fish = r.fishEnd; wh = r.whEnd;
+      if (rec) tl = r.tl;
+      if (n >= from) {
+        count++; whEnd = r.whEnd;
+        Object.keys(sum).forEach(function (k) { sum[k] += r[k]; });
+        if (sd) byDay[sd - 1].push(r.rev - r.pay);
+      }
+    }
+    var avg = {};
+    Object.keys(sum).forEach(function (k) { avg[k] = sum[k] / count; });
+    avg.whEnd = whEnd; avg.capped = false;
+    if (g.limitOn >= 1 && avg.pay > g.monthlyLimit / 30) { avg.pay = g.monthlyLimit / 30; avg.capped = true; }
+    var bars = byDay.map(function (a) { return a.length ? a.reduce(function (x, y) { return x + y; }, 0) / a.length : 0; });
+    return { avg: avg, tl: tl, bars: bars };
+  }
+
+  function computeAll(g, t, chartDay) {
+    var per = {}, shareSum = 0, b = { pay: 0, rev: 0, over: 0, prod: 0, ads: 0, fullH: 0, capLost: 0 };
+    TYPES.forEach(function (ty) { t[ty.id]._id = ty.id; per[ty.id] = simulateType(g, t[ty.id], chartDay); shareSum += t[ty.id].share; });
+    TYPES.forEach(function (ty) {
+      var w = shareSum > 0 ? t[ty.id].share / shareSum : 0, a = per[ty.id].avg;
+      Object.keys(b).forEach(function (k) { b[k] += w * a[k]; });
+    });
+    return { per: per, blend: b, shareSum: shareSum };
+  }
+
+  /* ---------- 최소 기준 역산 (이진 탐색) ---------- */
+  function blendRatio(s, over) { var r = computeAll(Object.assign({}, s.g, over), s.t, 0).blend; return r.rev > 0 ? r.pay / r.rev : Infinity; }
+  function typeRatio(s, id, over) {
+    s.t[id]._id = id;
+    var a = simulateType(Object.assign({}, s.g, over), s.t[id], 0).avg;
+    return a.rev > 0 ? a.pay / a.rev : (a.pay > 0 ? Infinity : 0);
+  }
+  // fn 이 x 에 대해 줄어드는 함수일 때, 목표 이하가 되는 가장 작은 x
+  function minX(fn, lo, hi, target) {
+    if (fn(lo) <= target) return { v: lo, note: 'any' };
+    if (fn(hi) > target) return { v: null };
+    for (var i = 0; i < SEARCH_STEPS; i++) { var mid = Math.sqrt(lo * hi); if (fn(mid) > target) lo = mid; else hi = mid; }
+    return { v: hi };
+  }
+  // fn 이 x 에 대해 늘어나는 함수일 때, 목표 이하를 유지하는 가장 큰 x
+  function maxX(fn, lo, hi, target) {
+    if (fn(hi) <= target) return { v: hi, note: 'any' };
+    if (fn(lo) > target) return { v: null };
+    for (var i = 0; i < SEARCH_STEPS; i++) { var mid = Math.sqrt(lo * hi); if (fn(mid) <= target) lo = mid; else hi = mid; }
+    return { v: lo };
+  }
+
+  /* ---------- 표시 도우미 ---------- */
   function won(n, digits) {
     var d = digits == null ? (Math.abs(n) < 10 ? 2 : 1) : digits;
-    var s = Math.abs(n).toLocaleString('ko-KR', { minimumFractionDigits: d, maximumFractionDigits: d });
-    return (n < 0 ? '-' : '') + s + '원';
+    return (n < 0 ? '-' : '') + Math.abs(n).toLocaleString('ko-KR', { minimumFractionDigits: d, maximumFractionDigits: d }) + '원';
   }
-  function signedWon(n, digits) { return (n > 0 ? '+' : '') + won(n, digits); }
+  function signedWon(n, d) { return (n > 0 ? '+' : '') + won(n, d); }
+  function fq(n) { if (!isFinite(n)) return '-'; return Math.abs(n) >= 100 ? int(n) : (Math.round(n * 10000) / 10000).toLocaleString('ko-KR', { maximumFractionDigits: Math.abs(n) < 1 ? 4 : 2 }); }
   function int(n) { return Math.round(n).toLocaleString('ko-KR'); }
-
-  function calc(g, c) {
-    var speed = 1 + c.rod * g.rodPct / 100 + c.otter * g.otterSpeed / 100;
-    var cap = g.baseCap * (1 + c.otter * g.otterCap / 100 + c.ham * g.hamPct / 100);
-    var rate = g.baseRate * speed;
-    var perStore = Math.min(cap, rate * c.interval);
-    var fish = c.stores * perStore;
-    var pay = g.fishPerWon > 0 ? fish / g.fishPerWon : 0;
-    var ads = c.stores * (1 - Math.min(g.noAd, 100) / 100) + c.other;
-    var rev = ads * g.ad;
-    return { speed: speed, cap: cap, fillH: rate > 0 ? cap / rate : 0, perStore: perStore, fish: fish, pay: pay, ads: ads, rev: rev, day: rev - pay };
+  function sig(n) { if (!(n > 0)) return 0; var p = Math.pow(10, Math.floor(Math.log10(n)) - 1); return Math.round(n / p) * p; }
+  function row(label, value, cls) { return '<div class="' + (cls || '') + '"><dt>' + label + '</dt><dd>' + value + '</dd></div>'; }
+  function stat(k, v, s, cls) { return '<div class="stat ' + (cls || '') + '"><span class="k">' + k + '</span><span class="v">' + v + '</span><span class="s">' + s + '</span></div>'; }
+  function deltaHtml(cur, base, fmt, goodWhenUp) {
+    if (base == null || !isFinite(base) || !isFinite(cur)) return '';
+    var d = cur - base;
+    if (Math.abs(d) < 1e-9) return '<span class="d">기준과 같음</span>';
+    return '<span class="d ' + ((goodWhenUp ? d > 0 : d < 0) ? 'up' : 'down') + '">기준 대비 ' + (d > 0 ? '+' : '') + fmt(d) + '</span>';
   }
 
-  function row(label, value, cls) {
-    return '<div class="' + (cls || '') + '"><dt>' + label + '</dt><dd>' + value + '</dd></div>';
-  }
-  function statHtml(k, v, s, cls) {
-    return '<div class="stat ' + (cls || '') + '"><span class="k">' + k + '</span><span class="v">' + v + '</span><span class="s">' + s + '</span></div>';
-  }
-  function days(n) { return !isFinite(n) ? '계산 불가' : n > 365 ? '1년 이상' : Math.ceil(n) + '일'; }
+  /* ---------- 렌더: 바로 갱신하는 부분 ---------- */
+  function renderFast() {
+    var s = readState(), g = s.g;
+    var chartDay = parseInt(document.getElementById('chart-day').value, 10) || 3;
+    var res = computeAll(g, s.t, chartDay), b = res.blend;
+    var month = (b.rev - b.pay) * 30, ratio = b.rev > 0 ? b.pay / b.rev : Infinity;
+    var targetRatio = Math.max(g.target, 0) / 100, gain = month >= 0, hit = ratio <= targetRatio + 1e-9;
+    var plainTarget = Math.abs(g.target - 100) < 1e-9;
 
-  function render() {
-    var g = {};
-    GLOBALS.forEach(function (f) { g[f.k] = num(document.getElementById('g-' + f.k).value); });
-    var shareSum = 0, blend = { day: 0, pay: 0, rev: 0, fish: 0 }, res = {};
+    var monthRev = b.rev * 30, monthPay = b.pay * 30, msg;
+    var money = '광고로 ' + won(monthRev, 0) + ' 벌고, 사용자에게 ' + won(monthPay, 0) + ' 포인트를 줘요.';
+    if (gain && hit) msg = '지금 설정이면 우리는 사용자 1명당 한 달에 평균 ' + won(month, 0) + ' 남아요. ' + money + (plainTarget ? '' : ' 목표(' + g.target + '%)도 맞아요.');
+    else if (gain) msg = '흑자이긴 해요. 우리는 사용자 1명당 한 달에 평균 ' + won(month, 0) + ' 남아요. ' + money + ' 그런데 목표(수익의 ' + g.target + '% 이하 지급)에는 못 미쳐요. 아래 표의 값으로 바꾸면 목표를 맞출 수 있어요.';
+    else msg = '지금 설정이면 우리는 사용자 1명당 한 달에 평균 ' + won(-month, 0) + ' 손해예요. ' + money + (plainTarget ? ' 아래 표의 값으로 바꾸면 본전이 돼요.' : ' 아래 표의 값으로 바꾸면 목표(' + g.target + '%)를 맞출 수 있어요.');
+    document.getElementById('verdict').innerHTML =
+      '<div class="verdict ' + (gain && hit ? 'gain' : 'loss') + '"><span class="pill">' + (gain ? '우리 흑자' : '우리 적자') + (hit ? ' · 목표 달성' : ' · 목표 미달') + '</span>' +
+      '<span class="big">' + signedWon(month, 0) + ' / 월</span>' +
+      '<p class="msg">' + msg + '</p>' + (baseline ? deltaHtml(month, baseline.month, function (d) { return signedWon(d, 0).replace('+', ''); }, true) : '') + '</div>';
 
-    TYPES.forEach(function (t) {
-      var c = {};
-      FIELDS.forEach(function (f) { c[f.k] = num(document.getElementById(t.id + '-' + f.k).value); });
-      var r = calc(g, c);
-      res[t.id] = { r: r, c: c };
-      var gain = r.day >= 0;
-      var tag = document.getElementById('tag-' + t.id);
-      tag.textContent = gain ? '흑자' : '적자';
-      tag.className = 'tag ' + (gain ? 'gain' : 'loss');
-      var toConvert = r.pay > 0 ? g.minWon / r.pay : Infinity;
-      document.getElementById('rows-' + t.id).innerHTML =
-        row('낚시 속도', int(r.speed * 100) + '%') +
-        row('해먹 용량', int(r.cap) + '마리') +
-        row('빈 해먹이 가득 차는 시간', r.fillH.toFixed(1) + '시간') +
-        row('저장 1회 물고기', int(r.perStore) + '마리') +
-        row('하루 광고 시청', r.ads.toFixed(1) + '회') +
-        row('하루 포인트 지급', won(r.pay)) +
-        row('하루 광고 수익', won(r.rev)) +
-        row('하루 손익', signedWon(r.day), 'strong ' + (gain ? 'gain' : 'loss')) +
-        row('한 달 손익 (30일)', signedWon(r.day * 30, 0), 'strong ' + (gain ? 'gain' : 'loss')) +
-        row('수익 대비 지급', r.rev > 0 ? Math.round(r.pay / r.rev * 100) + '%' : '수익 없음') +
-        row('첫 전환까지 (' + g.minWon + '원)', days(toConvert));
-      shareSum += c.share;
+    var maxMonthPay = Math.max.apply(null, TYPES.map(function (ty) { return res.per[ty.id].avg.pay * 30; }));
+    var overall = b.prod > 0 ? b.over / b.prod : 0;
+    document.getElementById('flow').innerHTML =
+      stat('우리가 버는 광고 수익', won(monthRev, 0), '사용자 1명 · 한 달 평균') +
+      stat('사용자가 받는 포인트', won(monthPay, 0), '사용자 1명 · 한 달 평균 (우리가 내는 돈)') +
+      stat('수익 대비 지급', isFinite(ratio) ? Math.round(ratio * 100) + '%' : '수익 없음', '목표 ' + g.target + '% 이하 · ' + (hit ? '목표 달성' : '목표 미달'), hit ? 'gain' : 'loss') +
+      stat('가장 많이 받는 유형의 월 지급', won(maxMonthPay, 0), '1인당 월 한도 ' + int(g.monthlyLimit) + '원 ' + (maxMonthPay <= g.monthlyLimit + 1e-9 ? '이내' : '초과') + (g.limitOn >= 1 ? ' (한도 적용 중)' : ''), maxMonthPay <= g.monthlyLimit + 1e-9 ? '' : 'loss') +
+      stat('버려지는 물고기', Math.round(overall * 100) + '%', '해먹이 가득 차서 못 쌓인 비율. 높으면 사용자가 불편해 해요');
+    window.__cur = { month: month, ratio: ratio };
+    document.getElementById('base-note').textContent = baseline ? '기준: 우리 월 손익 ' + signedWon(baseline.month, 0) + ' · 수익 대비 지급 ' + Math.round(baseline.ratio * 100) + '%' : '값을 바꾸기 전에 "지금 결과를 기준으로 저장"을 누르면, 바꾼 뒤 차이가 결론 카드에 표시돼요.';
+
+    TYPES.forEach(function (ty) {
+      var r = res.per[ty.id], a = r.avg, day = a.rev - a.pay, tg = day >= 0, mp = a.pay * 30;
+      var tag = document.getElementById('tag-' + ty.id);
+      tag.textContent = tg ? '우리 흑자' : '우리 적자'; tag.className = 'tag ' + (tg ? 'gain' : 'loss');
+      var toConv = a.pay > 0 ? g.minWon / a.pay : Infinity, overRate = a.prod > 0 ? a.over / a.prod : 0;
+      var html =
+        row('사용자 지급 (월)', won(mp, 0) + (a.capped ? ' (한도 적용)' : mp > g.monthlyLimit + 1e-9 ? ' (한도 초과)' : ''), (a.capped || mp > g.monthlyLimit + 1e-9) ? 'loss' : '') +
+        row('광고 수익 (월)', won(a.rev * 30, 0)) +
+        row('우리 손익 (월)', signedWon(day * 30, 0), 'strong ' + (tg ? 'gain' : 'loss')) +
+        row('수익 대비 지급', a.rev > 0 ? Math.round(a.pay / a.rev * 100) + '%' : '수익 없음') +
+        row('하루 광고 시청', a.ads.toFixed(1) + '회') +
+        row('버려지는 물고기', Math.round(overRate * 100) + '%') +
+        row('해먹이 가득 찬 시간', a.fullH.toFixed(1) + '시간/일');
+      if (g.dailyCap > 0) html += row('하루 상한 때문에 사라진 물고기', (a.prod > 0 ? Math.round(a.capLost / a.prod * 100) : 0) + '%');
+      if (g.convMode >= 1) html += row('아직 전환 못 한 물고기 (이월)', won(a.whEnd / Math.max(g.fishPerWon, 1)) + '치');
+      html += row('첫 전환까지 (' + g.minWon + '원)', !isFinite(toConv) ? '계산 불가' : toConv > 365 ? '1년 이상' : Math.ceil(toConv) + '일');
+      document.getElementById('rows-' + ty.id).innerHTML = html;
+      var mx = Math.max.apply(null, r.bars.map(Math.abs).concat([0.01]));
+      document.getElementById('bars-' + ty.id).innerHTML = r.bars.map(function (p, i) {
+        return '<div class="bar"><i class="' + (p >= 0 ? 'gain' : 'loss') + '" style="height:' + Math.max(2, Math.abs(p) / mx * 44) + 'px"></i><span>' + (i + 1) + '</span></div>';
+      }).join('');
     });
 
-    TYPES.forEach(function (t) {
-      var w = shareSum > 0 ? res[t.id].c.share / shareSum : 0;
-      var r = res[t.id].r;
-      blend.day += w * r.day; blend.pay += w * r.pay; blend.rev += w * r.rev; blend.fish += w * r.fish;
-    });
-    var beRate = blend.rev > 0 ? blend.fish / blend.rev : Infinity;
-    var gain = blend.day >= 0;
-    var shareNote = shareSum === 100 ? '비중 합계 100%' : '비중 합계 ' + shareSum + '%, 100% 기준으로 환산';
-    document.getElementById('blended').innerHTML =
-      statHtml('사용자 1명 하루 평균 손익', signedWon(blend.day), shareNote, gain ? 'gain' : 'loss') +
-      statHtml('사용자 1명 한 달 평균 손익', signedWon(blend.day * 30, 0), '하루 평균 × 30일', gain ? 'gain' : 'loss') +
-      statHtml('평균 수익 대비 지급', blend.rev > 0 ? Math.round(blend.pay / blend.rev * 100) + '%' : '수익 없음', '지급 ' + won(blend.pay) + ' / 수익 ' + won(blend.rev)) +
-      statHtml('손익분기 환율', isFinite(beRate) ? int(beRate) + '마리 = 1원' : '계산 불가', '이 값보다 환율이 크면(마리가 많으면) 평균 흑자');
+    renderChart(res, chartDay);
+    document.getElementById('json').value = JSON.stringify(s);
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(s)); } catch (e) { /* 저장이 안 돼도 계산은 그대로 */ }
   }
 
-  document.addEventListener('input', function (e) { if (e.target.matches('input')) render(); });
+  /* ---------- 렌더: 무거운 부분 (입력이 멈춘 뒤 갱신) ---------- */
+  function renderSlow() {
+    var s = readState(), res = computeAll(s.g, s.t, 0), targetRatio = Math.max(s.g.target, 0) / 100;
+    renderBreakEven(s, res, targetRatio);
+    renderOpt(s, targetRatio);
+    renderSens(s);
+  }
+  function scheduleSlow() { clearTimeout(slowTimer); slowTimer = setTimeout(renderSlow, SLOW_DELAY_MS); }
+  function render() { renderFast(); scheduleSlow(); }
+
+  function renderBreakEven(s, res, targetRatio) {
+    var g = s.g;
+    var sub = Math.abs(g.target - 100) < 1e-9 ? '다른 값은 지금 그대로 두고, 한 줄의 값만 바꿨을 때 "광고 수익 = 사용자 지급(본전)"이 되는 기준이에요.' : '다른 값은 지금 그대로 두고, 한 줄의 값만 바꿨을 때 지급이 수익의 ' + g.target + '% 이하가 되는 기준이에요.';
+    document.getElementById('be-sub').textContent = sub;
+
+    var fxAll = minX(function (x) { return blendRatio(s, { fishPerWon: x }); }, 1, 1e8, targetRatio);
+    var perFx = TYPES.map(function (ty) {
+      if (!(res.per[ty.id].avg.rev > 0)) return { ty: ty, v: null, noRev: true };
+      return { ty: ty, v: minX(function (x) { return typeRatio(s, ty.id, { fishPerWon: x }); }, 1, 1e8, targetRatio).v };
+    });
+    var withRev = perFx.filter(function (p) { return !p.noRev; });
+    var needAll = withRev.length && withRev.every(function (p) { return p.v != null; }) ? Math.max.apply(null, withRev.map(function (p) { return p.v; })) : null;
+    var rateAll = maxX(function (x) { return blendRatio(s, { baseRate: x }); }, 0.01, Math.max(1e5, g.baseRate * 100), targetRatio);
+    var adAll = minX(function (x) { return blendRatio(s, { ad: x }); }, 0.01, 1000, targetRatio);
+    var idle = res.per.idle.avg, idleMaxPay = idle.rev * 30 * targetRatio;
+
+    function okCls(ok) { return ok ? 'good' : 'bad'; }
+    var ok1 = res.blend.rev > 0 && res.blend.pay / res.blend.rev <= targetRatio + 1e-9;
+    var rows = '';
+    rows += '<tr><td>환율 (1원당 물고기)<span class="hint">클수록 사용자에게 덜 줘요</span></td><td class="n">' + fq(g.fishPerWon) + '마리</td>' +
+      '<td class="n ' + okCls(ok1) + '">' + (fxAll.v == null ? '불가' : fxAll.note === 'any' ? '어떤 값이든 충족' : fq(sig(fxAll.v)) + '마리 이상') + '</td>' +
+      '<td>전체 평균이 목표를 맞추는 최소 환율이에요.</td></tr>';
+    rows += '<tr><td>환율, 모든 유형이 손해 안 보려면<span class="hint">방치형까지 전부 포함</span></td><td class="n">' + fq(g.fishPerWon) + '마리</td>' +
+      '<td class="n ' + okCls(needAll != null && g.fishPerWon >= needAll) + '">' + (needAll == null ? (withRev.length ? '불가' : '광고 수익 없음') : fq(sig(needAll)) + '마리 이상') + '</td>' +
+      '<td>' + perFx.map(function (p) { return p.ty.name + ' ' + (p.noRev ? '광고 수익 없음' : p.v == null ? '불가' : fq(sig(p.v)) + '마리'); }).join(' · ') + '</td></tr>';
+    rows += '<tr><td>기본 낚시 속도<span class="hint">낮을수록 사용자에게 덜 줘요</span></td><td class="n">' + fq(g.baseRate) + '마리/시간</td>' +
+      '<td class="n ' + okCls(ok1) + '">' + (rateAll.v == null ? '불가' : rateAll.note === 'any' ? '제한 없음' : fq(sig(rateAll.v)) + '마리/시간 이하') + '</td>' +
+      '<td>' + (rateAll.v != null && rateAll.note !== 'any' ? '쉬지 않고 30일 낚시하면 ' + int(rateAll.v * 24 * 30 / Math.max(g.fishPerWon, 1)) + '원 (지금 ' + int(g.baseRate * 24 * 30 / Math.max(g.fishPerWon, 1)) + '원)' : '') + '</td></tr>';
+    rows += '<tr><td>광고 1회 수익<span class="hint">단가가 높아야 목표를 맞춰요</span></td><td class="n">' + g.ad + '원</td>' +
+      '<td class="n ' + okCls(ok1) + '">' + (adAll.v == null ? '불가' : adAll.note === 'any' ? '어떤 값이든 충족' : (Math.ceil(adAll.v * 100) / 100) + '원 이상') + '</td>' +
+      '<td>단가는 우리가 정할 수 없어서, 이 값이 현실적이지 않으면 환율이나 속도를 바꿔야 해요.</td></tr>';
+    rows += '<tr><td>방치형 사용자 1명에게 줄 수 있는 월 지급<span class="hint">방치형 광고 수익 기준</span></td><td class="n">' + won(idle.pay * 30, 0) + '</td>' +
+      '<td class="n ' + okCls(idle.pay * 30 <= idleMaxPay + 1e-9) + '">' + won(idleMaxPay, 0) + ' 이하</td>' +
+      '<td>방치형은 저장 광고뿐이라 이 안에서만 줄 수 있어요.</td></tr>';
+    document.getElementById('be').innerHTML = '<tr><th>기준</th><th class="n">지금 값</th><th class="n">최소 기준</th><th>설명</th></tr>' + rows;
+  }
+
+  // 기본 속도 x 해먹 용량 조합표. 속도는 낮출수록 사용자 지급이 줄고, 용량은 작을수록 한 번에 쌓이는 양이 줄어요
+  function renderOpt(s, targetRatio) {
+    var g = s.g, caps = [0.5, 0.75, 1, 1.5, 2].map(function (m) { return g.baseCap * m; });
+    var withRev = TYPES.filter(function (ty) { return s.t[ty.id].share > 0; });
+    function blendMax(cap) { return maxX(function (x) { return blendRatio(s, { baseRate: x, baseCap: cap }); }, 0.001, Math.max(1e5, g.baseRate * 100), targetRatio); }
+    function allMax(cap) {
+      var m = { v: Infinity };
+      withRev.forEach(function (ty) {
+        var r = maxX(function (x) { return typeRatio(s, ty.id, { baseRate: x, baseCap: cap }); }, 0.001, Math.max(1e5, g.baseRate * 100), targetRatio);
+        if (r.v == null) m = { v: null }; else if (m.v !== null && r.note !== 'any') m = { v: m.v === Infinity ? r.v : Math.min(m.v, r.v) };
+      });
+      return m.v === Infinity ? { v: Infinity, note: 'any' } : m;
+    }
+    var bm = caps.map(blendMax), am = caps.map(allMax);
+    var mid = bm[2].v, center = mid != null && isFinite(mid) && bm[2].note !== 'any' && mid > 0 ? mid : g.baseRate;
+    var anyMax = bm[2].note === 'any' || bm[2].v == null;
+    var rates = (anyMax ? [0.4, 0.6, 1, 2, 5, 20, 100] : [0.4, 0.6, 0.8, 1, 1.25, 1.5]).map(function (m) { return sig(center * m); });
+    if (rates.indexOf(g.baseRate) < 0) rates.push(g.baseRate);
+    rates.sort(function (a, b) { return a - b; });
+    function cell(r) { return '<td class="n">' + (r.v == null ? '불가' : r.note === 'any' ? '제한 없음' : fq(sig(r.v))) + '</td>'; }
+    var html = '<tr><th>해먹 용량</th>' + caps.map(function (c) { return '<th>' + fq(c) + '마리</th>'; }).join('') + '</tr>';
+    html += '<tr><th>평균이 목표를 맞추는 최대 기본 속도</th>' + bm.map(cell).join('') + '</tr>';
+    html += '<tr><th>모든 유형이 손해 안 보는 최대 기본 속도</th>' + am.map(cell).join('') + '</tr>';
+    html += '<tr><th>기본 속도 \\ 우리 월 손익(원)</th>' + caps.map(function () { return '<th></th>'; }).join('') + '</tr>';
+    rates.forEach(function (r) {
+      html += '<tr><th>' + fq(r) + '마리/시간</th>' + caps.map(function (c) {
+        var bb = computeAll(Object.assign({}, g, { baseRate: r, baseCap: c }), s.t, 0).blend, m = (bb.rev - bb.pay) * 30;
+        var now = r === g.baseRate && Math.abs(c - g.baseCap) < 1e-9;
+        return '<td class="' + (m >= 0 ? 'gain' : 'loss') + (now ? ' now' : '') + '">' + signedWon(m, 0).replace('원', '') + '</td>';
+      }).join('') + '</tr>';
+    });
+    document.getElementById('opt').innerHTML = html;
+    document.getElementById('opt-sub').textContent = '다른 값은 지금 그대로 두고 기본 속도와 해먹 용량만 바꿨어요. 위 두 줄은 용량별로 지급이 수익의 ' + Math.round(targetRatio * 100) + '% 이하가 되는 가장 빠른 기본 속도예요. 아래 표는 사용자 1명의 한 달 평균 우리 손익이고, 파란 테두리가 지금 설정이에요.';
+  }
+
+  function renderSens(s) {
+    var fxs = s.g.fishPerWon < 20 ? [1, 2, 3, 4, 6, 8] : [250, 500, 1000, 2000, 4000, 8000];
+    if (fxs.indexOf(s.g.fishPerWon) < 0) fxs.push(s.g.fishPerWon);
+    fxs.sort(function (a, b) { return a - b; });
+    var ads = [1, 1.25, 1.5, 1.75, 2];
+    if (ads.indexOf(s.g.ad) < 0) ads.push(s.g.ad);
+    ads.sort(function (a, b) { return a - b; });
+    var html = '<tr><th>환율 \\ 광고 1회 수익</th>' + ads.map(function (a) { return '<th>' + a + '원</th>'; }).join('') + '</tr>';
+    fxs.forEach(function (fx) {
+      html += '<tr><th>' + fq(fx) + '마리 = 1원</th>' + ads.map(function (a) {
+        var bb = computeAll(Object.assign({}, s.g, { fishPerWon: fx, ad: a }), s.t, 0).blend, m = (bb.rev - bb.pay) * 30;
+        var now = fx === s.g.fishPerWon && a === s.g.ad;
+        return '<td class="' + (m >= 0 ? 'gain' : 'loss') + (now ? ' now' : '') + '">' + signedWon(m, 0).replace('원', '') + '</td>';
+      }).join('') + '</tr>';
+    });
+    document.getElementById('sens').innerHTML = html;
+  }
+
+  function niceMax(v) {
+    if (v <= 0) return 1;
+    var p = Math.pow(10, Math.floor(Math.log10(v))), m = [1, 2, 5, 10];
+    for (var i = 0; i < m.length; i++) if (m[i] * p >= v * 1.05) return m[i] * p;
+    return 10 * p;
+  }
+  function renderChart(res, day) {
+    var typeId = document.getElementById('chart-type').value || TYPES[0].id;
+    var tl = res.per[typeId].tl || [{ t: 0, rev: 0, pay: 0 }];
+    var W = 640, H = 250, L = 46, R = 14, T = 12, B = 28, pw = W - L - R, ph = H - T - B;
+    var last = tl[tl.length - 1], mx = niceMax(Math.max(last.rev, last.pay, 0.01));
+    function X(t) { return L + t / 24 * pw; }
+    function Y(v) { return T + ph - v / mx * ph; }
+    function step(key) {
+      var d = 'M' + X(0) + ' ' + Y(0);
+      tl.forEach(function (p) { d += ' H' + X(p.t).toFixed(1) + ' V' + Y(p[key]).toFixed(1); });
+      return d + ' H' + X(24);
+    }
+    var svg = '';
+    for (var i = 0; i <= 4; i++) {
+      var v = mx * i / 4, y = Y(v);
+      svg += '<line class="grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + y + '" y2="' + y + '"/><text x="' + (L - 6) + '" y="' + (y + 4) + '" text-anchor="end">' + (v < 10 ? v.toFixed(v < 1 ? 2 : 1) : Math.round(v)) + '</text>';
+    }
+    for (var h = 0; h <= 24; h += 4) svg += '<text x="' + X(h) + '" y="' + (H - 8) + '" text-anchor="middle">' + h + '시</text>';
+    svg += '<path class="rev" d="' + step('rev') + '"/><path class="pay" d="' + step('pay') + '"/>';
+    document.getElementById('chart').innerHTML = svg;
+    var name = TYPES.filter(function (t) { return t.id === typeId; })[0].name;
+    document.getElementById('legend').innerHTML =
+      '<span>우리가 번 광고 수익 ' + won(last.rev) + '</span><span class="l-pay">사용자에게 준 포인트 ' + won(last.pay) + '</span><span style="color:var(--muted)">' + name + ' · 출석 ' + day + '일차 · 단위 원</span>';
+  }
+
+  /* ---------- 이벤트 ---------- */
+  document.addEventListener('input', function (e) {
+    var t = e.target;
+    if (t.dataset && t.dataset.ci != null) {
+      var it = customItems[parseInt(t.dataset.ci, 10)];
+      if (!it) return;
+      if (t.dataset.cu) it.use[t.dataset.cu] = t.value;
+      else it[t.dataset.cf] = t.value;
+      render(); return;
+    }
+    if (t.matches && t.matches('input[type=number], select.gsel')) render();
+  });
+  document.addEventListener('change', function (e) {
+    var t = e.target;
+    if (t.id === 'chart-type' || t.id === 'chart-day') { render(); return; }
+    if (t.dataset && t.dataset.ci != null && t.dataset.cf) {
+      var it = customItems[parseInt(t.dataset.ci, 10)];
+      if (it) { it[t.dataset.cf] = t.value; render(); }
+    }
+  });
+  // step="any" 칸은 브라우저 기본 증감 단위가 1이라, 방향키는 칸마다 정한 단위로 움직인다
+  document.addEventListener('keydown', function (e) {
+    var t = e.target;
+    if (!t.dataset || !t.dataset.inc || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+    e.preventDefault();
+    var next = (parseFloat(t.value) || 0) + (e.key === 'ArrowUp' ? 1 : -1) * parseFloat(t.dataset.inc);
+    t.value = Math.max(0, Math.round(next * 10000) / 10000);
+    render();
+  });
   document.addEventListener('click', function (e) {
-    var b = e.target.closest('button.chip');
+    var b = e.target.closest('button');
     if (!b) return;
-    if (b.dataset.set === 'ad') { document.getElementById('g-ad').value = b.dataset.v; }
+    if (b.dataset.del != null) { customItems.splice(parseInt(b.dataset.del, 10), 1); renderCustoms(); render(); return; }
+    if (b.id === 'btn-add-custom') { customItems.push(newCustom()); renderCustoms(); render(); return; }
+    if (!b.classList.contains('chip')) return;
+    if (b.dataset.set === 'ad') document.getElementById('g-ad').value = b.dataset.v;
     if (b.dataset.preset) {
-      var p = PRESETS[b.dataset.preset];
-      Object.keys(p).forEach(function (k) { document.getElementById('g-' + k).value = p[k]; });
+      // 프리셋은 공통 설정(g)만 "기본값 + 프리셋 값"으로 되돌린다. 유형 설정과 추가 강화 칸은 그대로 둔다. 초기화만 전부 되돌린다
+      var over = PRESETS[b.dataset.preset] || {}, g2 = Object.assign({}, gDefaults, over);
+      if (b.dataset.preset === 'reset') writeState({ g: g2, t: JSON.parse(JSON.stringify(tDefaults)) }, true);
+      else writeState({ g: g2, t: readState().t }, false);
+    }
+    if (b.id === 'btn-base') baseline = { month: window.__cur.month, ratio: window.__cur.ratio };
+    if (b.id === 'btn-base-clear') baseline = null;
+    if (b.id === 'btn-copy') {
+      var ta = document.getElementById('json'), status = document.getElementById('json-status');
+      var done = function () { status.textContent = '복사했어요.'; };
+      var fail = function () { ta.select(); status.textContent = '선택해 뒀어요. 직접 복사해 주세요.'; };
+      try { navigator.clipboard.writeText(ta.value).then(done, fail); } catch (err) { fail(); }
+      return;
+    }
+    if (b.id === 'btn-load') {
+      var st2 = document.getElementById('json-status');
+      try { writeState(JSON.parse(document.getElementById('json').value), true); st2.textContent = '설정을 적용했어요. 없는 값은 기본값으로 채웠어요.'; }
+      catch (err) { st2.textContent = '형식이 맞지 않아요. 복사한 내용을 그대로 붙여넣어 주세요.'; return; }
     }
     render();
   });
-  render();
+
+  renderCustoms();
+  try {
+    var raw = localStorage.getItem(STORE_KEY) || localStorage.getItem(OLD_KEY);
+    var saved = raw ? JSON.parse(raw) : null;
+    if (saved && saved.g && saved.t) writeState(saved, true);
+  } catch (e) { /* 저장된 값이 없거나 읽을 수 없으면 기본값 */ }
+  renderFast();
+  renderSlow();
 })();
 </script>
