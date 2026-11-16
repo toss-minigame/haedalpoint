@@ -31,7 +31,7 @@ export type SceneEngineOptions = {
 
 export type SceneEngine = {
   catchFish: () => void;
-  /** 자동으로 잡을 때 물고기 옆에 띄울 글자 (예: +0.0000208). null 이면 띄우지 않는다 */
+  /** 자동으로 잡을 때 물고기 옆에 띄울 글자 (예: +3). null 이면 띄우지 않는다 */
   setCatchLabel: (label: string | null) => void;
   /** 해달 친구를 함께 그릴지 */
   setOtterFriendVisible: (visible: boolean) => void;

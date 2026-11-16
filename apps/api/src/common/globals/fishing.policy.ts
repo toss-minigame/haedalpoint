@@ -4,15 +4,17 @@
 // 값만 둔다. 계산 로직은 modules/fishing/lib 에 둔다.
 // 값을 바꾸면 fishing-budget.spec.ts 가 월 예산(MONTHLY_TOSS_POINT_BUDGET) 초과 여부를 검사한다.
 // 속도 값을 바꿔 배포하면 각 사용자의 마지막 정산 이후 시간도 새 속도로 계산된다 (해먹 용량 이내).
+//
+// 단위: 물고기 1마리 = 1g, 토스 포인트 1원 = 48,000마리(48kg)
 export const FISHING_POLICY = {
   /** 토스 포인트 1원으로 바꾸는 데 필요한 물고기 수 (확정, 매월 콘솔 보고 대상) */
-  FISH_PER_TOSS_POINT: 1,
+  FISH_PER_TOSS_POINT: 48_000,
   /** 강화 없이 BASE_MONTH_DAYS 동안 쉬지 않고 낚시하면 받는 토스 포인트 → 기본 속도를 정한다
-   *  (54원 × 1마리 ÷ 30일 ÷ 24시간 = 시간당 0.075마리) */
+   *  (54원 × 48,000마리 ÷ 30일 ÷ 86,400초 = 초당 1마리, 시간당 3,600마리) */
   BASE_MONTHLY_TOSS_POINTS: 54,
   BASE_MONTH_DAYS: 30,
-  /** 해먹 용량 (마리, 소수 가능). 가득 차면 더 잡지 않는다. 기본 속도로 7시간 28분이면 가득 찬다 */
-  HAMMOCK_CAPACITY: 0.56,
+  /** 기본 해먹 용량 (마리 = 30kg). 가득 차면 더 잡지 않는다. 기본 속도로 8시간 20분이면 가득 찬다 */
+  HAMMOCK_CAPACITY: 30_000,
   /** 사용자 1명이 한 달에 받을 수 있는 최대 토스 포인트. 코드로 강제하지 않고 테스트로 지킨다 */
   MONTHLY_TOSS_POINT_BUDGET: 5_000,
 } as const;
@@ -24,14 +26,14 @@ export const ROD_POLICY = {
   SPEED_BONUS_PERCENT_PER_LEVEL: 1,
 } as const;
 
-// 해달 친구: 7일 연속 출석한 날 자정까지 함께 낚시한다. 출석 '광고 보고 2배'로 한 명 더 온다
+// 해달 친구: 출석 7일차에 와서 온 시각부터 24시간 함께 낚시한다 (한 번에 한 명)
 export const OTTER_FRIEND_POLICY = {
-  /** 해달 친구 한 명당 오르는 속도 (기본 속도 대비 %) */
+  /** 해달 친구가 함께 낚시하는 시간 (시간) */
+  DURATION_HOURS: 24,
+  /** 해달 친구가 오르게 하는 속도 (기본 속도 대비 %) */
   SPEED_BONUS_PERCENT: 50,
-  /** 해달 친구 한 명당 늘어나는 해먹 용량 (기본 용량 대비 %) */
-  CAPACITY_BONUS_PERCENT: 50,
-  /** 하루에 함께 낚시할 수 있는 해달 친구 수 (7일차 출석 1 + 광고 2배 1) */
-  MAX_PER_DAY: 2,
+  /** 해달 친구가 늘려 주는 해먹 용량 (기본 용량 대비 %) */
+  CAPACITY_BONUS_PERCENT: 10,
 } as const;
 
 // 홈 '광고 보고 낚싯대 강화': 쿨타임마다 한 번 (하루 최대 단계 없음)
@@ -43,12 +45,13 @@ export const AD_ROD_POLICY = {
 } as const;
 
 // 홈 '광고 보고 해먹 넓히기': 쿨타임마다 한 단계씩 정해진 순서로 넓힌다 (랜덤 없음). 매일 KST 자정에 0단계로 초기화된다.
+// 해먹 n단계(n = 1~9)의 용량 = 30,000 × 1.1^(n-1). 넓히기 전이 n=1 (hammockLevel 0), 최대 n=9 (hammockLevel 8, 약 64,308마리)
 // 넓힐 때마다 낚싯대도 함께 강화된다. 용량은 월 예산 최악값(해먹을 한 번도 넘치지 않게 비우는 경우)에 영향이 없다
 export const HAMMOCK_EXPAND_POLICY = {
   /** 해먹 1단계마다 직전 용량에서 늘어나는 비율 (%, 등비: 기본 용량 × 1.1^단계) */
   CAPACITY_GROWTH_PERCENT_PER_LEVEL: 10,
-  /** 하루 최대 해먹 단계 */
-  MAX_LEVEL: 10,
+  /** 하루 최대로 넓힐 수 있는 단계 (n=9 까지) */
+  MAX_LEVEL: 8,
   /** 광고 1회당 오르는 해먹 단계 */
   LEVELS_PER_AD: 1,
   /** 다음 광고 해먹 넓히기까지 기다리는 시간 (분) */
@@ -63,12 +66,12 @@ export const HAMMOCK_EXPAND_POLICY = {
 export const CATCH_BACK_POLICY = {
   /** 넘친 물고기 중 돌려주는 비율 (%) */
   RETURN_PERCENT: 50,
-  /** 광고 1회로 돌려주는 최대 물고기 (마리) */
-  MAX_FISH: 0.5,
-  /** 지금 해먹 용량 대비 최대 (%). 기본 해먹(0.56)이면 0.448마리까지 */
+  /** 광고 1회로 돌려주는 최대 물고기 (마리 = 0.5원) */
+  MAX_FISH: 24_000,
+  /** 지금 해먹 용량 대비 최대 (%). 기본 해먹(30,000)이면 24,000마리까지 */
   CAPACITY_PERCENT: 80,
   /** 하루(KST) 최대 횟수 */
   DAILY_LIMIT: 2,
   /** 이보다 적으면 다시 잡아오기를 권하지 않는다 (마리) */
-  MIN_FISH: 0.01,
+  MIN_FISH: 480,
 } as const;

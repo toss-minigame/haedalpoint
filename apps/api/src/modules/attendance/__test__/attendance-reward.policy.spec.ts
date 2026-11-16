@@ -1,58 +1,32 @@
-import { AttendanceRewardPolicy } from '../lib/attendance-reward.policy.js';
+import { ATTENDANCE_POLICY } from '../../../common/globals/index.js';
+import { FIRST_WEEK, FIRST_WEEK_DAYS, rewardForDay } from '../lib/attendance-reward.policy.js';
 
-describe('AttendanceRewardPolicy', () => {
-  describe('rewardFor', () => {
-    it.each([
-      [1, 'ENHANCE_BONUS', 1],
-      [2, 'ENHANCE_BONUS', 1],
-      [3, 'ENHANCE_BONUS', 1],
-      [4, 'ENHANCE_BONUS', 1],
-      [5, 'ENHANCE_BONUS', 1],
-      [6, 'ENHANCE_BONUS', 1],
-      [7, 'OTTER_FRIEND', 1],
-    ] as const)('day %d → %s x%d', (day, type, amount) => {
-      expect(AttendanceRewardPolicy.rewardFor(day)).toEqual({ type, amount });
-    });
-
-    it('returns a copy so callers cannot mutate the table', () => {
-      const reward = AttendanceRewardPolicy.rewardFor(1);
-      reward.amount = 999;
-      expect(AttendanceRewardPolicy.rewardFor(1).amount).toBe(1);
-    });
+describe('rewardForDay', () => {
+  it.each([1, 2, 3, 4, 5, 6])('gives 1 toss point on day %i', (day) => {
+    expect(rewardForDay(day)).toEqual({ type: 'TOSS_POINT', amount: 1 });
   });
 
-  describe('isCycleCompleted', () => {
-    it('is true only on day 7', () => {
-      expect(AttendanceRewardPolicy.isCycleCompleted(6)).toBe(false);
-      expect(AttendanceRewardPolicy.isCycleCompleted(7)).toBe(true);
-    });
+  it('brings the otter friend on day 7', () => {
+    expect(rewardForDay(7)).toEqual({ type: 'OTTER_FRIEND', amount: 1 });
   });
 
-  describe('streakDayOn', () => {
-    const today = '2026-10-30';
+  it.each([8, 9, 30, 365])('enhances the rod by 10 levels on day %i', (day) => {
+    expect(rewardForDay(day)).toEqual({ type: 'ENHANCE_BONUS', amount: 10 });
+  });
 
-    it('starts at 1 with no history', () => {
-      expect(AttendanceRewardPolicy.streakDayOn(today, null)).toBe(1);
-    });
+  it.each([0, -1, 1.5, Number.NaN])('rejects an invalid day %p', (day) => {
+    expect(() => rewardForDay(day)).toThrow(RangeError);
+  });
 
-    it('continues when last check-in was yesterday', () => {
-      const last = { checkedDate: '2026-10-29', streakDay: 3, cycleCompleted: false };
-      expect(AttendanceRewardPolicy.streakDayOn(today, last)).toBe(4);
-    });
+  it('returns a new object each time', () => {
+    const first = rewardForDay(1);
+    expect(rewardForDay(1)).not.toBe(first);
+  });
+});
 
-    it('resets when a day was missed', () => {
-      const last = { checkedDate: '2026-10-28', streakDay: 3, cycleCompleted: false };
-      expect(AttendanceRewardPolicy.streakDayOn(today, last)).toBe(1);
-    });
-
-    it('resets after a completed cycle', () => {
-      const last = { checkedDate: '2026-10-29', streakDay: 7, cycleCompleted: true };
-      expect(AttendanceRewardPolicy.streakDayOn(today, last)).toBe(1);
-    });
-
-    it('throws on corrupted data beyond the cycle length', () => {
-      const last = { checkedDate: '2026-10-29', streakDay: 7, cycleCompleted: false };
-      expect(() => AttendanceRewardPolicy.streakDayOn(today, last)).toThrow(RangeError);
-    });
+describe('first week', () => {
+  it('has the seven days up to the otter friend', () => {
+    expect(FIRST_WEEK_DAYS).toBe(ATTENDANCE_POLICY.OTTER_FRIEND_DAY);
+    expect(FIRST_WEEK).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
 });

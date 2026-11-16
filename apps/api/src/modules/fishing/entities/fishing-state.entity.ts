@@ -4,30 +4,29 @@ import { bigintNumberTransformer } from '../../../common/entities/bigint-number.
 
 // 사용자당 한 행. users 와 TypeORM 관계를 걸지 않고 user_id 컬럼으로만 참조 (모듈 경계 유지)
 // 해먹 수량은 settled_at 시점 값이다. 지금 수량은 lib/settle-hammock.ts 로 계산한다 (docs/design/fishing.md 3장).
-// 강화·해달 친구는 유효 날짜(KST)가 오늘일 때만 적용되므로 자정 초기화 배치가 필요 없다.
+// 강화·해먹 넓히기는 유효 날짜(KST)가 오늘일 때만, 해달 친구는 떠나는 시각 전까지만 적용되므로 초기화 배치가 필요 없다.
 @Entity('fishing_states')
 @Unique('UQ_fishing_states_user_id', ['userId'])
-@Check('CHK_fishing_states_hammock_nano_fish', '"hammock_nano_fish" >= 0')
-@Check('CHK_fishing_states_warehouse_nano_fish', '"warehouse_nano_fish" >= 0')
+@Check('CHK_fishing_states_hammock_milli_fish', '"hammock_milli_fish" >= 0')
+@Check('CHK_fishing_states_warehouse_milli_fish', '"warehouse_milli_fish" >= 0')
 @Check('CHK_fishing_states_rod_level', '"rod_level" >= 0')
-@Check('CHK_fishing_states_otter_friend_count', '"otter_friend_count" >= 0')
 @Check('CHK_fishing_states_hammock_level', '"hammock_level" >= 0')
 @Check('CHK_fishing_states_bait_bonus_percent', '"bait_bonus_percent" >= 0')
-@Check('CHK_fishing_states_overflow_nano_fish', '"overflow_nano_fish" >= 0')
-@Check('CHK_fishing_states_catch_back_nano_fish', '"catch_back_nano_fish" >= 0')
+@Check('CHK_fishing_states_overflow_milli_fish', '"overflow_milli_fish" >= 0')
+@Check('CHK_fishing_states_catch_back_milli_fish', '"catch_back_milli_fish" >= 0')
 @Check('CHK_fishing_states_catch_back_count', '"catch_back_count" >= 0')
 export class FishingState extends BaseEntity {
   @Column({ type: 'uuid', name: 'user_id' })
   userId: string;
 
-  // 해먹의 물고기 (1/10억 마리 단위)
+  // 해먹의 물고기 (1/1000마리 단위)
   @Column({
     type: 'bigint',
-    name: 'hammock_nano_fish',
+    name: 'hammock_milli_fish',
     default: 0,
     transformer: bigintNumberTransformer,
   })
-  hammockNanoFish: number;
+  hammockMilliFish: number;
 
   // 마지막으로 해먹을 정산한 시각
   @Column({ type: 'timestamptz', name: 'settled_at' })
@@ -40,13 +39,9 @@ export class FishingState extends BaseEntity {
   @Column({ type: 'date', name: 'rod_level_date', nullable: true })
   rodLevelDate: string | null;
 
-  // 해달 친구가 오는 KST 날짜
-  @Column({ type: 'date', name: 'otter_friend_date', nullable: true })
-  otterFriendDate: string | null;
-
-  // otter_friend_date 에 함께 낚시하는 해달 친구 수
-  @Column({ type: 'smallint', name: 'otter_friend_count', default: 0 })
-  otterFriendCount: number;
+  // 해달 친구가 떠나는 시각 (온 시각 + 24시간). 이 시각 전까지 함께 낚시한다
+  @Column({ type: 'timestamptz', name: 'otter_friend_until', nullable: true })
+  otterFriendUntil: Date | null;
 
   // 광고로 넓힌 해먹 단계와 그 단계가 유효한 KST 날짜
   @Column({ type: 'smallint', name: 'hammock_level', default: 0 })
@@ -62,23 +57,23 @@ export class FishingState extends BaseEntity {
   @Column({ type: 'date', name: 'bait_date', nullable: true })
   baitDate: string | null;
 
-  // 마지막 저장 이후 해먹이 가득 차서 버려진 물고기 (1/10억 마리 단위). 서버만 쓰고 응답에는 내보내지 않는다
+  // 마지막 저장 이후 해먹이 가득 차서 버려진 물고기 (1/1000마리 단위). 서버만 쓰고 응답에는 내보내지 않는다
   @Column({
     type: 'bigint',
-    name: 'overflow_nano_fish',
+    name: 'overflow_milli_fish',
     default: 0,
     transformer: bigintNumberTransformer,
   })
-  overflowNanoFish: number;
+  overflowMilliFish: number;
 
   // 저장할 때 계산해 둔, 광고를 보면 다시 잡아올 물고기. 다음 저장 때 새로 계산한다
   @Column({
     type: 'bigint',
-    name: 'catch_back_nano_fish',
+    name: 'catch_back_milli_fish',
     default: 0,
     transformer: bigintNumberTransformer,
   })
-  catchBackNanoFish: number;
+  catchBackMilliFish: number;
 
   // 다시 잡아오기를 한 횟수와 그 KST 날짜 (하루 횟수 제한용)
   @Column({ type: 'smallint', name: 'catch_back_count', default: 0 })
@@ -95,12 +90,12 @@ export class FishingState extends BaseEntity {
   @Column({ type: 'timestamptz', name: 'ad_rod_enhanced_at', nullable: true })
   adRodEnhancedAt: Date | null;
 
-  // 창고의 물고기 (영속 재화, 1/10억 마리 단위)
+  // 창고의 물고기 (영속 재화, 1/1000마리 단위)
   @Column({
     type: 'bigint',
-    name: 'warehouse_nano_fish',
+    name: 'warehouse_milli_fish',
     default: 0,
     transformer: bigintNumberTransformer,
   })
-  warehouseNanoFish: number;
+  warehouseMilliFish: number;
 }

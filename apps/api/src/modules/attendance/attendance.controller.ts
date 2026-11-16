@@ -7,6 +7,7 @@ import { AttendanceService } from './attendance.service.js';
 export class AttendanceController {
   constructor(private readonly attendanceService: AttendanceService) {}
 
+  // 보상형 광고 시청 완료(`userEarnedReward` 수신) 후에만 호출
   @Post('check-in')
   checkIn(@CurrentUserId() userId: string) {
     return this.attendanceService.checkIn(userId);
@@ -15,11 +16,5 @@ export class AttendanceController {
   @Get('me')
   getStatus(@CurrentUserId() userId: string) {
     return this.attendanceService.getStatus(userId);
-  }
-
-  // 출석 후 보상형 광고 시청 완료 (`userEarnedReward` 수신 후에만 호출)
-  @Post('ad-bonus')
-  claimAdBonus(@CurrentUserId() userId: string) {
-    return this.attendanceService.claimAdBonus(userId);
   }
 }

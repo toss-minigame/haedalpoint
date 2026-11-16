@@ -35,7 +35,7 @@ export type FriendSprites = {
 export type SceneFriend = {
   visible: boolean;
   sprites: FriendSprites | null;
-  /** 낚싯대를 들어 올릴 때 머리 위에 띄울 글자 (친구 몫, 예: +0.0000104). null 이면 띄우지 않는다 */
+  /** 낚싯대를 들어 올릴 때 머리 위에 띄울 글자 (친구 몫, 예: +3). null 이면 띄우지 않는다 */
   catchLabel: string | null;
 };
 
@@ -178,7 +178,7 @@ function drawHookedFish(ctx: CanvasRenderingContext2D, state: SceneState, images
   ctx.restore();
 }
 
-/** 자동으로 잡은 물고기 옆에 잡은 양(예: +0.0000208)을 띄운다. 매달린 물고기와 함께 사라진다 */
+/** 자동으로 잡은 물고기 옆에 잡은 양(예: +3)을 띄운다. 매달린 물고기와 함께 사라진다 */
 /** 잡은 양 글자. 하늘·바다 어느 배경에서도 읽히게 흰 글자에 짙은 바다색 테두리를 두른다 */
 function drawLabel(
   ctx: CanvasRenderingContext2D,

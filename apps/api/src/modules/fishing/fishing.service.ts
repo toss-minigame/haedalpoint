@@ -16,10 +16,14 @@ import { kstDayStart, kstMonthStart, toKstDateString } from '../../common/utils/
 import { UsersService } from '../users/users.service.js';
 import type { FishingState } from './entities/fishing-state.entity.js';
 import { FishingRepository, type FishingStateChanges } from './fishing.repository.js';
-import { catchBackNanoFish, catchBacksUsedOn, MIN_CATCH_BACK_NANO_FISH } from './lib/catch-back.js';
 import {
-  hammockCapacityNanoFish,
-  NANO_PER_FISH,
+  catchBackMilliFish,
+  catchBacksUsedOn,
+  MIN_CATCH_BACK_MILLI_FISH,
+} from './lib/catch-back.js';
+import {
+  hammockCapacityMilliFish,
+  MILLI_PER_FISH,
   rodSpeedBonusPercent,
 } from './lib/fishing-rate.js';
 import {
@@ -35,7 +39,7 @@ import {
   summonOtterFriend,
   takeAllFish,
 } from './lib/hammock-actions.js';
-import { boostsOn, type HammockState, settleHammock } from './lib/settle-hammock.js';
+import { boostsAt, type HammockState, settleHammock } from './lib/settle-hammock.js';
 
 const NOTHING_TO_STORE = '해먹에 저장할 물고기가 없어요';
 const AD_ROD_COOLING_DOWN = `낚싯대는 ${AD_ROD_POLICY.COOLDOWN_MINUTES}분마다 강화할 수 있어요`;
@@ -93,20 +97,20 @@ export class FishingService {
     ]);
     return {
       serverTime: now.toISOString(),
-      warehouseFish: row.warehouseNanoFish / NANO_PER_FISH,
-      todayStoredFish: stored.today / NANO_PER_FISH,
-      monthStoredFish: stored.month / NANO_PER_FISH,
-      recentEntries: entries.map(({ id, type, amountNanoFish, createdAt }) => ({
+      warehouseFish: row.warehouseMilliFish / MILLI_PER_FISH,
+      todayStoredFish: stored.today / MILLI_PER_FISH,
+      monthStoredFish: stored.month / MILLI_PER_FISH,
+      recentEntries: entries.map(({ id, type, amountMilliFish, createdAt }) => ({
         id,
         type,
-        amount: amountNanoFish / NANO_PER_FISH,
+        amount: amountMilliFish / MILLI_PER_FISH,
         createdAt: createdAt.toISOString(),
       })),
     };
   }
 
   /**
-   * 해먹의 물고기를 소수까지 모두 창고로 옮긴다.
+   * 해먹의 물고기를 모두 창고로 옮긴다.
    * 마지막 저장 이후 넘친 물고기가 있으면 다시 잡아올 양을 계산해 두고(넘친 양은 0으로 비움),
    * 광고를 보면 받을 수 있는지만 알려준다 (양과 넘친 양은 응답에 넣지 않는다).
    */
@@ -117,25 +121,25 @@ export class FishingService {
       const today = toKstDateString(now);
       const row = await this.fishingRepository.lockOrCreate(manager, userId, now);
       const settled = settleHammock(toHammockState(row), now);
-      const { state, takenNanoFish } = takeAllFish(settled);
-      if (takenNanoFish <= 0) throw new ConflictException(NOTHING_TO_STORE);
+      const { state, takenMilliFish } = takeAllFish(settled);
+      if (takenMilliFish <= 0) throw new ConflictException(NOTHING_TO_STORE);
 
       const catchBack = this.catchBackOffer(settled, row, today);
-      const warehouseNanoFish = row.warehouseNanoFish + takenNanoFish;
+      const warehouseMilliFish = row.warehouseMilliFish + takenMilliFish;
       await this.fishingRepository.updateState(manager, row.id, {
-        ...toStateChanges({ ...state, overflowNanoFish: 0 }),
-        catchBackNanoFish: catchBack,
-        warehouseNanoFish,
+        ...toStateChanges({ ...state, overflowMilliFish: 0 }),
+        catchBackMilliFish: catchBack,
+        warehouseMilliFish,
       });
       await this.fishingRepository.addLedgerEntry(manager, {
         userId,
         type: 'STORE',
-        amountNanoFish: takenNanoFish,
+        amountMilliFish: takenMilliFish,
       });
       return {
-        storedFish: takenNanoFish / NANO_PER_FISH,
-        warehouseFish: warehouseNanoFish / NANO_PER_FISH,
-        hammockFish: state.nanoFish / NANO_PER_FISH,
+        storedFish: takenMilliFish / MILLI_PER_FISH,
+        warehouseFish: warehouseMilliFish / MILLI_PER_FISH,
+        hammockFish: state.milliFish / MILLI_PER_FISH,
         catchBackAvailable: catchBack > 0,
       };
     });
@@ -152,7 +156,7 @@ export class FishingService {
       const now = new Date();
       const today = toKstDateString(now);
       const row = await this.fishingRepository.lockOrCreate(manager, userId, now);
-      if (row.catchBackNanoFish <= 0) throw new ConflictException(NOTHING_TO_CATCH_BACK);
+      if (row.catchBackMilliFish <= 0) throw new ConflictException(NOTHING_TO_CATCH_BACK);
       const used = catchBacksUsedOn(row.catchBackCount, row.catchBackDate, today);
       if (used >= CATCH_BACK_POLICY.DAILY_LIMIT) {
         throw new ConflictException(CATCH_BACK_LIMIT_REACHED);
@@ -160,16 +164,16 @@ export class FishingService {
 
       // 정산한 뒤에 넣는다. 저장 직후라 대개 비어 있지만, 그 사이 찼더라도 용량을 넘겨 넣는다 (자정에 용량이 줄 때와 같은 처리)
       const settled = settleHammock(toHammockState(row), now);
-      const next = { ...settled, nanoFish: settled.nanoFish + row.catchBackNanoFish };
+      const next = { ...settled, milliFish: settled.milliFish + row.catchBackMilliFish };
       await this.fishingRepository.updateState(manager, row.id, {
         ...toStateChanges(next),
-        catchBackNanoFish: 0,
+        catchBackMilliFish: 0,
         catchBackCount: used + 1,
         catchBackDate: today,
       });
       return {
-        caughtBackFish: row.catchBackNanoFish / NANO_PER_FISH,
-        hammockFish: next.nanoFish / NANO_PER_FISH,
+        caughtBackFish: row.catchBackMilliFish / MILLI_PER_FISH,
+        hammockFish: next.milliFish / MILLI_PER_FISH,
       };
     });
   }
@@ -178,9 +182,9 @@ export class FishingService {
   private catchBackOffer(settled: HammockState, row: FishingState, today: string): number {
     const used = catchBacksUsedOn(row.catchBackCount, row.catchBackDate, today);
     if (used >= CATCH_BACK_POLICY.DAILY_LIMIT) return 0;
-    const capacity = hammockCapacityNanoFish(boostsOn(settled, today));
-    const amount = catchBackNanoFish(settled.overflowNanoFish, capacity);
-    return amount >= MIN_CATCH_BACK_NANO_FISH ? amount : 0;
+    const capacity = hammockCapacityMilliFish(boostsAt(settled, settled.settledAt));
+    const amount = catchBackMilliFish(settled.overflowMilliFish, capacity);
+    return amount >= MIN_CATCH_BACK_MILLI_FISH ? amount : 0;
   }
 
   /**
@@ -226,7 +230,9 @@ export class FishingService {
           ) {
             throw new ConflictException(HAMMOCK_COOLING_DOWN);
           }
-          if (boostsOn(settled, today).hammockLevel >= HAMMOCK_EXPAND_POLICY.MAX_LEVEL) {
+          if (
+            boostsAt(settled, settled.settledAt).hammockLevel >= HAMMOCK_EXPAND_POLICY.MAX_LEVEL
+          ) {
             throw new ConflictException(HAMMOCK_AT_MAX_LEVEL);
           }
           const expanded = expandHammock(settled, HAMMOCK_EXPAND_POLICY.LEVELS_PER_AD, today);
@@ -255,11 +261,13 @@ export class FishingService {
   }
 
   /**
-   * `now` 가 속한 날 자정까지 해달 친구가 한 명 더 함께 낚시한다 (하루 최대 인원에서 멈춤).
+   * `now` 부터 24시간(OTTER_FRIEND_POLICY.DURATION_HOURS) 해달 친구가 함께 낚시한다.
    * 호출하는 쪽(출석)의 트랜잭션 안에서 실행한다.
    */
   async summonOtterFriend(userId: string, manager: EntityManager, now: Date): Promise<void> {
-    await this.changeHammock(manager, userId, now, summonOtterFriend);
+    await this.changeHammock(manager, userId, now, (settled) =>
+      summonOtterFriend(settled, settled.settledAt),
+    );
   }
 
   /**

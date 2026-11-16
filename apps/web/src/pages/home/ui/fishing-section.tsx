@@ -13,6 +13,9 @@ import type { RewardedAd } from '@/shared/lib/rewarded-ad';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card';
 import { WarehouseLink } from './warehouse-link';
 
+/** 화면에 1마리 이상 보일 때부터 저장할 수 있다 (화면은 정수로 내림해 보여준다) */
+const MIN_STORE_FISH = 1;
+
 type ContentProps = {
   status: FishingStatus;
   receivedAt: number;
@@ -34,7 +37,11 @@ function FishingContent({ status, receivedAt, rewardedAd }: ContentProps) {
     <>
       <HammockGauge fish={fish} capacity={status.hammockCapacity} level={status.hammockLevel} />
       <FishingStats status={status} receivedAt={receivedAt} />
-      <StoreFishButton canStore={fish > 0} ad={rewardedAd} onCatchBackAvailable={openCatchBack} />
+      <StoreFishButton
+        canStore={fish >= MIN_STORE_FISH}
+        ad={rewardedAd}
+        onCatchBackAvailable={openCatchBack}
+      />
       <WarehouseLink warehouseFish={status.warehouseFish} />
       <CatchBackDialog
         storedFish={catchBackStoredFish}

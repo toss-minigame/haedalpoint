@@ -8,7 +8,6 @@ describe('AttendanceController', () => {
   const service = {
     checkIn: jest.fn(),
     getStatus: jest.fn(),
-    claimAdBonus: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -23,7 +22,6 @@ describe('AttendanceController', () => {
   it.each([
     ['checkIn', 'checkIn'],
     ['getStatus', 'getStatus'],
-    ['claimAdBonus', 'claimAdBonus'],
   ] as const)('%s delegates to service.%s with the user id', async (route, method) => {
     service[method].mockResolvedValue('result');
 

@@ -1,4 +1,9 @@
-import { type FishingStatus, hammockName, otterFriendSpeedBonusPercent } from '@/entities/fishing';
+import {
+  type FishingStatus,
+  formatFullAt,
+  hammockName,
+  otterFriendSpeedBonusPercent,
+} from '@/entities/fishing';
 
 const BASE_SPEED_PERCENT = 100;
 
@@ -19,9 +24,14 @@ export function todaySpeedBonusPercent(status: FishingStatus): number {
 /**
  * 오늘 적용 중인 강화 목록. 모두 서버 응답 값에서 계산한다.
  * 해먹 단계는 해먹 광고로만 오르고 한 번에 낚싯대도 함께 오르므로, 낚싯대 중 해먹 넓히기 몫 = 해먹 단계 × 1회당 속도.
- * baitName 은 오늘 단 미끼 이름 (룰렛 정보를 아직 못 받았으면 null)
+ * baitName 은 오늘 단 미끼 이름 (룰렛 정보를 아직 못 받았으면 null).
+ * now 는 서버 시각 기준 지금 (해달 친구가 떠나는 시각을 '오늘'/'내일'로 나눠 보여줄 때 쓴다)
  */
-export function todayBoostRows(status: FishingStatus, baitName: string | null): TodayBoostRow[] {
+export function todayBoostRows(
+  status: FishingStatus,
+  baitName: string | null,
+  now: Date,
+): TodayBoostRow[] {
   const rodBonus = status.rodSpeedBonusPercent;
   const baitBonus = status.baitSpeedBonusPercent;
   const friendBonus = otterFriendSpeedBonusPercent(status);
@@ -44,10 +54,7 @@ export function todayBoostRows(status: FishingStatus, baitName: string | null): 
     {
       key: 'friend',
       title: '해달 친구',
-      detail:
-        status.otterFriendCount > 0
-          ? `오늘 함께 낚시하는 친구 ${status.otterFriendCount}명`
-          : '7일 연속 출석하면 함께 낚시해요',
+      detail: friendDetail(status.otterFriendUntil, now),
       value: `+${friendBonus}%`,
       isActive: friendBonus > 0,
     },
@@ -74,6 +81,12 @@ export function todayBoostRows(status: FishingStatus, baitName: string | null): 
       isActive: hammockBonus > 0,
     },
   ];
+}
+
+/** 해달 친구 줄 설명: 함께 낚시 중이면 떠나는 시각 (온 지 24시간 뒤) */
+function friendDetail(otterFriendUntil: string | null, now: Date): string {
+  if (otterFriendUntil === null) return '출석 7일째에 함께 낚시하러 와요';
+  return `${formatFullAt(new Date(otterFriendUntil), now)}까지 함께 낚시해요`;
 }
 
 /** 낚싯대 강화 줄 설명: 출석·퀴즈·광고 몫과 해먹 넓히기 몫을 나눠 보여준다 (둘을 더하면 낚싯대 값) */

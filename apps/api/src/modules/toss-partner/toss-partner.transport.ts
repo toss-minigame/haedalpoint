@@ -6,6 +6,8 @@ export interface PartnerRequest {
   method: 'GET' | 'POST';
   path: string;
   body?: unknown;
+  /** 추가 요청 헤더 (예: 프로모션 API 의 x-anon-key) */
+  headers?: Readonly<Record<string, string>>;
 }
 
 export interface PartnerResponse {
@@ -75,6 +77,7 @@ export function createPartnerTransport(config: PartnerTransportConfig): PartnerT
           agent,
           timeout: config.timeoutMs,
           headers: {
+            ...request.headers,
             Accept: 'application/json',
             ...(payload && {
               'Content-Type': 'application/json',

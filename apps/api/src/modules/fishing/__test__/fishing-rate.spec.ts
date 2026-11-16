@@ -6,11 +6,11 @@ import {
 } from '../../../common/globals/index.js';
 import {
   fishPerHour,
-  hammockCapacityNanoFish,
+  hammockCapacityMilliFish,
   hammockLevelBonusPercent,
-  NANO_PER_FISH,
+  MILLI_PER_FISH,
+  milliFishPerMs,
   NO_BOOSTS,
-  nanoFishPerMs,
   rodSpeedBonusPercent,
   speedPercent,
   tossPointsPerDay,
@@ -18,7 +18,7 @@ import {
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
-const BASE_CAPACITY = Math.round(FISHING_POLICY.HAMMOCK_CAPACITY * NANO_PER_FISH);
+const BASE_CAPACITY = Math.round(FISHING_POLICY.HAMMOCK_CAPACITY * MILLI_PER_FISH);
 
 describe('speedPercent', () => {
   it('is 100% without boosts', () => {
@@ -54,7 +54,26 @@ describe('hammockLevelBonusPercent', () => {
     expect(hammockLevelBonusPercent(1)).toBe(10);
     expect(hammockLevelBonusPercent(2)).toBe(21);
     expect(hammockLevelBonusPercent(3)).toBe(33.1);
-    expect(hammockLevelBonusPercent(HAMMOCK_EXPAND_POLICY.MAX_LEVEL)).toBe(159.4);
+    expect(hammockLevelBonusPercent(HAMMOCK_EXPAND_POLICY.MAX_LEVEL)).toBe(114.4);
+  });
+});
+
+describe('hammock levels n = 1..9', () => {
+  it('starts at 30,000 fish (n=1) and reaches about 64,308 fish at n=9', () => {
+    expect(hammockCapacityMilliFish(NO_BOOSTS) / MILLI_PER_FISH).toBe(30_000);
+    expect(HAMMOCK_EXPAND_POLICY.MAX_LEVEL).toBe(8);
+    expect(
+      Math.floor(
+        hammockCapacityMilliFish({ ...NO_BOOSTS, hammockLevel: HAMMOCK_EXPAND_POLICY.MAX_LEVEL }) /
+          MILLI_PER_FISH,
+      ),
+    ).toBe(64_307);
+  });
+
+  it('adds 10% of the base capacity for the otter friend', () => {
+    expect(hammockCapacityMilliFish({ ...NO_BOOSTS, otterFriends: 1 }) / MILLI_PER_FISH).toBe(
+      33_000,
+    );
   });
 });
 
@@ -64,23 +83,23 @@ describe('rodSpeedBonusPercent', () => {
   });
 });
 
-describe('hammockCapacityNanoFish', () => {
+describe('hammockCapacityMilliFish', () => {
   it('is the base capacity without the otter friend', () => {
-    expect(hammockCapacityNanoFish(NO_BOOSTS)).toBe(BASE_CAPACITY);
+    expect(hammockCapacityMilliFish(NO_BOOSTS)).toBe(BASE_CAPACITY);
   });
 
   it('grows by the otter friend capacity bonus', () => {
-    expect(hammockCapacityNanoFish({ ...NO_BOOSTS, otterFriends: 1 })).toBe(
+    expect(hammockCapacityMilliFish({ ...NO_BOOSTS, otterFriends: 1 })).toBe(
       (BASE_CAPACITY * (100 + OTTER_FRIEND_POLICY.CAPACITY_BONUS_PERCENT)) / 100,
     );
   });
 
   it('multiplies the capacity by 1.1 per hammock level (compounding)', () => {
-    expect(hammockCapacityNanoFish({ ...NO_BOOSTS, hammockLevel: 3 })).toBe(
+    expect(hammockCapacityMilliFish({ ...NO_BOOSTS, hammockLevel: 3 })).toBe(
       Math.floor(BASE_CAPACITY * 1.1 ** 3),
     );
-    expect(hammockCapacityNanoFish({ ...NO_BOOSTS, hammockLevel: 10 })).toBe(
-      Math.floor(BASE_CAPACITY * 1.1 ** 10),
+    expect(hammockCapacityMilliFish({ ...NO_BOOSTS, hammockLevel: 8 })).toBe(
+      Math.floor(BASE_CAPACITY * 1.1 ** 8),
     );
   });
 
@@ -89,12 +108,12 @@ describe('hammockCapacityNanoFish', () => {
     const withFriends =
       (BASE_CAPACITY * (100 + 2 * OTTER_FRIEND_POLICY.CAPACITY_BONUS_PERCENT)) / 100;
 
-    expect(hammockCapacityNanoFish(boosts)).toBe(Math.floor(withFriends * 1.1 ** 5));
+    expect(hammockCapacityMilliFish(boosts)).toBe(Math.floor(withFriends * 1.1 ** 5));
   });
 
   it('is not changed by rod upgrades', () => {
-    expect(hammockCapacityNanoFish({ ...NO_BOOSTS, rodLevel: 5 })).toBe(
-      hammockCapacityNanoFish(NO_BOOSTS),
+    expect(hammockCapacityMilliFish({ ...NO_BOOSTS, rodLevel: 5 })).toBe(
+      hammockCapacityMilliFish(NO_BOOSTS),
     );
   });
 });
@@ -102,7 +121,7 @@ describe('hammockCapacityNanoFish', () => {
 describe('base speed', () => {
   it('earns BASE_MONTHLY_TOSS_POINTS over BASE_MONTH_DAYS at 100%', () => {
     const fishPerMonth =
-      (nanoFishPerMs(100) * FISHING_POLICY.BASE_MONTH_DAYS * DAY_MS) / NANO_PER_FISH;
+      (milliFishPerMs(100) * FISHING_POLICY.BASE_MONTH_DAYS * DAY_MS) / MILLI_PER_FISH;
 
     expect(fishPerMonth / FISHING_POLICY.FISH_PER_TOSS_POINT).toBeCloseTo(
       FISHING_POLICY.BASE_MONTHLY_TOSS_POINTS,
@@ -111,11 +130,11 @@ describe('base speed', () => {
   });
 
   it('scales linearly with the speed percent', () => {
-    expect(nanoFishPerMs(250)).toBeCloseTo(nanoFishPerMs(100) * 2.5, 12);
+    expect(milliFishPerMs(250)).toBeCloseTo(milliFishPerMs(100) * 2.5, 12);
   });
 
   it('reports fish per hour', () => {
-    expect(fishPerHour(100)).toBeCloseTo((nanoFishPerMs(100) * HOUR_MS) / NANO_PER_FISH, 9);
+    expect(fishPerHour(100)).toBeCloseTo((milliFishPerMs(100) * HOUR_MS) / MILLI_PER_FISH, 9);
   });
 
   it('reports toss points per day', () => {
@@ -126,13 +145,26 @@ describe('base speed', () => {
   });
 });
 
-describe('nano-fish precision', () => {
-  it('loses less than one nano-fish per settlement at the base speed', () => {
-    expect(nanoFishPerMs(100)).toBeGreaterThan(1);
+describe('milli-fish precision', () => {
+  it('catches one fish (1,000 milli-fish) a second at the base speed', () => {
+    expect(milliFishPerMs(100) * 1000).toBeCloseTo(MILLI_PER_FISH, 9);
+    expect(fishPerHour(100)).toBeCloseTo(3_600, 9);
+  });
+
+  it('keeps the +1% rod bonus (0.01 fish a second) as whole milli-fish', () => {
+    expect(milliFishPerMs(101) * 1000).toBeCloseTo(1_010, 9);
+  });
+
+  it('keeps the monthly budget well inside the safe integer range', () => {
+    const budgetMilliFish =
+      FISHING_POLICY.MONTHLY_TOSS_POINT_BUDGET *
+      FISHING_POLICY.FISH_PER_TOSS_POINT *
+      MILLI_PER_FISH;
+    expect(budgetMilliFish).toBeLessThan(Number.MAX_SAFE_INTEGER / 1000);
   });
 
   it('holds fractional capacities without rounding to whole fish', () => {
-    expect(BASE_CAPACITY / NANO_PER_FISH).toBe(FISHING_POLICY.HAMMOCK_CAPACITY);
+    expect(BASE_CAPACITY / MILLI_PER_FISH).toBe(FISHING_POLICY.HAMMOCK_CAPACITY);
   });
 });
 
@@ -144,8 +176,8 @@ describe('speedPercent bait', () => {
   });
 
   it('does not change the hammock capacity', () => {
-    expect(hammockCapacityNanoFish({ ...NO_BOOSTS, baitBonusPercent: 5 })).toBe(
-      hammockCapacityNanoFish(NO_BOOSTS),
+    expect(hammockCapacityMilliFish({ ...NO_BOOSTS, baitBonusPercent: 5 })).toBe(
+      hammockCapacityMilliFish(NO_BOOSTS),
     );
   });
 });

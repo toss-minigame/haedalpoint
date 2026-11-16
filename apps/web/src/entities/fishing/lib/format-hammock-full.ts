@@ -13,7 +13,7 @@ export function formatRemaining(ms: number): string {
   return minutes === 0 ? `${hours}시간` : `${hours}시간 ${minutes}분`;
 }
 
-/** 가득 차는 시각을 '오후 7:42' 로. 오늘이 아니면 앞에 '내일' 을 붙인다 (해먹은 하루 안에 가득 찬다) */
+/** 시각을 '오후 7:42' 로. 오늘이 아니면 앞에 '내일' 을 붙인다 (해먹이 가득 차는 시각·해달 친구가 떠나는 시각은 24시간 안이다) */
 export function formatFullAt(fullAt: Date, now: Date): string {
   const clock = clockFormatter.format(fullAt);
   return fullAt.toDateString() === now.toDateString() ? clock : `내일 ${clock}`;

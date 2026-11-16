@@ -30,9 +30,9 @@ type CatchLabels = { otter: string | null; friend: string | null };
 const NO_CATCH_LABELS: CatchLabels = { otter: null, friend: null };
 
 /**
- * 해달·해달 친구가 한 번 잡을 때 늘어나는 양 (예: +0.0000208). 해먹이 가득 찼으면 늘지 않으므로 띄우지 않는다.
+ * 해달·해달 친구가 한 번 잡을 때 늘어나는 양 (예: 기본 속도 초당 1마리 · 3초마다 잡으면 +3). 해먹이 가득 찼으면 늘지 않으므로 띄우지 않는다.
  * 친구가 있으면 친구 몫(친구 속도 보너스)은 친구가 들어 올릴 때 따로 띄우고 해달 몫에서는 뺀다.
- * 그래서 두 글자를 시간당으로 더하면 실제로 쌓이는 양과 같다.
+ * 그래서 두 글자를 시간당으로 더하면 실제로 쌓이는 양과 거의 같다 (화면은 정수로 내림해 보여준다).
  */
 function catchLabelsOf(status: FishingStatus | undefined): CatchLabels {
   if (!status || status.hammockFullAt === null) return NO_CATCH_LABELS;

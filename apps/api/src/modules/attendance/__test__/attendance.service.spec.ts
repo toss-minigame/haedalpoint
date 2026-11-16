@@ -2,6 +2,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { DataSource, type EntityManager } from 'typeorm';
 import { FishingService } from '../../fishing/fishing.service.js';
+import { TossPointService } from '../../toss-point/toss-point.service.js';
 import { UsersService } from '../../users/users.service.js';
 import { AttendanceRepository } from '../attendance.repository.js';
 import { AttendanceService } from '../attendance.service.js';
@@ -10,23 +11,32 @@ const USER_ID = '00000000-0000-4000-8000-000000000001';
 // KST 2026-10-30 12:00
 const NOW = new Date('2026-10-30T03:00:00Z');
 const TODAY = '2026-10-30';
-
-function log(checkedDate: string, streakDay: number, cycleCompleted = streakDay === 7) {
-  return { checkedDate, streakDay, cycleCompleted, adBonusClaimedAt: null };
-}
+const YESTERDAY = '2026-10-29';
 
 describe('AttendanceService', () => {
   let service: AttendanceService;
   const repo = {
-    findRecentByUserId: jest.fn(),
-    findByUserIdAndDate: jest.fn(),
+    findLatestByUserId: jest.fn(),
+    countByUserId: jest.fn(),
+    findFirstDays: jest.fn(),
     create: jest.fn(),
-    claimAdBonus: jest.fn(),
   };
   const usersService = { findById: jest.fn() };
   const manager = { name: 'tx-manager' } as unknown as EntityManager;
   const fishingService = { enhanceRod: jest.fn(), summonOtterFriend: jest.fn() };
+  const tossPointService = {
+    createGrant: jest.fn(),
+    settle: jest.fn(),
+    settlePending: jest.fn(),
+    pendingAmount: jest.fn(),
+  };
   const dataSource = { transaction: jest.fn() };
+
+  /** 지금까지 출석한 일수와 마지막 출석 날짜 */
+  function attended(days: number, lastDate: string | null = days > 0 ? YESTERDAY : null) {
+    repo.countByUserId.mockResolvedValue(days);
+    repo.findLatestByUserId.mockResolvedValue(lastDate ? { checkedDate: lastDate } : null);
+  }
 
   beforeAll(() => {
     jest.useFakeTimers({ now: NOW });
@@ -40,6 +50,8 @@ describe('AttendanceService', () => {
     jest.resetAllMocks();
     usersService.findById.mockResolvedValue({ id: USER_ID });
     repo.create.mockImplementation(async (data: object) => ({ id: 'log-1', ...data }));
+    tossPointService.createGrant.mockResolvedValue({ id: 'grant-1' });
+    tossPointService.settle.mockResolvedValue('SUCCESS');
     dataSource.transaction.mockImplementation(async (work: (m: EntityManager) => unknown) =>
       work(manager),
     );
@@ -50,6 +62,7 @@ describe('AttendanceService', () => {
         { provide: AttendanceRepository, useValue: repo },
         { provide: UsersService, useValue: usersService },
         { provide: FishingService, useValue: fishingService },
+        { provide: TossPointService, useValue: tossPointService },
         { provide: DataSource, useValue: dataSource },
       ],
     }).compile();
@@ -57,205 +70,131 @@ describe('AttendanceService', () => {
   });
 
   describe('checkIn', () => {
-    it('gives day 1 ENHANCE_BONUS 1 on first check-in', async () => {
-      repo.findRecentByUserId.mockResolvedValue([]);
+    it('records day 1 and pays 1 toss point after the transaction', async () => {
+      attended(0);
 
       await expect(service.checkIn(USER_ID)).resolves.toEqual({
         checkedDate: TODAY,
-        streakDay: 1,
-        reward: { type: 'ENHANCE_BONUS', amount: 1 },
-        cycleCompleted: false,
+        attendanceDay: 1,
+        reward: { type: 'TOSS_POINT', amount: 1 },
+        tossPointGrant: 'SUCCESS',
       });
       expect(repo.create).toHaveBeenCalledWith(
         {
           userId: USER_ID,
           checkedDate: TODAY,
-          streakDay: 1,
-          rewardType: 'ENHANCE_BONUS',
+          attendanceDay: 1,
+          rewardType: 'TOSS_POINT',
           rewardAmount: 1,
-          cycleCompleted: false,
           rewardAppliedAt: NOW,
         },
         manager,
       );
-    });
-
-    it('enhances the rod in the same transaction on days 1-6', async () => {
-      repo.findRecentByUserId.mockResolvedValue([log('2026-10-29', 3)]);
-
-      await service.checkIn(USER_ID);
-
-      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
-      expect(fishingService.enhanceRod).toHaveBeenCalledWith(USER_ID, 1, manager, NOW);
-      expect(fishingService.summonOtterFriend).not.toHaveBeenCalled();
-    });
-
-    it('summons the otter friend in the same transaction on day 7', async () => {
-      repo.findRecentByUserId.mockResolvedValue([log('2026-10-29', 6)]);
-
-      await service.checkIn(USER_ID);
-
-      expect(fishingService.summonOtterFriend).toHaveBeenCalledWith(USER_ID, manager, NOW);
+      expect(tossPointService.createGrant).toHaveBeenCalledWith(manager, {
+        userId: USER_ID,
+        source: 'ATTENDANCE',
+        sourceId: 'log-1',
+        amount: 1,
+      });
+      expect(tossPointService.settle).toHaveBeenCalledWith('grant-1');
       expect(fishingService.enhanceRod).not.toHaveBeenCalled();
     });
 
-    it('does not apply the reward when the log cannot be saved', async () => {
-      repo.findRecentByUserId.mockResolvedValue([]);
-      repo.create.mockRejectedValue(Object.assign(new Error('duplicate key'), { code: '23505' }));
+    it('counts attendance days even when a day was skipped', async () => {
+      attended(3, '2026-10-20');
 
-      await expect(service.checkIn(USER_ID)).rejects.toThrow(ConflictException);
-      expect(fishingService.enhanceRod).not.toHaveBeenCalled();
+      const result = await service.checkIn(USER_ID);
+
+      expect(result.attendanceDay).toBe(4);
+      expect(result.reward).toEqual({ type: 'TOSS_POINT', amount: 1 });
     });
 
-    it('increments the streak when checked in yesterday', async () => {
-      repo.findRecentByUserId.mockResolvedValue([log('2026-10-29', 3)]);
+    it('returns PENDING when the payment is not confirmed yet', async () => {
+      attended(5);
+      tossPointService.settle.mockResolvedValue('PENDING');
 
       await expect(service.checkIn(USER_ID)).resolves.toMatchObject({
-        streakDay: 4,
-        reward: { type: 'ENHANCE_BONUS', amount: 1 },
+        attendanceDay: 6,
+        tossPointGrant: 'PENDING',
       });
     });
 
-    it('resets to day 1 when yesterday was missed', async () => {
-      repo.findRecentByUserId.mockResolvedValue([log('2026-10-28', 5)]);
+    it('brings the otter friend on day 7 in the same transaction', async () => {
+      attended(6);
 
-      await expect(service.checkIn(USER_ID)).resolves.toMatchObject({ streakDay: 1 });
-    });
-
-    it('completes the cycle with OTTER_FRIEND on day 7', async () => {
-      repo.findRecentByUserId.mockResolvedValue([log('2026-10-29', 6)]);
-
-      await expect(service.checkIn(USER_ID)).resolves.toEqual({
-        checkedDate: TODAY,
-        streakDay: 7,
+      await expect(service.checkIn(USER_ID)).resolves.toMatchObject({
+        attendanceDay: 7,
         reward: { type: 'OTTER_FRIEND', amount: 1 },
-        cycleCompleted: true,
+        tossPointGrant: null,
       });
+      expect(fishingService.summonOtterFriend).toHaveBeenCalledWith(USER_ID, manager, NOW);
+      expect(tossPointService.createGrant).not.toHaveBeenCalled();
+      expect(tossPointService.settle).not.toHaveBeenCalled();
     });
 
-    it('restarts at day 1 the day after a completed cycle', async () => {
-      repo.findRecentByUserId.mockResolvedValue([log('2026-10-29', 7)]);
+    it('enhances the rod by 10 levels from day 8', async () => {
+      attended(7);
 
       await expect(service.checkIn(USER_ID)).resolves.toMatchObject({
-        streakDay: 1,
-        cycleCompleted: false,
+        attendanceDay: 8,
+        reward: { type: 'ENHANCE_BONUS', amount: 10 },
+        tossPointGrant: null,
       });
+      expect(fishingService.enhanceRod).toHaveBeenCalledWith(USER_ID, 10, manager, NOW);
     });
 
-    it('throws ConflictException when already checked in today', async () => {
-      repo.findRecentByUserId.mockResolvedValue([log(TODAY, 2)]);
+    it('rejects a second check-in on the same day', async () => {
+      attended(2, TODAY);
 
-      await expect(service.checkIn(USER_ID)).rejects.toThrow(ConflictException);
+      await expect(service.checkIn(USER_ID)).rejects.toBeInstanceOf(ConflictException);
       expect(repo.create).not.toHaveBeenCalled();
     });
 
-    it('converts a unique violation (23505) into ConflictException', async () => {
-      repo.findRecentByUserId.mockResolvedValue([]);
-      repo.create.mockRejectedValue(Object.assign(new Error('duplicate key'), { code: '23505' }));
+    it('maps a unique violation from a double tap to a conflict', async () => {
+      attended(0);
+      repo.create.mockRejectedValue(Object.assign(new Error('duplicate'), { code: '23505' }));
 
-      await expect(service.checkIn(USER_ID)).rejects.toThrow(ConflictException);
+      await expect(service.checkIn(USER_ID)).rejects.toBeInstanceOf(ConflictException);
+      expect(tossPointService.settle).not.toHaveBeenCalled();
     });
 
-    it('rethrows other database errors', async () => {
-      repo.findRecentByUserId.mockResolvedValue([]);
-      const dbError = Object.assign(new Error('connection lost'), { code: '08006' });
-      repo.create.mockRejectedValue(dbError);
+    it('does not pay when the reward could not be applied', async () => {
+      attended(0);
+      tossPointService.createGrant.mockRejectedValue(new Error('db down'));
 
-      await expect(service.checkIn(USER_ID)).rejects.toBe(dbError);
+      await expect(service.checkIn(USER_ID)).rejects.toThrow('db down');
+      expect(tossPointService.settle).not.toHaveBeenCalled();
     });
 
-    it('throws NotFoundException for an unknown user', async () => {
+    it('rejects unknown users', async () => {
       usersService.findById.mockRejectedValue(new NotFoundException());
 
-      await expect(service.checkIn(USER_ID)).rejects.toThrow(NotFoundException);
+      await expect(service.checkIn(USER_ID)).rejects.toBeInstanceOf(NotFoundException);
       expect(repo.create).not.toHaveBeenCalled();
     });
   });
 
   describe('getStatus', () => {
-    it('loads one cycle worth of logs and assembles the status', async () => {
-      repo.findRecentByUserId.mockResolvedValue([log(TODAY, 2), log('2026-10-29', 1)]);
+    it('retries pending payments, then builds the status', async () => {
+      attended(2, TODAY);
+      repo.findFirstDays.mockResolvedValue([
+        { attendanceDay: 1, checkedDate: YESTERDAY },
+        { attendanceDay: 2, checkedDate: TODAY },
+      ]);
+      tossPointService.pendingAmount.mockResolvedValue(1);
 
       const status = await service.getStatus(USER_ID);
 
-      expect(repo.findRecentByUserId).toHaveBeenCalledWith(USER_ID, 7);
+      expect(tossPointService.settlePending).toHaveBeenCalledWith(USER_ID);
+      expect(repo.findFirstDays).toHaveBeenCalledWith(USER_ID, 7);
       expect(status).toMatchObject({
         today: TODAY,
         checkedToday: true,
-        currentStreakDay: 2,
-        nextStreakDay: 3,
-        adBonusAvailable: true,
+        attendanceDays: 2,
+        firstWeekCompleted: false,
+        nextReward: { type: 'TOSS_POINT', amount: 1 },
+        pendingTossPoints: 1,
       });
-    });
-
-    it('throws NotFoundException for an unknown user', async () => {
-      usersService.findById.mockRejectedValue(new NotFoundException());
-
-      await expect(service.getStatus(USER_ID)).rejects.toThrow(NotFoundException);
-    });
-  });
-
-  describe('claimAdBonus', () => {
-    it('throws ConflictException when bonus was already claimed', async () => {
-      repo.findByUserIdAndDate.mockResolvedValue({
-        ...log(TODAY, 1),
-        adBonusClaimedAt: new Date(),
-      });
-
-      await expect(service.claimAdBonus(USER_ID)).rejects.toThrow(ConflictException);
-    });
-
-    it('throws NotFoundException when not checked in today', async () => {
-      repo.findByUserIdAndDate.mockResolvedValue(null);
-
-      await expect(service.claimAdBonus(USER_ID)).rejects.toThrow(NotFoundException);
-      expect(repo.findByUserIdAndDate).toHaveBeenCalledWith(USER_ID, TODAY);
-    });
-
-    function todayLog(rewardType: 'ENHANCE_BONUS' | 'OTTER_FRIEND', rewardAmount: number) {
-      return { ...log(TODAY, 1), id: 'log-today', rewardType, rewardAmount };
-    }
-
-    it('records the claim and enhances the rod again in one transaction', async () => {
-      repo.findByUserIdAndDate.mockResolvedValue(todayLog('ENHANCE_BONUS', 3));
-      repo.claimAdBonus.mockResolvedValue(true);
-
-      await expect(service.claimAdBonus(USER_ID)).resolves.toEqual({
-        checkedDate: TODAY,
-        bonusReward: { type: 'ENHANCE_BONUS', amount: 3 },
-      });
-      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
-      expect(repo.claimAdBonus).toHaveBeenCalledWith('log-today', NOW, manager);
-      expect(fishingService.enhanceRod).toHaveBeenCalledWith(USER_ID, 3, manager, NOW);
-      expect(fishingService.summonOtterFriend).not.toHaveBeenCalled();
-    });
-
-    it('summons one more otter friend on day 7', async () => {
-      repo.findByUserIdAndDate.mockResolvedValue(todayLog('OTTER_FRIEND', 1));
-      repo.claimAdBonus.mockResolvedValue(true);
-
-      await expect(service.claimAdBonus(USER_ID)).resolves.toMatchObject({
-        bonusReward: { type: 'OTTER_FRIEND', amount: 1 },
-      });
-      expect(fishingService.summonOtterFriend).toHaveBeenCalledWith(USER_ID, manager, NOW);
-      expect(fishingService.enhanceRod).not.toHaveBeenCalled();
-    });
-
-    it('throws ConflictException when a concurrent request claimed it first', async () => {
-      repo.findByUserIdAndDate.mockResolvedValue(todayLog('ENHANCE_BONUS', 1));
-      repo.claimAdBonus.mockResolvedValue(false);
-
-      await expect(service.claimAdBonus(USER_ID)).rejects.toThrow(ConflictException);
-      expect(fishingService.enhanceRod).not.toHaveBeenCalled();
-    });
-
-    it('fails without applying anything when the reward cannot be applied', async () => {
-      repo.findByUserIdAndDate.mockResolvedValue(todayLog('ENHANCE_BONUS', 1));
-      repo.claimAdBonus.mockResolvedValue(true);
-      fishingService.enhanceRod.mockRejectedValue(new Error('db down'));
-
-      // 트랜잭션이 롤백되므로 수령 기록도 남지 않아 클라이언트 재시도로 다시 받을 수 있다
-      await expect(service.claimAdBonus(USER_ID)).rejects.toThrow('db down');
     });
   });
 });

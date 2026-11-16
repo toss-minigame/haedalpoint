@@ -1,70 +1,67 @@
 import type { FishingStatusResponse } from '@haedalpoint/shared';
 import { AD_ROD_POLICY, HAMMOCK_EXPAND_POLICY } from '../../../common/globals/index.js';
-import { nextKstMidnight, toKstDateString } from '../../../common/utils/kst-date.js';
+import { nextKstMidnight } from '../../../common/utils/kst-date.js';
 import type { FishingState } from '../entities/fishing-state.entity.js';
 import type { FishingStateChanges } from '../fishing.repository.js';
 import {
   fishPerHour,
-  hammockCapacityNanoFish,
+  hammockCapacityMilliFish,
   hammockLevelBonusPercent,
-  NANO_PER_FISH,
+  MILLI_PER_FISH,
   rodSpeedBonusPercent,
   speedPercent,
 } from './fishing-rate.js';
-import { boostsOn, type HammockState, predictHammockFullAt } from './settle-hammock.js';
+import { boostsAt, type HammockState, predictHammockFullAt } from './settle-hammock.js';
 
 type FishingStateRow = Pick<
   FishingState,
-  | 'hammockNanoFish'
+  | 'hammockMilliFish'
   | 'settledAt'
   | 'rodLevel'
   | 'rodLevelDate'
-  | 'otterFriendDate'
-  | 'otterFriendCount'
+  | 'otterFriendUntil'
   | 'hammockLevel'
   | 'hammockLevelDate'
   | 'baitBonusPercent'
   | 'baitDate'
-  | 'overflowNanoFish'
+  | 'overflowMilliFish'
 >;
 
 /** 현황 응답에 필요한, 해먹 계산 밖의 값 */
 export type FishingAccount = Pick<
   FishingState,
-  'warehouseNanoFish' | 'adRodEnhancedAt' | 'adHammockExpandedAt'
+  'warehouseMilliFish' | 'adRodEnhancedAt' | 'adHammockExpandedAt'
 >;
 
 const MINUTE_MS = 60 * 1000;
 
 export function toHammockState(row: FishingStateRow): HammockState {
   return {
-    nanoFish: row.hammockNanoFish,
+    milliFish: row.hammockMilliFish,
     settledAt: row.settledAt,
     rodLevel: row.rodLevel,
     rodLevelDate: row.rodLevelDate,
-    otterFriendDate: row.otterFriendDate,
-    otterFriendCount: row.otterFriendCount,
+    otterFriendUntil: row.otterFriendUntil,
     hammockLevel: row.hammockLevel,
     hammockLevelDate: row.hammockLevelDate,
     baitBonusPercent: row.baitBonusPercent,
     baitDate: row.baitDate,
-    overflowNanoFish: row.overflowNanoFish,
+    overflowMilliFish: row.overflowMilliFish,
   };
 }
 
 export function toStateChanges(state: HammockState): FishingStateChanges {
   return {
-    hammockNanoFish: state.nanoFish,
+    hammockMilliFish: state.milliFish,
     settledAt: state.settledAt,
     rodLevel: state.rodLevel,
     rodLevelDate: state.rodLevelDate,
-    otterFriendDate: state.otterFriendDate,
-    otterFriendCount: state.otterFriendCount,
+    otterFriendUntil: state.otterFriendUntil,
     hammockLevel: state.hammockLevel,
     hammockLevelDate: state.hammockLevelDate,
     baitBonusPercent: state.baitBonusPercent,
     baitDate: state.baitDate,
-    overflowNanoFish: state.overflowNanoFish,
+    overflowMilliFish: state.overflowMilliFish,
   };
 }
 
@@ -92,14 +89,14 @@ export function buildFishingStatus(
   account: FishingAccount,
   now: Date,
 ): FishingStatusResponse {
-  const boosts = boostsOn(hammock, toKstDateString(now));
+  const boosts = boostsAt(hammock, now);
   const percent = speedPercent(boosts);
   const fullAt = predictHammockFullAt(hammock);
 
   return {
     serverTime: now.toISOString(),
-    hammockFish: hammock.nanoFish / NANO_PER_FISH,
-    hammockCapacity: hammockCapacityNanoFish(boosts) / NANO_PER_FISH,
+    hammockFish: hammock.milliFish / MILLI_PER_FISH,
+    hammockCapacity: hammockCapacityMilliFish(boosts) / MILLI_PER_FISH,
     hammockFullAt: fullAt ? fullAt.toISOString() : null,
     fishPerHour: fishPerHour(percent),
     speedPercent: percent,
@@ -108,6 +105,10 @@ export function buildFishingStatus(
     rodSpeedBonusPercent: rodSpeedBonusPercent(boosts.rodLevel),
     otterFriendActive: boosts.otterFriends > 0,
     otterFriendCount: boosts.otterFriends,
+    otterFriendUntil:
+      boosts.otterFriends > 0 && hammock.otterFriendUntil
+        ? hammock.otterFriendUntil.toISOString()
+        : null,
     hammockLevel: boosts.hammockLevel,
     hammockMaxLevel: HAMMOCK_EXPAND_POLICY.MAX_LEVEL,
     hammockLevelBonusPercent: hammockLevelBonusPercent(boosts.hammockLevel),
@@ -128,6 +129,6 @@ export function buildFishingStatus(
       now,
     ),
     boostsResetAt: nextKstMidnight(now).toISOString(),
-    warehouseFish: account.warehouseNanoFish / NANO_PER_FISH,
+    warehouseFish: account.warehouseMilliFish / MILLI_PER_FISH,
   };
 }
