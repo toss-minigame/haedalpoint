@@ -1,6 +1,6 @@
 import type { TutorialRewardKind } from '@/entities/tutorial';
 
-/** 튜토리얼이 비추는 홈 화면 영역. 홈에서 그 영역에 `data-tutorial` 로 붙인다 */
+/** 튜토리얼이 비추는 화면 영역. 그 영역에 `data-tutorial` 로 붙인다 (홈, 퀴즈·룰렛 화면) */
 export type TutorialTarget =
   | 'scene'
   | 'hammock'
@@ -9,14 +9,16 @@ export type TutorialTarget =
   | 'check-in'
   | 'ad-rod'
   | 'ad-hammock'
-  | 'quiz'
-  | 'roulette';
+  | 'shortcuts'
+  | 'quiz-first'
+  | 'roulette-wheel'
+  | 'roulette-spin'
+  | 'roulette-effects';
 
 /**
  * - info: 설명만 하고 다음으로
  * - check-in: 출석 버튼을 직접 눌러 광고를 보고 출석한다
  * - trial: 비춘 버튼을 광고 없이 눌러 체험 보상을 받는다
- * - quiz: 말풍선 안 연습 문제를 푼다
  * - gift: 단계에 들어가면 첫 선물을 받는다
  * - store: 광고를 보고 창고에 저장한다
  * - finish: 단계에 들어가면 완료 보상(해달 친구)을 받는다
@@ -25,7 +27,6 @@ export type TutorialAction =
   | { type: 'info' }
   | { type: 'check-in' }
   | { type: 'trial'; kind: Extract<TutorialRewardKind, 'ROD' | 'HAMMOCK'> }
-  | { type: 'quiz' }
   | { type: 'gift' }
   | { type: 'store' }
   | { type: 'finish' };
@@ -40,14 +41,7 @@ export type TutorialStep = {
   action: TutorialAction;
 };
 
-/** 연습 퀴즈 (오늘의 퀴즈와 따로 둔다). O·X 어느 쪽을 골라도 해설을 보여주고 강화한다 */
-export const PRACTICE_QUIZ = {
-  question: '해달은 잠잘 때 서로 손을 잡고 자요',
-  answer: 'O',
-  explanation: '해달은 잠든 동안 떠내려가지 않도록 서로 손을 잡아요',
-} as const;
-
-// docs/design/tutorial.md 3장
+// 홈 튜토리얼 (docs/design/tutorial.md 3장). 퀴즈·룰렛은 그 화면을 처음 열 때 따로 알려준다 (page-tutorial-steps)
 export const TUTORIAL_STEPS: readonly TutorialStep[] = [
   {
     id: 'greet',
@@ -95,16 +89,9 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     action: { type: 'trial', kind: 'HAMMOCK' },
   },
   {
-    id: 'quiz',
-    target: 'quiz',
-    message: `해달 퀴즈를 맞히면 낚싯대를 강화할 수 있어요. "${PRACTICE_QUIZ.question}"`,
-    doneMessage: `정답은 ${PRACTICE_QUIZ.answer}예요. ${PRACTICE_QUIZ.explanation}. 낚싯대가 1단계 강화됐어요`,
-    action: { type: 'quiz' },
-  },
-  {
-    id: 'roulette',
-    target: 'roulette',
-    message: '하루 한 번 미끼를 뽑아 더 빨리 낚아요',
+    id: 'shortcuts',
+    target: 'shortcuts',
+    message: 'O/X 퀴즈와 미끼 룰렛도 낚싯대를 빠르게 해줘요. 처음 열면 알려드릴게요',
     action: { type: 'info' },
   },
   {
@@ -128,11 +115,13 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
   },
 ];
 
+/** 홈 튜토리얼에서 받는 보상 (연습 퀴즈는 퀴즈 화면에서) */
+export type HomeRewardKind = Exclude<TutorialRewardKind, 'QUIZ'>;
+
 /** 보상 종류를 받는 단계. 다시 들어왔을 때 받지 않은 첫 보상 단계부터 이어서 한다 */
-export const REWARD_STEP_ID: Record<TutorialRewardKind, string> = {
+export const REWARD_STEP_ID: Record<HomeRewardKind, string> = {
   ROD: 'rod',
   HAMMOCK: 'hammock-expand',
-  QUIZ: 'quiz',
   GIFT: 'gift',
 };
 

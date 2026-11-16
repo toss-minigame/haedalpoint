@@ -32,7 +32,7 @@ export const OTTER_FRIEND_POLICY = {
   DURATION_HOURS: 24,
   /** 해달 친구가 오르게 하는 속도 (기본 속도 대비 %) */
   SPEED_BONUS_PERCENT: 50,
-  /** 해달 친구가 늘려 주는 해먹 용량 (기본 용량 대비 %) */
+  /** 해달 친구가 늘려 주는 해먹 용량 (기본 용량 대비 %). 속도만 크게 올리고 용량은 조금만 늘려, 자주 비우는 사람이 더 받게 한다 */
   CAPACITY_BONUS_PERCENT: 10,
 } as const;
 

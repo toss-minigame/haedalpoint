@@ -1,4 +1,4 @@
-import { buildTutorialStatus, isClosed, isRewarded } from '../lib/tutorial-status.js';
+import { buildTutorialStatus, canClaim, isClosed, isRewarded } from '../lib/tutorial-status.js';
 
 const AT = new Date('2026-11-16T03:00:00Z');
 
@@ -57,5 +57,18 @@ describe('isClosed', () => {
     ['skipped', row({ skippedAt: AT }), true],
   ])('%s', (_label, r, expected) => {
     expect(isClosed(r)).toBe(expected);
+  });
+});
+
+describe('canClaim', () => {
+  it('allows the home rewards only while the tutorial is open', () => {
+    expect(canClaim(row(), 'ROD')).toBe(true);
+    expect(canClaim(row({ completedAt: AT }), 'GIFT')).toBe(false);
+    expect(canClaim(row({ skippedAt: AT }), 'HAMMOCK')).toBe(false);
+  });
+
+  it('allows the practice quiz after completion but not after a skip', () => {
+    expect(canClaim(row({ completedAt: AT }), 'QUIZ')).toBe(true);
+    expect(canClaim(row({ skippedAt: AT }), 'QUIZ')).toBe(false);
   });
 });
