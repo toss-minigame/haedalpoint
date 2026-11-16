@@ -13,10 +13,10 @@ import {
   useCompleteTutorial,
   useSkipTutorial,
 } from '../api/use-tutorial-mutations';
-import { REWARD_STEP_ID, TUTORIAL_STEPS, type TutorialStep } from './steps';
+import { type HomeRewardKind, REWARD_STEP_ID, TUTORIAL_STEPS, type TutorialStep } from './steps';
 
 const HTTP_CONFLICT = 409;
-const REWARD_ORDER: readonly TutorialRewardKind[] = ['ROD', 'HAMMOCK', 'QUIZ', 'GIFT'];
+const REWARD_ORDER: readonly HomeRewardKind[] = ['ROD', 'HAMMOCK', 'GIFT'];
 /** 이보다 적게 남았으면 이미 저장한 것으로 보고 마무리로 간다 (마리) */
 const STORED_THRESHOLD_FISH = 0.01;
 
@@ -37,7 +37,6 @@ export type WelcomeTutorial = {
   isTargetInteractive: boolean;
   next: () => void;
   retry: () => void;
-  answerQuiz: () => void;
   skip: () => void;
   close: () => void;
   trialFor: (kind: TutorialRewardKind) => TutorialTrial | undefined;
@@ -168,7 +167,6 @@ export function useWelcomeTutorial(): WelcomeTutorial | null {
       if (action.type === 'gift') claim('GIFT', step.doneMessage);
       if (action.type === 'trial') claim(action.kind, step.doneMessage);
     },
-    answerQuiz: () => claim('QUIZ', step.doneMessage),
     skip: () => {
       skipTutorial.mutate();
       closeWith(false);

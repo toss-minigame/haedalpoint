@@ -78,16 +78,16 @@ export function HomePage() {
       </div>
       <FishingSection rewardedAd={rewardedAd} onTutorialStored={tutorial?.onStored} />
       <AttendanceSection rewardedAd={rewardedAd} hideAdBonus={tutorial !== null} />
-      <nav aria-label="오늘 할 일" className="grid grid-cols-2 gap-3">
+      <nav
+        aria-label="오늘 할 일"
+        className="grid grid-cols-2 gap-3"
+        {...tutorialTarget('shortcuts')}
+      >
         <Button asChild size="lg" variant="outline" className={SHORTCUT_CLASS}>
-          <Link to="/quiz" {...tutorialTarget('quiz')}>
-            O/X 퀴즈 풀기
-          </Link>
+          <Link to="/quiz">O/X 퀴즈 풀기</Link>
         </Button>
         <Button asChild size="lg" variant="outline" className={SHORTCUT_CLASS}>
-          <Link to="/roulette" {...tutorialTarget('roulette')}>
-            {currentKstMonth()}월 미끼 룰렛
-          </Link>
+          <Link to="/roulette">{currentKstMonth()}월 미끼 룰렛</Link>
         </Button>
       </nav>
       {tutorial && <WelcomeTutorialOverlay tutorial={tutorial} />}

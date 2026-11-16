@@ -29,8 +29,8 @@ export const ROD_POLICY = {
 export const OTTER_FRIEND_POLICY = {
   /** 해달 친구 한 명당 오르는 속도 (기본 속도 대비 %) */
   SPEED_BONUS_PERCENT: 50,
-  /** 해달 친구 한 명당 늘어나는 해먹 용량 (기본 용량 대비 %) */
-  CAPACITY_BONUS_PERCENT: 50,
+  /** 해달 친구 한 명당 늘어나는 해먹 용량 (기본 용량 대비 %). 속도만 크게 올리고 용량은 조금만 늘려, 자주 비우는 사람이 더 받게 한다 */
+  CAPACITY_BONUS_PERCENT: 10,
   /** 동시에 함께 낚시할 수 있는 해달 친구 수 (7일차 출석 1 + 광고 2배 1) */
   MAX_FRIENDS: 2,
   /** 해달 친구가 머무는 시간. 친구가 있는 동안 새 친구가 오면 모두 새 친구가 온 때부터 다시 센다 */

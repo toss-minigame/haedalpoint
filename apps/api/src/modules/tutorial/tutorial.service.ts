@@ -12,6 +12,7 @@ import { UsersService } from '../users/users.service.js';
 import type { UserTutorial } from './entities/user-tutorial.entity.js';
 import {
   buildTutorialStatus,
+  canClaim,
   isClosed,
   isRewarded,
   REWARDED_AT_FIELD,
@@ -39,12 +40,13 @@ export class TutorialService {
     return buildTutorialStatus(await this.tutorialRepository.findByUserId(userId));
   }
 
-  /** 체험 보상(낚싯대·해먹·퀴즈)과 첫 선물. 응답은 보상을 받은 뒤의 낚시 현황 */
+  /** 체험 보상(낚싯대·해먹·퀴즈)과 첫 선물. 연습 퀴즈는 홈 튜토리얼을 마친 뒤에도 받는다. 응답은 받은 뒤의 낚시 현황 */
   async claimReward(userId: string, kind: TutorialRewardKind): Promise<TutorialRewardResponse> {
     await this.usersService.findById(userId);
     await this.dataSource.transaction(async (manager) => {
       const now = new Date();
-      const row = await this.lockOpen(manager, userId);
+      const row = await this.tutorialRepository.lockOrCreate(manager, userId);
+      if (!canClaim(row, kind)) throw new ConflictException(TUTORIAL_CLOSED);
       if (isRewarded(row, kind)) throw new ConflictException(ALREADY_REWARDED);
 
       await this.applyReward(userId, kind, manager, now);

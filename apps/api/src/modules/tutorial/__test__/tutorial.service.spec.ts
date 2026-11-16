@@ -140,8 +140,26 @@ describe('TutorialService', () => {
     it.each([
       ['completed', { completedAt: EARLIER }],
       ['skipped', { skippedAt: EARLIER }],
-    ])('rejects rewards once the tutorial is %s (409)', async (_label, overrides) => {
+    ])('rejects the home rewards once the tutorial is %s (409)', async (_label, overrides) => {
       repo.lockOrCreate.mockResolvedValue(tutorialRow(overrides));
+
+      await expect(service.claimReward(USER_ID, 'ROD')).rejects.toBeInstanceOf(ConflictException);
+      expect(fishingService.enhanceRod).not.toHaveBeenCalled();
+    });
+
+    it('gives the practice quiz reward after the home tutorial is completed', async () => {
+      repo.lockOrCreate.mockResolvedValue(
+        tutorialRow({ giftRewardedAt: EARLIER, completedAt: EARLIER }),
+      );
+
+      await service.claimReward(USER_ID, 'QUIZ');
+
+      expect(fishingService.enhanceRod).toHaveBeenCalledTimes(1);
+      expect(repo.update).toHaveBeenCalledWith(manager, 'tutorial-1', { quizRewardedAt: NOW });
+    });
+
+    it('rejects the practice quiz reward once the tutorial is skipped (409)', async () => {
+      repo.lockOrCreate.mockResolvedValue(tutorialRow({ skippedAt: EARLIER }));
 
       await expect(service.claimReward(USER_ID, 'QUIZ')).rejects.toBeInstanceOf(ConflictException);
       expect(fishingService.enhanceRod).not.toHaveBeenCalled();
