@@ -3,6 +3,7 @@ import {
   applyBait,
   enhanceRod,
   expandHammock,
+  fillHammock,
   summonOtterFriend,
   takeAllFish,
 } from '../lib/hammock-actions.js';
@@ -10,14 +11,18 @@ import type { HammockState } from '../lib/settle-hammock.js';
 
 const TODAY = '2026-11-02';
 const YESTERDAY = '2026-11-01';
+const HOUR_MS = 60 * 60 * 1000;
+// KST 2026-11-02 12:00
+const NOW = new Date('2026-11-02T03:00:00Z');
+const STAY_MS = OTTER_FRIEND_POLICY.STAY_HOURS * HOUR_MS;
 
 function state(overrides: Partial<HammockState> = {}): HammockState {
   return {
     nanoFish: 0,
-    settledAt: new Date('2026-11-02T03:00:00Z'),
+    settledAt: NOW,
     rodLevel: 0,
     rodLevelDate: null,
-    otterFriendDate: null,
+    otterFriendUntil: null,
     otterFriendCount: 0,
     hammockLevel: 0,
     hammockLevelDate: null,
@@ -57,32 +62,64 @@ describe('enhanceRod', () => {
 });
 
 describe('summonOtterFriend', () => {
-  it('makes one otter friend fish today', () => {
-    expect(summonOtterFriend(state(), TODAY)).toMatchObject({
-      otterFriendDate: TODAY,
+  it('makes one otter friend fish for 24 hours from the settled time', () => {
+    expect(summonOtterFriend(state())).toMatchObject({
+      otterFriendUntil: new Date(NOW.getTime() + STAY_MS),
       otterFriendCount: 1,
     });
   });
 
-  it('adds one more otter friend on the same day', () => {
-    const s = state({ otterFriendDate: TODAY, otterFriendCount: 1 });
+  it('adds one more otter friend and keeps both until 24 hours after the new one comes', () => {
+    const s = state({ otterFriendUntil: new Date(NOW.getTime() + HOUR_MS), otterFriendCount: 1 });
 
-    expect(summonOtterFriend(s, TODAY).otterFriendCount).toBe(2);
-  });
-
-  it('starts from one when the friends belong to another day', () => {
-    const s = state({ otterFriendDate: YESTERDAY, otterFriendCount: 2 });
-
-    expect(summonOtterFriend(s, TODAY)).toMatchObject({
-      otterFriendDate: TODAY,
-      otterFriendCount: 1,
+    expect(summonOtterFriend(s)).toMatchObject({
+      otterFriendUntil: new Date(NOW.getTime() + STAY_MS),
+      otterFriendCount: 2,
     });
   });
 
-  it('stops at the daily max', () => {
-    const s = state({ otterFriendDate: TODAY, otterFriendCount: OTTER_FRIEND_POLICY.MAX_PER_DAY });
+  it('starts from one when the friends have already left', () => {
+    const s = state({ otterFriendUntil: new Date(NOW.getTime() - 1), otterFriendCount: 2 });
 
-    expect(summonOtterFriend(s, TODAY).otterFriendCount).toBe(OTTER_FRIEND_POLICY.MAX_PER_DAY);
+    expect(summonOtterFriend(s).otterFriendCount).toBe(1);
+  });
+
+  it('stops at the max number of friends', () => {
+    const s = state({
+      otterFriendUntil: new Date(NOW.getTime() + HOUR_MS),
+      otterFriendCount: OTTER_FRIEND_POLICY.MAX_FRIENDS,
+    });
+
+    expect(summonOtterFriend(s).otterFriendCount).toBe(OTTER_FRIEND_POLICY.MAX_FRIENDS);
+  });
+});
+
+describe('fillHammock', () => {
+  it('fills the hammock up to the capacity', () => {
+    const { state: next, addedNanoFish } = fillHammock(state({ nanoFish: 100 }), 1_000, 5_000);
+
+    expect(next.nanoFish).toBe(1_000);
+    expect(addedNanoFish).toBe(900);
+  });
+
+  it('adds at most the max amount', () => {
+    const { state: next, addedNanoFish } = fillHammock(state({ nanoFish: 100 }), 1_000, 300);
+
+    expect(next.nanoFish).toBe(400);
+    expect(addedNanoFish).toBe(300);
+  });
+
+  it('adds nothing when the hammock is already at or above the capacity', () => {
+    const { state: next, addedNanoFish } = fillHammock(state({ nanoFish: 1_200 }), 1_000, 300);
+
+    expect(next.nanoFish).toBe(1_200);
+    expect(addedNanoFish).toBe(0);
+  });
+
+  it('does not count the gift as overflow', () => {
+    const s = state({ overflowNanoFish: 7 });
+
+    expect(fillHammock(s, 1_000, 1_000).state.overflowNanoFish).toBe(7);
   });
 });
 

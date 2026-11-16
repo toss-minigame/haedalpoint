@@ -1,4 +1,9 @@
-import { type FishingStatus, hammockName, otterFriendSpeedBonusPercent } from '@/entities/fishing';
+import {
+  type FishingStatus,
+  formatFullAt,
+  hammockName,
+  otterFriendSpeedBonusPercent,
+} from '@/entities/fishing';
 
 const BASE_SPEED_PERCENT = 100;
 
@@ -44,10 +49,7 @@ export function todayBoostRows(status: FishingStatus, baitName: string | null): 
     {
       key: 'friend',
       title: '해달 친구',
-      detail:
-        status.otterFriendCount > 0
-          ? `오늘 함께 낚시하는 친구 ${status.otterFriendCount}명`
-          : '7일 연속 출석하면 함께 낚시해요',
+      detail: friendDetail(status),
       value: `+${friendBonus}%`,
       isActive: friendBonus > 0,
     },
@@ -74,6 +76,15 @@ export function todayBoostRows(status: FishingStatus, baitName: string | null): 
       isActive: hammockBonus > 0,
     },
   ];
+}
+
+/** 해달 친구 줄 설명: 함께 있으면 떠나는 시각까지 (자정과 상관없이 온 때부터 24시간) */
+function friendDetail(status: FishingStatus): string {
+  if (status.otterFriendCount <= 0) return '7일 연속 출석하면 하루 동안 함께 낚시해요';
+  const friends = `친구 ${status.otterFriendCount}명`;
+  if (!status.otterFriendUntil) return `함께 낚시하는 ${friends}`;
+  const until = formatFullAt(new Date(status.otterFriendUntil), new Date(status.serverTime));
+  return `${until}까지 함께 낚시하는 ${friends}`;
 }
 
 /** 낚싯대 강화 줄 설명: 출석·퀴즈·광고 몫과 해먹 넓히기 몫을 나눠 보여준다 (둘을 더하면 낚싯대 값) */

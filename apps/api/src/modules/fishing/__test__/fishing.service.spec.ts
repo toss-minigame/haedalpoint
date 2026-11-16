@@ -32,6 +32,7 @@ function row(overrides: Record<string, unknown> = {}) {
     rodLevel: 0,
     rodLevelDate: null,
     otterFriendDate: null,
+    otterFriendUntil: null,
     otterFriendCount: 0,
     hammockLevel: 0,
     hammockLevelDate: null,
@@ -161,6 +162,7 @@ describe('FishingService', () => {
         settledAt: NOW,
         rodLevel: 0,
         rodLevelDate: null,
+        otterFriendUntil: null,
         otterFriendDate: null,
         otterFriendCount: 0,
         hammockLevel: 0,
@@ -396,7 +398,7 @@ describe('FishingService', () => {
   });
 
   describe('summonOtterFriend', () => {
-    it('settles first, then activates the otter friend for today', async () => {
+    it('settles first, then has the otter friend fish for 24 hours', async () => {
       repo.lockOrCreate.mockResolvedValue(row());
 
       await service.summonOtterFriend(USER_ID, manager, NOW);
@@ -407,21 +409,88 @@ describe('FishingService', () => {
         expect.objectContaining({
           hammockNanoFish: CAUGHT_IN_AN_HOUR,
           settledAt: NOW,
+          otterFriendUntil: new Date(NOW.getTime() + 24 * HOUR_MS),
+          // 배포하는 동안 이전 버전 서버가 읽도록 온 날짜도 함께 적는다
           otterFriendDate: TODAY,
           otterFriendCount: 1,
         }),
       );
     });
 
-    it('adds a second otter friend on the same day', async () => {
-      repo.lockOrCreate.mockResolvedValue(row({ otterFriendDate: TODAY, otterFriendCount: 1 }));
+    it('adds a second otter friend while the first is still here', async () => {
+      repo.lockOrCreate.mockResolvedValue(
+        row({ otterFriendUntil: new Date(NOW.getTime() + HOUR_MS), otterFriendCount: 1 }),
+      );
 
       await service.summonOtterFriend(USER_ID, manager, NOW);
 
       expect(repo.updateState).toHaveBeenCalledWith(
         manager,
         'state-1',
-        expect.objectContaining({ otterFriendDate: TODAY, otterFriendCount: 2 }),
+        expect.objectContaining({
+          otterFriendUntil: new Date(NOW.getTime() + 24 * HOUR_MS),
+          otterFriendCount: 2,
+        }),
+      );
+    });
+  });
+
+  describe('expandHammock', () => {
+    it('expands the hammock and the rod without starting the ad cooldown', async () => {
+      repo.lockOrCreate.mockResolvedValue(row());
+
+      await service.expandHammock(USER_ID, manager, NOW);
+
+      const changes = repo.updateState.mock.calls[0]?.[2];
+      expect(changes).toMatchObject({
+        hammockLevel: 1,
+        hammockLevelDate: TODAY,
+        rodLevel: HAMMOCK_EXPAND_POLICY.ROD_LEVELS_PER_EXPAND,
+        rodLevelDate: TODAY,
+      });
+      expect(changes).not.toHaveProperty('adHammockExpandedAt');
+    });
+
+    it('only raises the rod when the hammock is already at the max level', async () => {
+      repo.lockOrCreate.mockResolvedValue(
+        row({ hammockLevel: HAMMOCK_EXPAND_POLICY.MAX_LEVEL, hammockLevelDate: TODAY }),
+      );
+
+      await service.expandHammock(USER_ID, manager, NOW);
+
+      expect(repo.updateState).toHaveBeenCalledWith(
+        manager,
+        'state-1',
+        expect.objectContaining({
+          hammockLevel: HAMMOCK_EXPAND_POLICY.MAX_LEVEL,
+          rodLevel: HAMMOCK_EXPAND_POLICY.ROD_LEVELS_PER_EXPAND,
+        }),
+      );
+    });
+  });
+
+  describe('fillHammock', () => {
+    it('fills the hammock up to the capacity without counting overflow', async () => {
+      repo.lockOrCreate.mockResolvedValue(row());
+
+      await service.fillHammock(USER_ID, 1, manager, NOW);
+
+      expect(repo.updateState).toHaveBeenCalledWith(
+        manager,
+        'state-1',
+        expect.objectContaining({ hammockNanoFish: BASE_CAPACITY, overflowNanoFish: 0 }),
+      );
+    });
+
+    it('adds at most the max amount', async () => {
+      repo.lockOrCreate.mockResolvedValue(row());
+
+      await service.fillHammock(USER_ID, 0.1, manager, NOW);
+
+      expect(repo.updateState).toHaveBeenCalledWith(
+        manager,
+        'state-1',
+        expect.objectContaining({ hammockNanoFish: CAUGHT_IN_AN_HOUR + 0.1 * NANO_PER_FISH }),
       );
     });
   });

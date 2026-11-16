@@ -1,5 +1,9 @@
 import type { FishingStatusResponse } from '@haedalpoint/shared';
-import { AD_ROD_POLICY, HAMMOCK_EXPAND_POLICY } from '../../../common/globals/index.js';
+import {
+  AD_ROD_POLICY,
+  HAMMOCK_EXPAND_POLICY,
+  OTTER_FRIEND_POLICY,
+} from '../../../common/globals/index.js';
 import { nextKstMidnight, toKstDateString } from '../../../common/utils/kst-date.js';
 import type { FishingState } from '../entities/fishing-state.entity.js';
 import type { FishingStateChanges } from '../fishing.repository.js';
@@ -11,7 +15,7 @@ import {
   rodSpeedBonusPercent,
   speedPercent,
 } from './fishing-rate.js';
-import { boostsOn, type HammockState, predictHammockFullAt } from './settle-hammock.js';
+import { boostsAt, type HammockState, predictHammockFullAt } from './settle-hammock.js';
 
 type FishingStateRow = Pick<
   FishingState,
@@ -19,7 +23,7 @@ type FishingStateRow = Pick<
   | 'settledAt'
   | 'rodLevel'
   | 'rodLevelDate'
-  | 'otterFriendDate'
+  | 'otterFriendUntil'
   | 'otterFriendCount'
   | 'hammockLevel'
   | 'hammockLevelDate'
@@ -35,6 +39,16 @@ export type FishingAccount = Pick<
 >;
 
 const MINUTE_MS = 60 * 1000;
+const HOUR_MS = 60 * MINUTE_MS;
+
+/**
+ * 해달 친구가 온 KST 날짜. 이전 버전 서버는 otter_friend_date 로 친구를 세므로, 배포하는 동안 함께 적어 둔다
+ * (이전 버전에서는 온 날 자정까지로 보인다). otter_friend_date 를 지울 때 함께 지운다.
+ */
+function otterFriendArrivalDate(until: Date | null): string | null {
+  if (!until) return null;
+  return toKstDateString(new Date(until.getTime() - OTTER_FRIEND_POLICY.STAY_HOURS * HOUR_MS));
+}
 
 export function toHammockState(row: FishingStateRow): HammockState {
   return {
@@ -42,7 +56,7 @@ export function toHammockState(row: FishingStateRow): HammockState {
     settledAt: row.settledAt,
     rodLevel: row.rodLevel,
     rodLevelDate: row.rodLevelDate,
-    otterFriendDate: row.otterFriendDate,
+    otterFriendUntil: row.otterFriendUntil,
     otterFriendCount: row.otterFriendCount,
     hammockLevel: row.hammockLevel,
     hammockLevelDate: row.hammockLevelDate,
@@ -58,7 +72,8 @@ export function toStateChanges(state: HammockState): FishingStateChanges {
     settledAt: state.settledAt,
     rodLevel: state.rodLevel,
     rodLevelDate: state.rodLevelDate,
-    otterFriendDate: state.otterFriendDate,
+    otterFriendUntil: state.otterFriendUntil,
+    otterFriendDate: otterFriendArrivalDate(state.otterFriendUntil),
     otterFriendCount: state.otterFriendCount,
     hammockLevel: state.hammockLevel,
     hammockLevelDate: state.hammockLevelDate,
@@ -92,7 +107,7 @@ export function buildFishingStatus(
   account: FishingAccount,
   now: Date,
 ): FishingStatusResponse {
-  const boosts = boostsOn(hammock, toKstDateString(now));
+  const boosts = boostsAt(hammock, now);
   const percent = speedPercent(boosts);
   const fullAt = predictHammockFullAt(hammock);
 
@@ -108,6 +123,10 @@ export function buildFishingStatus(
     rodSpeedBonusPercent: rodSpeedBonusPercent(boosts.rodLevel),
     otterFriendActive: boosts.otterFriends > 0,
     otterFriendCount: boosts.otterFriends,
+    otterFriendUntil:
+      boosts.otterFriends > 0 && hammock.otterFriendUntil
+        ? hammock.otterFriendUntil.toISOString()
+        : null,
     hammockLevel: boosts.hammockLevel,
     hammockMaxLevel: HAMMOCK_EXPAND_POLICY.MAX_LEVEL,
     hammockLevelBonusPercent: hammockLevelBonusPercent(boosts.hammockLevel),

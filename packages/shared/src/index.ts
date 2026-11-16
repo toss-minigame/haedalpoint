@@ -5,3 +5,4 @@ export * from './auth';
 export * from './fishing';
 export * from './quiz';
 export * from './roulette';
+export * from './tutorial';

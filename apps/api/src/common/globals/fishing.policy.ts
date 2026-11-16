@@ -24,14 +24,17 @@ export const ROD_POLICY = {
   SPEED_BONUS_PERCENT_PER_LEVEL: 1,
 } as const;
 
-// 해달 친구: 7일 연속 출석한 날 자정까지 함께 낚시한다. 출석 '광고 보고 2배'로 한 명 더 온다
+// 해달 친구: 7일 연속 출석하면 온 때부터 STAY_HOURS 동안 함께 낚시한다 (자정에 떠나지 않는다).
+// 출석 '광고 보고 2배'로 한 명 더 오고, 튜토리얼을 마쳐도 한 명 온다 (docs/design/tutorial.md 5장)
 export const OTTER_FRIEND_POLICY = {
   /** 해달 친구 한 명당 오르는 속도 (기본 속도 대비 %) */
   SPEED_BONUS_PERCENT: 50,
   /** 해달 친구 한 명당 늘어나는 해먹 용량 (기본 용량 대비 %) */
   CAPACITY_BONUS_PERCENT: 50,
-  /** 하루에 함께 낚시할 수 있는 해달 친구 수 (7일차 출석 1 + 광고 2배 1) */
-  MAX_PER_DAY: 2,
+  /** 동시에 함께 낚시할 수 있는 해달 친구 수 (7일차 출석 1 + 광고 2배 1) */
+  MAX_FRIENDS: 2,
+  /** 해달 친구가 머무는 시간. 친구가 있는 동안 새 친구가 오면 모두 새 친구가 온 때부터 다시 센다 */
+  STAY_HOURS: 24,
 } as const;
 
 // 홈 '광고 보고 낚싯대 강화': 쿨타임마다 한 번 (하루 최대 단계 없음)
