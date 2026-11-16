@@ -167,10 +167,14 @@ describe('TossPointService', () => {
       await expect(service.settle('grant-1', NOW)).resolves.toBe('FAILED');
     });
 
-    it('keeps the grant PENDING without a promotion code', async () => {
+    it('keeps the grant PENDING without a promotion code and does not count it as a failure', async () => {
       config.get.mockReturnValue(undefined);
+      // 마지막 시도 직전이어도 FAILED 로 넘어가지 않아야 코드를 설정한 뒤 지급된다
+      repo.claim.mockResolvedValue(grant({ attempts: MAX_GRANT_ATTEMPTS - 1 }));
 
       await expect(service.settle('grant-1', NOW)).resolves.toBe('PENDING');
+      expect(repo.claim).not.toHaveBeenCalled();
+      expect(repo.update).not.toHaveBeenCalled();
       expect(client.getPromotionKey).not.toHaveBeenCalled();
     });
 

@@ -75,6 +75,11 @@ export class TossPointService {
    * 다른 요청이 처리 중이거나 다음 시도 시각 전이면 아무것도 하지 않고 PENDING.
    */
   async settle(grantId: string, now: Date = new Date()): Promise<TossPointGrantStatus> {
+    // 프로모션 코드가 아직 없으면 시도하지 않는다. 실패로 세지 않아야 코드를 설정한 뒤 그대로 지급된다
+    // (실패로 세면 MAX_GRANT_ATTEMPTS 번 조회한 뒤 FAILED 가 되어 영영 지급되지 않는다)
+    const promotionCode = this.config.get('TOSS_ATTENDANCE_PROMOTION_CODE', { infer: true });
+    if (!promotionCode) return 'PENDING';
+
     const grant = await this.tossPointRepository.claim(
       grantId,
       now,
@@ -83,7 +88,7 @@ export class TossPointService {
     if (!grant) return 'PENDING';
 
     try {
-      const granted = await this.attempt(grant);
+      const granted = await this.attempt(grant, promotionCode);
       if (!granted) return 'PENDING';
       await this.tossPointRepository.update(grant.id, {
         status: 'SUCCESS',
@@ -97,9 +102,7 @@ export class TossPointService {
   }
 
   /** 지급이 확인되면 true, 지급 요청은 됐지만 아직 처리 중이면 false */
-  private async attempt(grant: TossPointGrant): Promise<boolean> {
-    const promotionCode = this.config.get('TOSS_ATTENDANCE_PROMOTION_CODE', { infer: true });
-    if (!promotionCode) throw new Error('TOSS_ATTENDANCE_PROMOTION_CODE 가 설정되지 않았습니다');
+  private async attempt(grant: TossPointGrant, promotionCode: string): Promise<boolean> {
     const { anonKey } = await this.usersService.findById(grant.userId);
     if (anonKey.startsWith(LEGACY_ANON_KEY_PREFIX)) throw new GrantRejected('NO_ANON_KEY');
 
