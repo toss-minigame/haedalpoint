@@ -36,6 +36,7 @@ import {
   applyBait,
   enhanceRod,
   expandHammock,
+  fillHammock,
   summonOtterFriend,
   takeAllFish,
 } from './lib/hammock-actions.js';
@@ -53,6 +54,12 @@ const RECENT_LEDGER_LIMIT = 30;
 export interface RodEnhancement {
   rodLevel: number;
   rodSpeedBonusPercent: number;
+}
+
+/** 해먹을 정해진 순서로 한 단계 넓히고 낚싯대도 함께 강화한다 (광고 해먹 넓히기·튜토리얼 체험) */
+function expandHammockWithRod(settled: HammockState, today: string): HammockState {
+  const expanded = expandHammock(settled, HAMMOCK_EXPAND_POLICY.LEVELS_PER_AD, today);
+  return enhanceRod(expanded, HAMMOCK_EXPAND_POLICY.ROD_LEVELS_PER_EXPAND, today);
 }
 
 /** 정산이 끝난 상태를 받아 바꾼다. 바꿀 수 없으면 ConflictException 을 던진다 */
@@ -235,8 +242,7 @@ export class FishingService {
           ) {
             throw new ConflictException(HAMMOCK_AT_MAX_LEVEL);
           }
-          const expanded = expandHammock(settled, HAMMOCK_EXPAND_POLICY.LEVELS_PER_AD, today);
-          return enhanceRod(expanded, HAMMOCK_EXPAND_POLICY.ROD_LEVELS_PER_EXPAND, today);
+          return expandHammockWithRod(settled, today);
         },
         { adHammockExpandedAt: now },
       );
@@ -261,8 +267,34 @@ export class FishingService {
   }
 
   /**
-   * `now` 부터 24시간(OTTER_FRIEND_POLICY.DURATION_HOURS) 해달 친구가 함께 낚시한다.
-   * 호출하는 쪽(출석)의 트랜잭션 안에서 실행한다.
+   * `now` 가 속한 날 해먹을 한 단계 넓히고 낚싯대도 함께 강화한다. 광고 해먹 넓히기와 같은 보상이지만
+   * 쿨타임을 시작하지 않는다 (튜토리얼 체험). 이미 최대 단계면 낚싯대만 오른다.
+   * 호출하는 쪽(튜토리얼)의 트랜잭션 안에서 실행한다.
+   */
+  async expandHammock(userId: string, manager: EntityManager, now: Date): Promise<void> {
+    await this.changeHammock(manager, userId, now, expandHammockWithRod);
+  }
+
+  /**
+   * 해먹을 지금 용량까지 채운다 (더 넣는 양은 maxFish 마리까지). 넘친 양으로 세지 않아 다시 잡아오기에 영향이 없다.
+   * 호출하는 쪽(튜토리얼 첫 선물)의 트랜잭션 안에서 실행한다.
+   */
+  async fillHammock(
+    userId: string,
+    maxFish: number,
+    manager: EntityManager,
+    now: Date,
+  ): Promise<void> {
+    const maxMilliFish = Math.round(maxFish * MILLI_PER_FISH);
+    await this.changeHammock(manager, userId, now, (settled) => {
+      const capacity = hammockCapacityMilliFish(boostsAt(settled, settled.settledAt));
+      return fillHammock(settled, capacity, maxMilliFish).state;
+    });
+  }
+
+  /**
+   * `now` 부터 24시간(OTTER_FRIEND_POLICY.DURATION_HOURS) 해달 친구가 함께 낚시한다 (한 번에 한 명).
+   * 이미 와 있으면 더 늦게 떠나는 쪽으로 맞춘다. 호출하는 쪽(출석·튜토리얼)의 트랜잭션 안에서 실행한다.
    */
   async summonOtterFriend(userId: string, manager: EntityManager, now: Date): Promise<void> {
     await this.changeHammock(manager, userId, now, (settled) =>

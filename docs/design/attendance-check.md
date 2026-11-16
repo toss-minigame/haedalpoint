@@ -116,7 +116,7 @@
 | created_at / updated_at | timestamptz | `BaseEntity` |
 
 - 유니크 제약 `(user_id, checked_date)`, `(user_id, attendance_day)`: 하루 두 번 출석이나 연타를 막는다. 위반 시 409.
-- 마이그레이션 `FishPolicyGram`(1794100000000)이 `streak_day` → `attendance_day`로 바꾸고 기존 기록을 날짜순 누적 일차로 다시 매긴다. `cycle_completed`, `ad_bonus_claimed_at`은 삭제.
+- 마이그레이션 `FishPolicyGram`(1794200000000)이 `streak_day` → `attendance_day`로 바꾸고 기존 기록을 날짜순 누적 일차로 다시 매긴다. `cycle_completed`, `ad_bonus_claimed_at`은 삭제.
 - 토스 포인트 지급 건은 `toss_point_grants`(source `ATTENDANCE`, source_id = 출석 로그 id)에 따로 둔다.
 
 ### 하루 판정 (`lib/kst-date.ts`)

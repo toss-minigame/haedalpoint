@@ -3,6 +3,7 @@ import {
   applyBait,
   enhanceRod,
   expandHammock,
+  fillHammock,
   summonOtterFriend,
   takeAllFish,
 } from '../lib/hammock-actions.js';
@@ -76,6 +77,35 @@ describe('summonOtterFriend', () => {
     expect(summonOtterFriend(state({ otterFriendUntil: later }), NOW).otterFriendUntil).toEqual(
       later,
     );
+  });
+});
+
+describe('fillHammock', () => {
+  it('fills the hammock up to the capacity', () => {
+    const { state: next, addedMilliFish } = fillHammock(state({ milliFish: 100 }), 1_000, 5_000);
+
+    expect(next.milliFish).toBe(1_000);
+    expect(addedMilliFish).toBe(900);
+  });
+
+  it('adds at most the max amount', () => {
+    const { state: next, addedMilliFish } = fillHammock(state({ milliFish: 100 }), 1_000, 300);
+
+    expect(next.milliFish).toBe(400);
+    expect(addedMilliFish).toBe(300);
+  });
+
+  it('adds nothing when the hammock is already at or above the capacity', () => {
+    const { state: next, addedMilliFish } = fillHammock(state({ milliFish: 1_200 }), 1_000, 300);
+
+    expect(next.milliFish).toBe(1_200);
+    expect(addedMilliFish).toBe(0);
+  });
+
+  it('does not count the gift as overflow', () => {
+    const s = state({ overflowMilliFish: 7 });
+
+    expect(fillHammock(s, 1_000, 1_000).state.overflowMilliFish).toBe(7);
   });
 });
 

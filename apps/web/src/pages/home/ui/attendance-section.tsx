@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { AttendanceStamps, type AttendanceStatus, attendanceQueries } from '@/entities/attendance';
 import { CheckInButton } from '@/features/check-in';
+import { tutorialTarget } from '@/features/welcome-tutorial';
 import type { RewardedAd } from '@/shared/lib/rewarded-ad';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card';
 
@@ -22,7 +23,7 @@ export function AttendanceSection({ rewardedAd }: Props) {
   const { data: status, isPending, isError, error } = useQuery(attendanceQueries.me());
 
   return (
-    <section aria-labelledby="attendance-heading">
+    <section aria-labelledby="attendance-heading" {...tutorialTarget('check-in')}>
       <Card>
         <CardHeader>
           <CardTitle id="attendance-heading" className="text-lg font-bold">

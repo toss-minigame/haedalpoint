@@ -411,6 +411,66 @@ describe('FishingService', () => {
     });
   });
 
+  describe('expandHammock', () => {
+    it('expands the hammock and the rod without starting the ad cooldown', async () => {
+      repo.lockOrCreate.mockResolvedValue(row());
+
+      await service.expandHammock(USER_ID, manager, NOW);
+
+      const changes = repo.updateState.mock.calls[0]?.[2];
+      expect(changes).toMatchObject({
+        hammockLevel: 1,
+        hammockLevelDate: TODAY,
+        rodLevel: HAMMOCK_EXPAND_POLICY.ROD_LEVELS_PER_EXPAND,
+        rodLevelDate: TODAY,
+      });
+      expect(changes).not.toHaveProperty('adHammockExpandedAt');
+    });
+
+    it('only raises the rod when the hammock is already at the max level', async () => {
+      repo.lockOrCreate.mockResolvedValue(
+        row({ hammockLevel: HAMMOCK_EXPAND_POLICY.MAX_LEVEL, hammockLevelDate: TODAY }),
+      );
+
+      await service.expandHammock(USER_ID, manager, NOW);
+
+      expect(repo.updateState).toHaveBeenCalledWith(
+        manager,
+        'state-1',
+        expect.objectContaining({
+          hammockLevel: HAMMOCK_EXPAND_POLICY.MAX_LEVEL,
+          rodLevel: HAMMOCK_EXPAND_POLICY.ROD_LEVELS_PER_EXPAND,
+        }),
+      );
+    });
+  });
+
+  describe('fillHammock', () => {
+    it('fills the hammock up to the capacity without counting overflow', async () => {
+      repo.lockOrCreate.mockResolvedValue(row());
+
+      await service.fillHammock(USER_ID, 48_000, manager, NOW);
+
+      expect(repo.updateState).toHaveBeenCalledWith(
+        manager,
+        'state-1',
+        expect.objectContaining({ hammockMilliFish: BASE_CAPACITY, overflowMilliFish: 0 }),
+      );
+    });
+
+    it('adds at most the max amount', async () => {
+      repo.lockOrCreate.mockResolvedValue(row());
+
+      await service.fillHammock(USER_ID, 100, manager, NOW);
+
+      expect(repo.updateState).toHaveBeenCalledWith(
+        manager,
+        'state-1',
+        expect.objectContaining({ hammockMilliFish: CAUGHT_IN_AN_HOUR + 100 * MILLI_PER_FISH }),
+      );
+    });
+  });
+
   describe('adEnhanceRod', () => {
     it('settles, raises the rod level and starts the cooldown in one transaction', async () => {
       repo.lockOrCreate.mockResolvedValue(row({ rodLevel: 2, rodLevelDate: TODAY }));

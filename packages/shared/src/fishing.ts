@@ -22,7 +22,7 @@ export interface FishingStatusResponse {
   /** 낚싯대 강화로 오른 속도 (%) */
   rodSpeedBonusPercent: number;
   otterFriendActive: boolean;
-  /** 지금 함께 낚시하는 해달 친구 수 (0 또는 1, 출석 7일차) */
+  /** 지금 함께 낚시하는 해달 친구 수 (0 또는 1, 출석 7일차·튜토리얼 완료) */
   otterFriendCount: number;
   /** 해달 친구가 떠나는 시각 (ISO 8601, 온 지 24시간). 친구가 없으면 null */
   otterFriendUntil: string | null;

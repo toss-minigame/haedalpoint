@@ -50,6 +50,19 @@ export function applyBait(
   return { ...state, baitBonusPercent: speedBonusPercent, baitDate: today };
 }
 
+/**
+ * 해먹을 capacityMilliFish 까지 채운다 (더 넣는 양은 maxMilliFish 까지). 튜토리얼 첫 선물.
+ * 넘친 양으로 세지 않는다. 이미 용량 이상이면 그대로 둔다.
+ */
+export function fillHammock(
+  state: HammockState,
+  capacityMilliFish: number,
+  maxMilliFish: number,
+): { state: HammockState; addedMilliFish: number } {
+  const addedMilliFish = Math.max(0, Math.min(capacityMilliFish - state.milliFish, maxMilliFish));
+  return { state: { ...state, milliFish: state.milliFish + addedMilliFish }, addedMilliFish };
+}
+
 /** 해먹의 물고기를 모두 꺼낸다 */
 export function takeAllFish(state: HammockState): { state: HammockState; takenMilliFish: number } {
   return { state: { ...state, milliFish: 0 }, takenMilliFish: state.milliFish };

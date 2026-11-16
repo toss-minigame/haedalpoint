@@ -6,22 +6,38 @@ import { useAdEnhanceRod } from '../api/use-fishing-ad-boosts';
 import { formatCooldown } from '../lib/format-cooldown';
 import { useCooldown } from '../lib/use-cooldown';
 import { BOOST_BUTTON_CLASS, BoostButtonLabel } from './boost-button-label';
+import { type BoostTrial, TrialBoostButton } from './trial-boost-button';
 
 type Props = {
   status: FishingStatus;
   receivedAt: number;
   ad: RewardedAd;
+  /** 튜토리얼 체험 중이면 광고 대신 이걸로 한 번 강화한다 */
+  trial?: BoostTrial;
 };
 
 const TITLE = '낚싯대 강화';
 
 // 쿨타임마다 광고를 보고 낚싯대를 한 단계 강화한다. 강화는 오늘 자정까지 유지된다.
-export function AdEnhanceRodButton({ status, receivedAt, ad }: Props) {
+// 튜토리얼 체험 중(trial)에는 광고 없이 한 번 강화한다.
+export function AdEnhanceRodButton({ status, receivedAt, ad, trial }: Props) {
   const { mutate, isPending } = useAdEnhanceRod();
   const remainingMs = useCooldown(status.adRodEnhanceAvailableAt, status.serverTime, receivedAt);
   // 하루 최대 단계가 없으면(null) 쿨타임만 본다
   const isMaxLevel = status.rodMaxLevel !== null && status.rodLevel >= status.rodMaxLevel;
   const bonus = `+${status.adRodSpeedBonusPercent}%`;
+
+  if (trial) {
+    return (
+      <TrialBoostButton
+        title={TITLE}
+        value={bonus}
+        label="광고 없이 강화하기"
+        pendingLabel="강화 중"
+        trial={trial}
+      />
+    );
+  }
 
   // 지금 받을 수 없는 보상이면 광고를 띄우지 않는다
   if (isMaxLevel || remainingMs > 0) {

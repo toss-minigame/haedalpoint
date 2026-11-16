@@ -8,13 +8,15 @@ import {
   OTTER_FRIEND_POLICY,
   QUIZ_POLICY,
   ROD_POLICY,
+  TUTORIAL_REWARD_POLICY,
 } from '../../../common/globals/index.js';
-import { speedPercent, tossPointsPerDay } from '../lib/fishing-rate.js';
+import { NO_BOOSTS, speedPercent, tossPointsPerDay } from '../lib/fishing-rate.js';
 
 // 월 지급 상한을 코드로 강제하지 않는 대신, 정책값이 예산을 넘으면 이 테스트가 실패한다 (ADR-0007).
 // 최악의 한 달: 31일 내내 하루에 받을 수 있는 강화를 자정 직후 모두 받은 상태로 하루 종일 낚시,
-// 해달 친구와 하루(24시간) 함께, 해먹을 한 번도 넘치지 않게 비움, 매일 가장 높은 룰렛 미끼를 적용,
-// 넘친 물고기 다시 잡아오기를 매일 최대로, 출석 토스 포인트(1~6일차)를 모두 받음. 해먹 용량은 이 최악값에 영향이 없다.
+// 해달 친구(출석 7일차·튜토리얼 완료 각 24시간)와 하루씩 함께, 해먹을 한 번도 넘치지 않게 비움, 매일 가장 높은 룰렛 미끼를 적용,
+// 넘친 물고기 다시 잡아오기를 매일 최대로, 출석 토스 포인트(1~6일차)와 튜토리얼 보상(체험 강화·첫 선물)을 모두 받음.
+// 해먹 용량은 이 최악값에 영향이 없다.
 const MAX_BAIT_BONUS_PERCENT = Math.max(...BAIT_TIERS.map((tier) => tier.speedBonusPercent));
 const MINUTES_PER_DAY = 24 * 60;
 /** 출석 1회 (첫 주 이후 매일 낚싯대 강화) */
@@ -33,8 +35,11 @@ function maxRodLevelsPerDay(): number {
   return adRodLevels + quizLevels + ATTENDANCE_ROD_LEVELS_PER_DAY + hammockLevels;
 }
 const LONGEST_MONTH_DAYS = 31;
-/** 해달 친구는 출석 7일차에 한 번 와서 24시간 머문다 (하루치) */
-const MAX_OTTER_FRIEND_DAYS = OTTER_FRIEND_POLICY.DURATION_HOURS / 24;
+/** 튜토리얼 체험으로 하루에 더 오르는 낚싯대 단계. 해먹 넓히기 체험은 하루 최대 해먹 단계 안에서 센다 */
+const TUTORIAL_ROD_LEVELS =
+  TUTORIAL_REWARD_POLICY.ROD_LEVELS + TUTORIAL_REWARD_POLICY.QUIZ_ROD_LEVELS;
+/** 해달 친구는 출석 7일차와 튜토리얼 완료에 한 번씩 와서 24시간 머문다 (한 번에 한 명, 하루치씩) */
+const MAX_OTTER_FRIEND_DAYS = 2 * (OTTER_FRIEND_POLICY.DURATION_HOURS / 24);
 
 /** 넘친 물고기 다시 잡아오기는 속도와 무관하게 하루 횟수 × 1회 상한만큼 더 줄 수 있다 */
 function worstCaseMonthlyCatchBackTossPoints(): number {
@@ -55,7 +60,17 @@ function worstCaseMonthlyTossPoints(): number {
     normalDays * tossPointsPerDay(speedPercent(maxRod)) +
     MAX_OTTER_FRIEND_DAYS * tossPointsPerDay(speedPercent(maxRodWithFriends)) +
     worstCaseMonthlyCatchBackTossPoints() +
-    ATTENDANCE_TOSS_POINTS
+    ATTENDANCE_TOSS_POINTS +
+    worstCaseTutorialTossPoints()
+  );
+}
+
+/** 튜토리얼 체험 강화를 받은 날 더 잡는 양 + 첫 선물. 해달 친구는 MAX_OTTER_FRIEND_DAYS 에 넣었다 */
+function worstCaseTutorialTossPoints(): number {
+  const extraRod = { ...NO_BOOSTS, rodLevel: TUTORIAL_ROD_LEVELS };
+  const extraRodTossPoints = tossPointsPerDay(speedPercent(extraRod)) - tossPointsPerDay(100);
+  return (
+    extraRodTossPoints + TUTORIAL_REWARD_POLICY.GIFT_MAX_FISH / FISHING_POLICY.FISH_PER_TOSS_POINT
   );
 }
 
@@ -70,12 +85,17 @@ describe('fishing budget', () => {
     expect(worstCaseMonthlyCatchBackTossPoints()).toBe(31);
   });
 
-  it('counts the otter friend for one day (24 hours, once)', () => {
-    expect(MAX_OTTER_FRIEND_DAYS).toBe(1);
+  it('counts the otter friend for two days (attendance day 7 and the tutorial, 24 hours each)', () => {
+    expect(MAX_OTTER_FRIEND_DAYS).toBe(2);
   });
 
   it('adds the six attendance toss points', () => {
     expect(ATTENDANCE_TOSS_POINTS).toBe(6);
+  });
+
+  it('adds the tutorial rod levels and gift to the worst case (under 2 points)', () => {
+    expect(worstCaseTutorialTossPoints()).toBeGreaterThan(0);
+    expect(worstCaseTutorialTossPoints()).toBeLessThan(2);
   });
 
   it('catches one fish a second at the base speed (48,000 fish = 1 point)', () => {

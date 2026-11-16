@@ -14,7 +14,7 @@ type Props = {
   className?: string;
   /** 자동으로 잡을 때마다 물고기 옆에 띄울 글자 (예: +3). 없으면 띄우지 않는다 */
   catchLabel?: string | null;
-  /** 해달 친구가 함께 낚시하면(출석 7일차부터 24시간) true. 해달 왼쪽 선착장 모서리에 걸터앉는다 */
+  /** 해달 친구가 함께 낚시하면 true. 해달 왼쪽 선착장 모서리에 걸터앉는다 */
   withOtterFriend?: boolean;
   /** 해달 친구가 낚싯대를 들어 올릴 때 머리 위에 띄울 글자 (친구 몫). 없으면 띄우지 않는다 */
   friendCatchLabel?: string | null;

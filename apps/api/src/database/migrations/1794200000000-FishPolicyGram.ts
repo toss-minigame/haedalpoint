@@ -4,29 +4,23 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 //
 // 1) 물고기 단위: 1마리 = 1원 → 48,000마리 = 1원 (1마리 = 1g). 수량 단위는 1/10억 마리 → 1/1000마리.
 //    같은 원화 가치를 유지하도록 환산한다: 새 값(milli) = 옛 값(nano) × 48,000 × 1,000 ÷ 10억 = 옛 값 × 0.048
-// 2) 해달 친구: 그날 자정까지(날짜·인원) → 온 시각부터 24시간(떠나는 시각). 이미 와 있는 친구는 그날 자정에 떠나게 둔다.
+// 2) 해달 친구: otter_friend_until(TutorialAndOtterFriendStay 에서 추가)만 쓴다. 한 번에 한 명이라 인원과 옛 날짜 칸을 지운다.
 // 3) 해먹 넓히기 최대 단계 10 → 8. 오늘 8단계를 넘은 사용자는 8단계로 맞춘다.
 // 4) 출석: 연속 일차(streak_day, 7일 주기) → 누적 출석 일차(attendance_day). 광고 2배는 없앤다.
 // 5) 토스 포인트 지급 건 테이블 (출석 1~6일차, 프로모션 API).
 //
 // 컬럼 이름이 바뀌므로 api 를 배포하는 것과 같은 때에 실행한다 (이전 버전 서버와 같은 DB 를 함께 쓸 수 없다).
-// down 은 구조와 단위를 되돌린다. 해달 친구 인원·출석 연속 일차·광고 2배 기록은 근사값으로 되돌린다.
+// down 은 구조와 단위를 되돌린다. 해달 친구 인원·날짜, 출석 연속 일차·광고 2배 기록은 근사값으로 되돌린다.
 const NANO_TO_MILLI = 0.048;
 const FISH_COLUMNS = ['hammock', 'warehouse', 'overflow', 'catch_back'] as const;
 
-export class FishPolicyGram1794100000000 implements MigrationInterface {
-  name = 'FishPolicyGram1794100000000';
+export class FishPolicyGram1794200000000 implements MigrationInterface {
+  name = 'FishPolicyGram1794200000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await this.convertFishUnit(queryRunner, 'nano', 'milli', NANO_TO_MILLI);
 
-    // 해달 친구: 날짜·인원 → 떠나는 시각 (그날 KST 자정)
-    await queryRunner.query(
-      `ALTER TABLE "fishing_states" ADD "otter_friend_until" TIMESTAMP WITH TIME ZONE`,
-    );
-    await queryRunner.query(
-      `UPDATE "fishing_states" SET "otter_friend_until" = (("otter_friend_date" + 1)::timestamp AT TIME ZONE 'Asia/Seoul') WHERE "otter_friend_date" IS NOT NULL AND "otter_friend_count" > 0`,
-    );
+    // 해달 친구: 떠나는 시각만 남긴다 (한 번에 한 명)
     await queryRunner.query(
       `ALTER TABLE "fishing_states" DROP CONSTRAINT "CHK_fishing_states_otter_friend_count"`,
     );
@@ -101,7 +95,6 @@ export class FishPolicyGram1794100000000 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE "fishing_states" ADD CONSTRAINT "CHK_fishing_states_otter_friend_count" CHECK ("otter_friend_count" >= 0)`,
     );
-    await queryRunner.query(`ALTER TABLE "fishing_states" DROP COLUMN "otter_friend_until"`);
 
     await this.convertFishUnit(queryRunner, 'milli', 'nano', 1 / NANO_TO_MILLI);
   }

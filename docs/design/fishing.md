@@ -33,7 +33,7 @@
 | `HAMMOCK_CAPACITY` | 30,000 (임시) | 기본 해먹 용량 (마리 = 30kg, n=1). 기본 속도로 8시간 20분이면 가득 찬다 |
 | `MONTHLY_TOSS_POINT_BUDGET` | 5,000 | 사용자 1명 월 예산. 코드로 강제하지 않고 테스트로 지킨다 |
 | `ROD_POLICY.SPEED_BONUS_PERCENT_PER_LEVEL` | 1 | 강화 1단계 = 기본 속도의 +1% |
-| `OTTER_FRIEND_POLICY.DURATION_HOURS` | 24 | 해달 친구가 온 시각부터 함께 낚시하는 시간 (한 번에 한 명) |
+| `OTTER_FRIEND_POLICY.DURATION_HOURS` | 24 | 해달 친구가 온 시각부터 함께 낚시하는 시간 (한 번에 한 명. 출석 7일차·튜토리얼 완료, [tutorial.md](./tutorial.md)) |
 | `OTTER_FRIEND_POLICY.SPEED_BONUS_PERCENT` | 50 | 해달 친구 속도 +50% |
 | `OTTER_FRIEND_POLICY.CAPACITY_BONUS_PERCENT` | 10 | 해달 친구 해먹 용량 +10% (기본 용량 대비) |
 | `QUIZ_POLICY.ROD_LEVELS_PER_REWARD` | 1 | 퀴즈 광고 1회당 강화 단계 |
@@ -137,6 +137,7 @@ settled_at ──[그날 보너스 + 친구]── 다음 자정 ──[친구�
 
 - `enhanceRod(userId, levels, manager)`: 정산 → 오늘 강화 단계 + levels (하루 최대 단계 없음)
 - `summonOtterFriend(userId, manager, now)`: 정산 → 지금부터 24시간 해달 친구
+- `expandHammock(userId, manager, now)`, `fillHammock(userId, maxFish, manager, now)`: 튜토리얼 체험·첫 선물 (쿨타임 없음, [tutorial.md](./tutorial.md))
 - `applyBait(userId, speedBonusPercent, manager, now)`: 정산 → 오늘 룰렛 미끼 보너스 ([bait-roulette.md](./bait-roulette.md))
 
 ### 동시성
