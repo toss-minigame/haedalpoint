@@ -11,24 +11,19 @@ import type { HammockState } from '../lib/settle-hammock.js';
 
 const TODAY = '2026-11-02';
 const YESTERDAY = '2026-11-01';
-const HOUR_MS = 60 * 60 * 1000;
-// KST 2026-11-02 12:00
-const NOW = new Date('2026-11-02T03:00:00Z');
-const STAY_MS = OTTER_FRIEND_POLICY.STAY_HOURS * HOUR_MS;
 
 function state(overrides: Partial<HammockState> = {}): HammockState {
   return {
-    nanoFish: 0,
-    settledAt: NOW,
+    milliFish: 0,
+    settledAt: new Date('2026-11-02T03:00:00Z'),
     rodLevel: 0,
     rodLevelDate: null,
     otterFriendUntil: null,
-    otterFriendCount: 0,
     hammockLevel: 0,
     hammockLevelDate: null,
     baitBonusPercent: 0,
     baitDate: null,
-    overflowNanoFish: 0,
+    overflowMilliFish: 0,
     ...overrides,
   };
 }
@@ -62,64 +57,55 @@ describe('enhanceRod', () => {
 });
 
 describe('summonOtterFriend', () => {
-  it('makes one otter friend fish for 24 hours from the settled time', () => {
-    expect(summonOtterFriend(state())).toMatchObject({
-      otterFriendUntil: new Date(NOW.getTime() + STAY_MS),
-      otterFriendCount: 1,
-    });
+  const NOW = new Date('2026-11-02T03:00:00Z');
+  const IN_24_HOURS = new Date('2026-11-03T03:00:00Z');
+
+  it('brings the otter friend for 24 hours from now', () => {
+    expect(OTTER_FRIEND_POLICY.DURATION_HOURS).toBe(24);
+    expect(summonOtterFriend(state(), NOW).otterFriendUntil).toEqual(IN_24_HOURS);
   });
 
-  it('adds one more otter friend and keeps both until 24 hours after the new one comes', () => {
-    const s = state({ otterFriendUntil: new Date(NOW.getTime() + HOUR_MS), otterFriendCount: 1 });
+  it('restarts the 24 hours when the previous friend already left', () => {
+    const s = state({ otterFriendUntil: new Date('2026-11-01T00:00:00Z') });
 
-    expect(summonOtterFriend(s)).toMatchObject({
-      otterFriendUntil: new Date(NOW.getTime() + STAY_MS),
-      otterFriendCount: 2,
-    });
+    expect(summonOtterFriend(s, NOW).otterFriendUntil).toEqual(IN_24_HOURS);
   });
 
-  it('starts from one when the friends have already left', () => {
-    const s = state({ otterFriendUntil: new Date(NOW.getTime() - 1), otterFriendCount: 2 });
+  it('never shortens the stay of a friend who leaves later', () => {
+    const later = new Date('2026-11-04T00:00:00Z');
 
-    expect(summonOtterFriend(s).otterFriendCount).toBe(1);
-  });
-
-  it('stops at the max number of friends', () => {
-    const s = state({
-      otterFriendUntil: new Date(NOW.getTime() + HOUR_MS),
-      otterFriendCount: OTTER_FRIEND_POLICY.MAX_FRIENDS,
-    });
-
-    expect(summonOtterFriend(s).otterFriendCount).toBe(OTTER_FRIEND_POLICY.MAX_FRIENDS);
+    expect(summonOtterFriend(state({ otterFriendUntil: later }), NOW).otterFriendUntil).toEqual(
+      later,
+    );
   });
 });
 
 describe('fillHammock', () => {
   it('fills the hammock up to the capacity', () => {
-    const { state: next, addedNanoFish } = fillHammock(state({ nanoFish: 100 }), 1_000, 5_000);
+    const { state: next, addedMilliFish } = fillHammock(state({ milliFish: 100 }), 1_000, 5_000);
 
-    expect(next.nanoFish).toBe(1_000);
-    expect(addedNanoFish).toBe(900);
+    expect(next.milliFish).toBe(1_000);
+    expect(addedMilliFish).toBe(900);
   });
 
   it('adds at most the max amount', () => {
-    const { state: next, addedNanoFish } = fillHammock(state({ nanoFish: 100 }), 1_000, 300);
+    const { state: next, addedMilliFish } = fillHammock(state({ milliFish: 100 }), 1_000, 300);
 
-    expect(next.nanoFish).toBe(400);
-    expect(addedNanoFish).toBe(300);
+    expect(next.milliFish).toBe(400);
+    expect(addedMilliFish).toBe(300);
   });
 
   it('adds nothing when the hammock is already at or above the capacity', () => {
-    const { state: next, addedNanoFish } = fillHammock(state({ nanoFish: 1_200 }), 1_000, 300);
+    const { state: next, addedMilliFish } = fillHammock(state({ milliFish: 1_200 }), 1_000, 300);
 
-    expect(next.nanoFish).toBe(1_200);
-    expect(addedNanoFish).toBe(0);
+    expect(next.milliFish).toBe(1_200);
+    expect(addedMilliFish).toBe(0);
   });
 
   it('does not count the gift as overflow', () => {
-    const s = state({ overflowNanoFish: 7 });
+    const s = state({ overflowMilliFish: 7 });
 
-    expect(fillHammock(s, 1_000, 1_000).state.overflowNanoFish).toBe(7);
+    expect(fillHammock(s, 1_000, 1_000).state.overflowMilliFish).toBe(7);
   });
 });
 
@@ -145,17 +131,17 @@ describe('expandHammock', () => {
 
 describe('takeAllFish', () => {
   it('takes every fish including the fraction and empties the hammock', () => {
-    const { state: next, takenNanoFish } = takeAllFish(state({ nanoFish: 123_456_789 }));
+    const { state: next, takenMilliFish } = takeAllFish(state({ milliFish: 123_456_789 }));
 
-    expect(takenNanoFish).toBe(123_456_789);
-    expect(next.nanoFish).toBe(0);
+    expect(takenMilliFish).toBe(123_456_789);
+    expect(next.milliFish).toBe(0);
   });
 
   it('takes nothing from an empty hammock', () => {
-    const { state: next, takenNanoFish } = takeAllFish(state({ nanoFish: 0 }));
+    const { state: next, takenMilliFish } = takeAllFish(state({ milliFish: 0 }));
 
-    expect(takenNanoFish).toBe(0);
-    expect(next.nanoFish).toBe(0);
+    expect(takenMilliFish).toBe(0);
+    expect(next.milliFish).toBe(0);
   });
 });
 

@@ -23,8 +23,9 @@ type Props = {
 // 오늘의 강화: 해달 장면 왼쪽 위에 겹치는 작은 조개 표시. 누르면 아래에서 지금 적용 중인 강화 목록이 올라온다.
 // 장면을 가리지 않도록 바탕 없이 글자와 아이콘만 그린다.
 // 해달 낚시 카드와 같은 현황(fishingQueries.me)을 함께 쓰고, 현황이 없으면 그리지 않는다.
+// 해달 친구만 자정이 아니라 온 지 24시간 뒤(otterFriendUntil)에 떠난다.
 export function TodayBoost({ className }: Props) {
-  const { data: status } = useQuery(fishingQueries.me());
+  const { data: status, dataUpdatedAt } = useQuery(fishingQueries.me());
   // 미끼 이름은 낚시 현황에 없어서, 오늘 미끼를 단 경우에만 룰렛 정보를 받는다
   const hasBait = (status?.baitSpeedBonusPercent ?? 0) > 0;
   const { data: roulette } = useQuery({ ...rouletteQueries.today(), enabled: hasBait });
@@ -33,6 +34,8 @@ export function TodayBoost({ className }: Props) {
   const baitName = roulette?.spin?.appliedAt ? roulette.spin.fishName : null;
 
   const speedBonus = `+${todaySpeedBonusPercent(status)}%`;
+  // 서버 시각 기준 지금 (응답을 받은 뒤 지난 시간만큼 더한다)
+  const now = new Date(Date.parse(status.serverTime) + Date.now() - dataUpdatedAt);
 
   return (
     <Sheet>
@@ -65,7 +68,7 @@ export function TodayBoost({ className }: Props) {
           </SheetDescription>
         </SheetHeader>
         <ul className="flex flex-col px-6">
-          {todayBoostRows(status, baitName).map((row) => (
+          {todayBoostRows(status, baitName, now).map((row) => (
             <li
               key={row.key}
               className={cn(

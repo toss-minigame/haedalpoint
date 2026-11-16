@@ -1,6 +1,7 @@
 import { hammockTier } from './hammock-tier';
 
-// 해먹 이름 (0단계 = 기본). 두 단계마다 해먹 종류가 바뀐다 (hammock-tier.ts). 단계 수·용량은 서버 정책값을 따른다
+// 해먹 이름 (0단계 = 기본). 두 단계마다 해먹 종류가 바뀐다 (hammock-tier.ts). 단계 수·용량은 서버 정책값을 따른다.
+// 지금 정책(hammockMaxLevel 8)으로는 산호 해먹까지 쓰고, 진주 해먹은 단계가 늘어날 때를 위해 둔다
 const BASE_NAME = '해먹';
 const TIER_NAMES = ['그물 해먹', '나무 해먹', '대나무 해먹', '산호 해먹', '진주 해먹'];
 

@@ -8,6 +8,12 @@
 - 관련 문서: [fishing.md](./fishing.md), [attendance-check.md](./attendance-check.md), [ox-quiz.md](./ox-quiz.md), [ADR-0003 재화 이름](../adr/0003-in-app-currency-name.md)
 - 기준: **지금 코드의 이름과 단위** (낚싯대 강화, 해먹 넓히기, 물고기 1마리 = 1원). 이름·단위를 바꾸면 3장의 문구만 고친다
 
+> **2026-11-16 정책 변경으로 바뀐 점** (이 문서 본문의 수치보다 우선한다, [fishing.md](./fishing.md)·[attendance-check.md](./attendance-check.md))
+> - 단위: 물고기 48,000마리 = 1원, 기본 속도 초당 1마리, 기본 해먹 30,000마리. 첫 선물 최대는 `GIFT_MAX_FISH` 48,000마리(1원어치)
+> - 해달 친구: 한 번에 한 명(`otter_friend_count`·`MAX_FRIENDS` 삭제), 해먹 용량 +10%. 이미 와 있을 때 또 오면 더 늦게 떠나는 쪽으로 맞춘다
+> - 출석: 광고 보고 출석, 광고 2배 없음. 그래서 튜토리얼 출석 단계도 광고를 본다 (`hideAdBonus` 삭제). 첫 출석 보상은 토스 포인트 1원
+> - 창고 저장은 광고를 끝까지 봐야만 된다 (튜토리얼 마지막 저장 단계 포함)
+
 ## 1. 개요
 
 처음 들어온 사용자에게 홈 화면 위에서 해달이 말풍선으로 안내한다.

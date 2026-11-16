@@ -1,40 +1,41 @@
 import { CATCH_BACK_POLICY } from '../../../common/globals/index.js';
 import {
-  catchBackNanoFish,
+  catchBackMilliFish,
   catchBacksUsedOn,
-  MIN_CATCH_BACK_NANO_FISH,
+  MIN_CATCH_BACK_MILLI_FISH,
 } from '../lib/catch-back.js';
-import { NANO_PER_FISH } from '../lib/fishing-rate.js';
+import { MILLI_PER_FISH } from '../lib/fishing-rate.js';
 
-const fish = (count: number) => Math.round(count * NANO_PER_FISH);
+const fish = (count: number) => Math.round(count * MILLI_PER_FISH);
 
 describe('catch back policy', () => {
-  it('returns half of the overflow, up to 0.5 fish and 80% of the hammock, twice a day', () => {
+  it('returns half of the overflow, up to 24,000 fish (0.5 point) and 80% of the hammock, twice a day', () => {
     expect(CATCH_BACK_POLICY).toMatchObject({
       RETURN_PERCENT: 50,
-      MAX_FISH: 0.5,
+      MAX_FISH: 24_000,
       CAPACITY_PERCENT: 80,
       DAILY_LIMIT: 2,
     });
-    expect(MIN_CATCH_BACK_NANO_FISH).toBe(fish(0.01));
+    expect(MIN_CATCH_BACK_MILLI_FISH).toBe(fish(480));
   });
 });
 
-describe('catchBackNanoFish', () => {
+describe('catchBackMilliFish', () => {
   it('returns half of a small overflow', () => {
-    expect(catchBackNanoFish(fish(0.3), fish(0.56))).toBe(fish(0.15));
+    expect(catchBackMilliFish(fish(10_000), fish(30_000))).toBe(fish(5_000));
   });
 
-  it('stops at 80% of a basic hammock', () => {
-    expect(catchBackNanoFish(fish(2), fish(0.56))).toBe(fish(0.448));
+  it('stops at 80% of a hammock smaller than 30,000 fish', () => {
+    expect(catchBackMilliFish(fish(100_000), fish(20_000))).toBe(fish(16_000));
   });
 
-  it('stops at 0.5 fish for a wide hammock', () => {
-    expect(catchBackNanoFish(fish(5), fish(1.4525))).toBe(fish(0.5));
+  it('stops at 24,000 fish for a basic or wider hammock', () => {
+    expect(catchBackMilliFish(fish(100_000), fish(30_000))).toBe(fish(24_000));
+    expect(catchBackMilliFish(fish(200_000), fish(64_307))).toBe(fish(24_000));
   });
 
   it('returns nothing without overflow', () => {
-    expect(catchBackNanoFish(0, fish(0.56))).toBe(0);
+    expect(catchBackMilliFish(0, fish(30_000))).toBe(0);
   });
 });
 

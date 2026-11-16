@@ -6,6 +6,6 @@ export const TUTORIAL_REWARD_POLICY = {
   ROD_LEVELS: 1,
   /** 연습 퀴즈로 오르는 낚싯대 단계 (그날 자정까지) */
   QUIZ_ROD_LEVELS: 1,
-  /** 첫 선물로 해먹에 더 넣는 최대 물고기 (마리). 지금 해먹 용량까지만 채운다 */
-  GIFT_MAX_FISH: 1,
+  /** 첫 선물로 해먹에 더 넣는 최대 물고기 (마리 = 토스 포인트 1원어치). 지금 해먹 용량까지만 채운다 */
+  GIFT_MAX_FISH: 48_000,
 } as const;

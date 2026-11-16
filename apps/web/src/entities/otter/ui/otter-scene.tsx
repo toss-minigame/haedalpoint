@@ -12,7 +12,7 @@ import { createSceneEngine, type SceneEngine } from '../lib/scene/scene-engine';
 
 type Props = {
   className?: string;
-  /** 자동으로 잡을 때마다 물고기 옆에 띄울 글자 (예: +0.0000208). 없으면 띄우지 않는다 */
+  /** 자동으로 잡을 때마다 물고기 옆에 띄울 글자 (예: +3). 없으면 띄우지 않는다 */
   catchLabel?: string | null;
   /** 해달 친구가 함께 낚시하면 true. 해달 왼쪽 선착장 모서리에 걸터앉는다 */
   withOtterFriend?: boolean;

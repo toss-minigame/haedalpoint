@@ -14,6 +14,9 @@ import type { RewardedAd } from '@/shared/lib/rewarded-ad';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { WarehouseLink } from './warehouse-link';
 
+/** 화면에 1마리 이상 보일 때부터 저장할 수 있다 (화면은 정수로 내림해 보여준다) */
+const MIN_STORE_FISH = 1;
+
 type ContentProps = {
   status: FishingStatus;
   receivedAt: number;
@@ -40,7 +43,7 @@ function FishingContent({ status, receivedAt, rewardedAd, onTutorialStored }: Co
       <FishingStats status={status} receivedAt={receivedAt} />
       <div {...tutorialTarget('store')}>
         <StoreFishButton
-          canStore={fish > 0}
+          canStore={fish >= MIN_STORE_FISH}
           ad={rewardedAd}
           onCatchBackAvailable={openCatchBack}
           onStored={onTutorialStored}

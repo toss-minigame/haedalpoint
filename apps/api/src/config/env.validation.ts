@@ -90,6 +90,11 @@ class EnvironmentVariables {
   @IsString()
   @IsOptional()
   TOSS_MTLS_KEY_PATH?: string;
+
+  // 출석 1~6일차 토스 포인트를 지급하는 프로모션 코드 (콘솔 > 프로모션). 없으면 지급 건이 PENDING 으로 쌓였다가 설정 후 지급된다
+  @IsString()
+  @IsOptional()
+  TOSS_ATTENDANCE_PROMOTION_CODE?: string;
 }
 
 export type Env = EnvironmentVariables;

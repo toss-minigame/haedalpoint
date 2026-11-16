@@ -1,7 +1,7 @@
 export type {
-  AdBonusResponse,
-  AttendanceCycleStamp,
   AttendanceReward,
   AttendanceStatusResponse as AttendanceStatus,
+  AttendanceWeekStamp,
   CheckInResponse,
+  TossPointGrantStatus,
 } from '@haedalpoint/shared';

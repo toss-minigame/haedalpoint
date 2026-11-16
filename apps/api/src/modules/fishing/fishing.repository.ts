@@ -7,34 +7,32 @@ import { WarehouseLedger, type WarehouseLedgerType } from './entities/warehouse-
 export type FishingStateChanges = Partial<
   Pick<
     FishingState,
-    | 'hammockNanoFish'
+    | 'hammockMilliFish'
     | 'settledAt'
     | 'rodLevel'
     | 'rodLevelDate'
-    | 'otterFriendDate'
     | 'otterFriendUntil'
-    | 'otterFriendCount'
     | 'hammockLevel'
     | 'hammockLevelDate'
     | 'baitBonusPercent'
     | 'baitDate'
-    | 'overflowNanoFish'
-    | 'catchBackNanoFish'
+    | 'overflowMilliFish'
+    | 'catchBackMilliFish'
     | 'catchBackCount'
     | 'catchBackDate'
     | 'adRodEnhancedAt'
     | 'adHammockExpandedAt'
-    | 'warehouseNanoFish'
+    | 'warehouseMilliFish'
   >
 >;
 
 export interface WarehouseLedgerEntry {
   userId: string;
   type: WarehouseLedgerType;
-  amountNanoFish: number;
+  amountMilliFish: number;
 }
 
-/** 기간별 창고 저장량 (STORE 합계, nano-fish) */
+/** 기간별 창고 저장량 (STORE 합계, milli-fish) */
 export interface StoredFishSums {
   today: number;
   month: number;
@@ -82,10 +80,10 @@ export class FishingRepository {
       .getRepository(WarehouseLedger)
       .createQueryBuilder('ledger')
       .select(
-        'COALESCE(SUM(ledger.amountNanoFish) FILTER (WHERE ledger.createdAt >= :dayStart), 0)',
+        'COALESCE(SUM(ledger.amountMilliFish) FILTER (WHERE ledger.createdAt >= :dayStart), 0)',
         'today',
       )
-      .addSelect('COALESCE(SUM(ledger.amountNanoFish), 0)', 'month')
+      .addSelect('COALESCE(SUM(ledger.amountMilliFish), 0)', 'month')
       .where('ledger.userId = :userId', { userId })
       .andWhere('ledger.type = :type', { type: 'STORE' satisfies WarehouseLedgerType })
       .andWhere('ledger.createdAt >= :monthStart', { monthStart })

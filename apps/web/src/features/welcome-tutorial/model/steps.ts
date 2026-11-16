@@ -17,7 +17,7 @@ export type TutorialTarget =
 
 /**
  * - info: 설명만 하고 다음으로
- * - check-in: 출석 버튼을 직접 누른다
+ * - check-in: 출석 버튼을 직접 눌러 광고를 보고 출석한다
  * - trial: 비춘 버튼을 광고 없이 눌러 체험 보상을 받는다
  * - gift: 단계에 들어가면 첫 선물을 받는다
  * - store: 광고를 보고 창고에 저장한다
@@ -70,8 +70,8 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
   {
     id: 'check-in',
     target: 'check-in',
-    message: '매일 출석하면 낚싯대가 강화돼요. 7일째엔 해달 친구가 와요',
-    doneMessage: '출석했어요! 오늘 낚싯대가 강화됐어요',
+    message: '광고를 보고 출석하면 6일 동안 토스 포인트를 받아요. 7일째엔 해달 친구가 와요',
+    doneMessage: '출석했어요! 출석 보상을 받았어요',
     action: { type: 'check-in' },
   },
   {

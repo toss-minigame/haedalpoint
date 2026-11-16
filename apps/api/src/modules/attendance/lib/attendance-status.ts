@@ -1,74 +1,41 @@
-import type {
-  AttendanceCycleStamp,
-  AttendanceStatusResponse,
-  AttendanceStreakDay,
-} from '@haedalpoint/shared';
-import { addDays } from '../../../common/utils/kst-date.js';
-import {
-  ATTENDANCE_CYCLE_DAYS,
-  AttendanceRewardPolicy,
-  type LastAttendance,
-} from './attendance-reward.policy.js';
+import type { AttendanceStatusResponse, AttendanceWeekStamp } from '@haedalpoint/shared';
+import { FIRST_WEEK, FIRST_WEEK_DAYS, rewardForDay } from './attendance-reward.policy.js';
 
-export interface AttendanceLogSnapshot extends LastAttendance {
-  adBonusClaimedAt: Date | null;
+export interface AttendanceLogSnapshot {
+  checkedDate: string;
+  attendanceDay: number;
 }
 
-const CYCLE_DAYS = Array.from(
-  { length: ATTENDANCE_CYCLE_DAYS },
-  (_, i) => (i + 1) as AttendanceStreakDay,
-);
-
-/**
- * 오늘 기준으로 아직 이어지고 있는 사이클의 일차 (끊겼거나 새 사이클 시작 전이면 0)
- * - 오늘 출석: 오늘 일차 (7일차 달성 당일은 7 그대로 보여줌)
- * - 어제 출석 + 사이클 진행 중: 어제 일차
- */
-function resolveCurrentStreakDay(today: string, latest: AttendanceLogSnapshot | undefined): number {
-  if (!latest) return 0;
-  if (latest.checkedDate === today) return latest.streakDay;
-  const continuesFromYesterday =
-    latest.checkedDate === addDays(today, -1) && !latest.cycleCompleted;
-  return continuesFromYesterday ? latest.streakDay : 0;
+export interface AttendanceStatusInput {
+  today: string;
+  /** 누적 출석 일수 */
+  attendanceDays: number;
+  /** 가장 최근 출석 날짜. 출석한 적이 없으면 null */
+  latestCheckedDate: string | null;
+  /** 첫 주(1~7일차) 출석 로그 */
+  firstWeekLogs: readonly AttendanceLogSnapshot[];
+  pendingTossPoints: number;
 }
 
-/** 현재 사이클의 로그(최신순)를 7칸 스탬프로 변환. 연속 구간이 깨진 로그는 무시 */
-function buildCycle(
-  currentStreakDay: number,
-  recentLogs: readonly AttendanceLogSnapshot[],
-): AttendanceCycleStamp[] {
-  const dateByDay = new Map<number, string>();
-  for (const [i, log] of recentLogs.slice(0, currentStreakDay).entries()) {
-    if (log.streakDay !== currentStreakDay - i) break;
-    dateByDay.set(log.streakDay, log.checkedDate);
-  }
-
-  return CYCLE_DAYS.map((day) => {
+function buildFirstWeek(logs: readonly AttendanceLogSnapshot[]): AttendanceWeekStamp[] {
+  const dateByDay = new Map(logs.map((log) => [log.attendanceDay, log.checkedDate]));
+  return FIRST_WEEK.map((day) => {
     const checkedDate = dateByDay.get(day) ?? null;
-    return { day, checked: checkedDate !== null, checkedDate };
+    return { day, checked: checkedDate !== null, checkedDate, reward: rewardForDay(day) };
   });
 }
 
-/** GET /attendance/me 응답 조립. `recentLogs` 는 checkedDate 내림차순 (최대 7건이면 충분) */
-export function buildAttendanceStatus(
-  today: string,
-  recentLogs: readonly AttendanceLogSnapshot[],
-): AttendanceStatusResponse {
-  const latest: AttendanceLogSnapshot | undefined = recentLogs[0];
-  const checkedToday = latest?.checkedDate === today;
-  const currentStreakDay = resolveCurrentStreakDay(today, latest);
-
-  // 오늘 이미 출석했다면 "다음 출석" 은 내일
-  const nextCheckInDate = checkedToday ? addDays(today, 1) : today;
-  const nextStreakDay = AttendanceRewardPolicy.streakDayOn(nextCheckInDate, latest ?? null);
-
+/** GET /attendance/me 응답 조립 */
+export function buildAttendanceStatus(input: AttendanceStatusInput): AttendanceStatusResponse {
+  const { today, attendanceDays, latestCheckedDate, firstWeekLogs, pendingTossPoints } = input;
   return {
     today,
-    checkedToday,
-    currentStreakDay,
-    nextStreakDay,
-    nextReward: AttendanceRewardPolicy.rewardFor(nextStreakDay),
-    cycle: buildCycle(currentStreakDay, recentLogs),
-    adBonusAvailable: checkedToday && latest?.adBonusClaimedAt === null,
+    checkedToday: latestCheckedDate === today,
+    attendanceDays,
+    firstWeekCompleted: attendanceDays >= FIRST_WEEK_DAYS,
+    // 오늘 출석했으면 다음 출석은 내일이고, 어느 쪽이든 다음 일차는 누적 일수 + 1 이다
+    nextReward: rewardForDay(attendanceDays + 1),
+    firstWeek: buildFirstWeek(firstWeekLogs),
+    pendingTossPoints,
   };
 }

@@ -1,12 +1,13 @@
 // 해달 낚시 · 해먹 · 창고 API 응답 타입 (FE/BE 공용)
 // 수량은 서버가 시간으로 계산한다. 정책값(속도, 용량 등)도 api 가 응답으로 내려준다.
+// 단위: 물고기 1마리 = 1g, 토스 포인트 1원 = 48,000마리. 수량은 소수 셋째 자리까지 올 수 있고 화면은 정수로 내림한다.
 //
 // 흐름: 해달 낚시 → 해먹(용량 한도) → 창고(영속) → 토스 포인트 (후속 작업)
 
 // GET /api/fishing/me
 export interface FishingStatusResponse {
   serverTime: string; // ISO 8601
-  /** 해먹의 물고기 (소수점 포함. 화면에는 소수 7자리로 내림해서 표시) */
+  /** 해먹의 물고기 (마리, 소수 셋째 자리까지. 화면에는 정수로 내림해서 표시) */
   hammockFish: number;
   hammockCapacity: number;
   /** 해먹이 가득 차는 예상 시각 (ISO 8601). 이미 가득이면 null */
@@ -21,9 +22,9 @@ export interface FishingStatusResponse {
   /** 낚싯대 강화로 오른 속도 (%) */
   rodSpeedBonusPercent: number;
   otterFriendActive: boolean;
-  /** 지금 함께 낚시하는 해달 친구 수 (7일차 출석 1, 출석 광고 2배로 +1, 튜토리얼 완료 1. 최대 2명) */
+  /** 지금 함께 낚시하는 해달 친구 수 (0 또는 1, 출석 7일차·튜토리얼 완료) */
   otterFriendCount: number;
-  /** 해달 친구가 떠나는 시각 (ISO 8601, 온 때부터 24시간). 함께 있는 친구가 없으면 null */
+  /** 해달 친구가 떠나는 시각 (ISO 8601, 온 지 24시간). 친구가 없으면 null */
   otterFriendUntil: string | null;
   /** 오늘 광고로 넓힌 해먹 단계 (0이면 기본 해먹) */
   hammockLevel: number;
@@ -42,9 +43,9 @@ export interface FishingStatusResponse {
   baitSpeedBonusPercent: number;
   /** 광고 해먹 넓히기 쿨타임이 끝나는 시각 (ISO 8601). 지금 넓힐 수 있으면 null */
   adHammockExpandAvailableAt: string | null;
-  /** 낚싯대 강화·해먹 넓히기·미끼가 풀리는 시각 = 다음 KST 자정 (ISO 8601). 해달 친구는 otterFriendUntil */
+  /** 강화·해먹 넓히기·미끼가 풀리는 시각 = 다음 KST 자정 (ISO 8601). 해달 친구는 otterFriendUntil */
   boostsResetAt: string;
-  /** 창고의 물고기 (소수점 포함) */
+  /** 창고의 물고기 (마리) */
   warehouseFish: number;
 }
 
@@ -54,7 +55,7 @@ export type FishingAdBoostResponse = FishingStatusResponse;
 
 // POST /api/fishing/store
 export interface StoreFishResponse {
-  /** 이번에 창고로 옮긴 물고기 (해먹 전체, 소수점 포함) */
+  /** 이번에 창고로 옮긴 물고기 (해먹 전체) */
   storedFish: number;
   warehouseFish: number;
   /** 옮기고 남은 해먹의 물고기 (모두 옮기므로 0) */

@@ -1,17 +1,13 @@
 import type { FishingStatusResponse } from '@haedalpoint/shared';
-import {
-  AD_ROD_POLICY,
-  HAMMOCK_EXPAND_POLICY,
-  OTTER_FRIEND_POLICY,
-} from '../../../common/globals/index.js';
-import { nextKstMidnight, toKstDateString } from '../../../common/utils/kst-date.js';
+import { AD_ROD_POLICY, HAMMOCK_EXPAND_POLICY } from '../../../common/globals/index.js';
+import { nextKstMidnight } from '../../../common/utils/kst-date.js';
 import type { FishingState } from '../entities/fishing-state.entity.js';
 import type { FishingStateChanges } from '../fishing.repository.js';
 import {
   fishPerHour,
-  hammockCapacityNanoFish,
+  hammockCapacityMilliFish,
   hammockLevelBonusPercent,
-  NANO_PER_FISH,
+  MILLI_PER_FISH,
   rodSpeedBonusPercent,
   speedPercent,
 } from './fishing-rate.js';
@@ -19,67 +15,53 @@ import { boostsAt, type HammockState, predictHammockFullAt } from './settle-hamm
 
 type FishingStateRow = Pick<
   FishingState,
-  | 'hammockNanoFish'
+  | 'hammockMilliFish'
   | 'settledAt'
   | 'rodLevel'
   | 'rodLevelDate'
   | 'otterFriendUntil'
-  | 'otterFriendCount'
   | 'hammockLevel'
   | 'hammockLevelDate'
   | 'baitBonusPercent'
   | 'baitDate'
-  | 'overflowNanoFish'
+  | 'overflowMilliFish'
 >;
 
 /** 현황 응답에 필요한, 해먹 계산 밖의 값 */
 export type FishingAccount = Pick<
   FishingState,
-  'warehouseNanoFish' | 'adRodEnhancedAt' | 'adHammockExpandedAt'
+  'warehouseMilliFish' | 'adRodEnhancedAt' | 'adHammockExpandedAt'
 >;
 
 const MINUTE_MS = 60 * 1000;
-const HOUR_MS = 60 * MINUTE_MS;
-
-/**
- * 해달 친구가 온 KST 날짜. 이전 버전 서버는 otter_friend_date 로 친구를 세므로, 배포하는 동안 함께 적어 둔다
- * (이전 버전에서는 온 날 자정까지로 보인다). otter_friend_date 를 지울 때 함께 지운다.
- */
-function otterFriendArrivalDate(until: Date | null): string | null {
-  if (!until) return null;
-  return toKstDateString(new Date(until.getTime() - OTTER_FRIEND_POLICY.STAY_HOURS * HOUR_MS));
-}
 
 export function toHammockState(row: FishingStateRow): HammockState {
   return {
-    nanoFish: row.hammockNanoFish,
+    milliFish: row.hammockMilliFish,
     settledAt: row.settledAt,
     rodLevel: row.rodLevel,
     rodLevelDate: row.rodLevelDate,
     otterFriendUntil: row.otterFriendUntil,
-    otterFriendCount: row.otterFriendCount,
     hammockLevel: row.hammockLevel,
     hammockLevelDate: row.hammockLevelDate,
     baitBonusPercent: row.baitBonusPercent,
     baitDate: row.baitDate,
-    overflowNanoFish: row.overflowNanoFish,
+    overflowMilliFish: row.overflowMilliFish,
   };
 }
 
 export function toStateChanges(state: HammockState): FishingStateChanges {
   return {
-    hammockNanoFish: state.nanoFish,
+    hammockMilliFish: state.milliFish,
     settledAt: state.settledAt,
     rodLevel: state.rodLevel,
     rodLevelDate: state.rodLevelDate,
     otterFriendUntil: state.otterFriendUntil,
-    otterFriendDate: otterFriendArrivalDate(state.otterFriendUntil),
-    otterFriendCount: state.otterFriendCount,
     hammockLevel: state.hammockLevel,
     hammockLevelDate: state.hammockLevelDate,
     baitBonusPercent: state.baitBonusPercent,
     baitDate: state.baitDate,
-    overflowNanoFish: state.overflowNanoFish,
+    overflowMilliFish: state.overflowMilliFish,
   };
 }
 
@@ -113,8 +95,8 @@ export function buildFishingStatus(
 
   return {
     serverTime: now.toISOString(),
-    hammockFish: hammock.nanoFish / NANO_PER_FISH,
-    hammockCapacity: hammockCapacityNanoFish(boosts) / NANO_PER_FISH,
+    hammockFish: hammock.milliFish / MILLI_PER_FISH,
+    hammockCapacity: hammockCapacityMilliFish(boosts) / MILLI_PER_FISH,
     hammockFullAt: fullAt ? fullAt.toISOString() : null,
     fishPerHour: fishPerHour(percent),
     speedPercent: percent,
@@ -147,6 +129,6 @@ export function buildFishingStatus(
       now,
     ),
     boostsResetAt: nextKstMidnight(now).toISOString(),
-    warehouseFish: account.warehouseNanoFish / NANO_PER_FISH,
+    warehouseFish: account.warehouseMilliFish / MILLI_PER_FISH,
   };
 }

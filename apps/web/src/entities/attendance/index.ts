@@ -3,10 +3,10 @@ export { attendanceApi } from './api/attendance-api';
 export { attendanceQueries } from './api/attendance-queries';
 export { formatReward } from './lib/format-reward';
 export type {
-  AdBonusResponse,
-  AttendanceCycleStamp,
   AttendanceReward,
   AttendanceStatus,
+  AttendanceWeekStamp,
   CheckInResponse,
+  TossPointGrantStatus,
 } from './model/types';
 export { AttendanceStamps } from './ui/attendance-stamps';

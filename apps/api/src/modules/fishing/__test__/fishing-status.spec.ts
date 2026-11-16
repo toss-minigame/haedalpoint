@@ -7,8 +7,8 @@ import {
 } from '../../../common/globals/index.js';
 import {
   fishPerHour,
-  hammockCapacityNanoFish,
-  NANO_PER_FISH,
+  hammockCapacityMilliFish,
+  MILLI_PER_FISH,
   NO_BOOSTS,
 } from '../lib/fishing-rate.js';
 import { buildFishingStatus, type FishingAccount, toHammockState } from '../lib/fishing-status.js';
@@ -16,26 +16,25 @@ import type { HammockState } from '../lib/settle-hammock.js';
 
 const TODAY = '2026-11-02';
 const NOW = new Date('2026-11-02T03:00:00Z');
+const FRIEND_LEAVES = new Date('2026-11-03T01:00:00Z');
 const MINUTE_MS = 60 * 1000;
-const HOUR_MS = 60 * MINUTE_MS;
 
 function account(overrides: Partial<FishingAccount> = {}): FishingAccount {
-  return { warehouseNanoFish: 0, adRodEnhancedAt: null, adHammockExpandedAt: null, ...overrides };
+  return { warehouseMilliFish: 0, adRodEnhancedAt: null, adHammockExpandedAt: null, ...overrides };
 }
 
 function hammock(overrides: Partial<HammockState> = {}): HammockState {
   return {
-    nanoFish: 123_456_789,
+    milliFish: 12_345_678,
     settledAt: NOW,
     rodLevel: 0,
     rodLevelDate: null,
     otterFriendUntil: null,
-    otterFriendCount: 0,
     hammockLevel: 0,
     hammockLevelDate: null,
     baitBonusPercent: 0,
     baitDate: null,
-    overflowNanoFish: 0,
+    overflowMilliFish: 0,
     ...overrides,
   };
 }
@@ -44,13 +43,13 @@ describe('buildFishingStatus', () => {
   it('describes a hammock without boosts', () => {
     const status = buildFishingStatus(
       hammock(),
-      account({ warehouseNanoFish: 1_500_000_000 }),
+      account({ warehouseMilliFish: 1_500_000_000 }),
       NOW,
     );
 
     expect(status).toMatchObject({
       serverTime: NOW.toISOString(),
-      hammockFish: 0.123456789,
+      hammockFish: 12_345.678,
       hammockCapacity: FISHING_POLICY.HAMMOCK_CAPACITY,
       fishPerHour: fishPerHour(100),
       speedPercent: 100,
@@ -59,6 +58,7 @@ describe('buildFishingStatus', () => {
       rodSpeedBonusPercent: 0,
       otterFriendActive: false,
       otterFriendCount: 0,
+      otterFriendUntil: null,
       hammockLevel: 0,
       hammockMaxLevel: HAMMOCK_EXPAND_POLICY.MAX_LEVEL,
       hammockLevelBonusPercent: 0,
@@ -70,20 +70,14 @@ describe('buildFishingStatus', () => {
         AD_ROD_POLICY.LEVELS_PER_AD * ROD_POLICY.SPEED_BONUS_PERCENT_PER_LEVEL,
       adRodEnhanceAvailableAt: null,
       boostsResetAt: '2026-11-02T15:00:00.000Z',
-      warehouseFish: 1.5,
+      warehouseFish: 1_500_000,
     });
     expect(typeof status.hammockFullAt).toBe('string');
   });
 
   it("reflects today's rod level and otter friend", () => {
-    const friendLeaves = new Date(NOW.getTime() + 20 * HOUR_MS);
     const status = buildFishingStatus(
-      hammock({
-        rodLevel: 3,
-        rodLevelDate: TODAY,
-        otterFriendUntil: friendLeaves,
-        otterFriendCount: 1,
-      }),
+      hammock({ rodLevel: 3, rodLevelDate: TODAY, otterFriendUntil: FRIEND_LEAVES }),
       account(),
       NOW,
     );
@@ -93,27 +87,13 @@ describe('buildFishingStatus', () => {
       rodSpeedBonusPercent: 3 * ROD_POLICY.SPEED_BONUS_PERCENT_PER_LEVEL,
       otterFriendActive: true,
       otterFriendCount: 1,
-      otterFriendUntil: friendLeaves.toISOString(),
+      otterFriendUntil: FRIEND_LEAVES.toISOString(),
       speedPercent:
         100 +
         3 * ROD_POLICY.SPEED_BONUS_PERCENT_PER_LEVEL +
         OTTER_FRIEND_POLICY.SPEED_BONUS_PERCENT,
       hammockCapacity:
-        hammockCapacityNanoFish({ ...NO_BOOSTS, rodLevel: 3, otterFriends: 1 }) / NANO_PER_FISH,
-    });
-  });
-
-  it('shows no otter friend once the friend has left', () => {
-    const status = buildFishingStatus(
-      hammock({ otterFriendUntil: new Date(NOW.getTime() - 1), otterFriendCount: 2 }),
-      account(),
-      NOW,
-    );
-
-    expect(status).toMatchObject({
-      otterFriendActive: false,
-      otterFriendCount: 0,
-      otterFriendUntil: null,
+        hammockCapacityMilliFish({ ...NO_BOOSTS, rodLevel: 3, otterFriends: 1 }) / MILLI_PER_FISH,
     });
   });
 
@@ -124,7 +104,7 @@ describe('buildFishingStatus', () => {
     expect(status).toMatchObject({
       hammockLevel: 3,
       hammockLevelBonusPercent: 33.1,
-      hammockCapacity: hammockCapacityNanoFish({ ...NO_BOOSTS, hammockLevel: 3 }) / NANO_PER_FISH,
+      hammockCapacity: hammockCapacityMilliFish({ ...NO_BOOSTS, hammockLevel: 3 }) / MILLI_PER_FISH,
     });
   });
 
@@ -157,7 +137,7 @@ describe('buildFishingStatus', () => {
   });
 
   it('has no fill time when the hammock is full', () => {
-    const full = hammock({ nanoFish: hammockCapacityNanoFish(NO_BOOSTS) });
+    const full = hammock({ milliFish: hammockCapacityMilliFish(NO_BOOSTS) });
 
     expect(buildFishingStatus(full, account(), NOW).hammockFullAt).toBeNull();
   });
@@ -168,37 +148,34 @@ describe('toHammockState', () => {
     const row = {
       id: 'state-1',
       userId: 'user-1',
-      hammockNanoFish: 10,
+      hammockMilliFish: 10,
       settledAt: NOW,
       rodLevel: 2,
       rodLevelDate: TODAY,
-      otterFriendDate: null,
       otterFriendUntil: null,
-      otterFriendCount: 0,
       hammockLevel: 0,
       hammockLevelDate: null,
       baitBonusPercent: 0,
       baitDate: null,
-      overflowNanoFish: 7,
+      overflowMilliFish: 7,
       adRodEnhancedAt: null,
       adHammockExpandedAt: null,
-      warehouseNanoFish: 5,
+      warehouseMilliFish: 5,
       createdAt: NOW,
       updatedAt: NOW,
     };
 
     expect(toHammockState(row)).toEqual({
-      nanoFish: 10,
+      milliFish: 10,
       settledAt: NOW,
       rodLevel: 2,
       rodLevelDate: TODAY,
       otterFriendUntil: null,
-      otterFriendCount: 0,
       hammockLevel: 0,
       hammockLevelDate: null,
       baitBonusPercent: 0,
       baitDate: null,
-      overflowNanoFish: 7,
+      overflowMilliFish: 7,
     });
   });
 });

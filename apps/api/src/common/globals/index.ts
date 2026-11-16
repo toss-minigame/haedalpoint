@@ -1,4 +1,5 @@
 // 운영 정책값 모음 (도메인별 파일로 관리)
+export { ATTENDANCE_POLICY } from './attendance.policy.js';
 export {
   AD_ROD_POLICY,
   CATCH_BACK_POLICY,
