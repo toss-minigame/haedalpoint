@@ -1,8 +1,8 @@
-import { useEffect, useRef } from 'react';
 import { OtterBubble } from '@/entities/otter';
 import { Button } from '@/shared/ui/button';
 import { Spinner } from '@/shared/ui/spinner';
 import type { WelcomeTutorial } from '../model/use-welcome-tutorial';
+import { FocusFirstButton } from './focus-first-button';
 
 type Props = {
   tutorial: WelcomeTutorial;
@@ -28,30 +28,6 @@ function BubbleActions({ tutorial }: Props) {
       <Button type="button" size="lg" className={BUTTON_CLASS} onClick={tutorial.close}>
         시작하기
       </Button>
-    );
-  }
-  if (action === 'quiz' && phase !== 'done') {
-    return (
-      <div className="flex gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          className={BUTTON_CLASS}
-          onClick={tutorial.answerQuiz}
-        >
-          O 맞아요
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          className={BUTTON_CLASS}
-          onClick={tutorial.answerQuiz}
-        >
-          X 아니에요
-        </Button>
-      </div>
     );
   }
   if (phase === 'failed') {
@@ -90,24 +66,12 @@ function BubbleActions({ tutorial }: Props) {
   );
 }
 
-// 단계·상태가 바뀔 때마다 새로 그려(key) 첫 버튼으로 초점을 옮긴다. 화면 낭독기와 키보드로도 이어서 할 수 있다
-function FocusFirstButton({ tutorial }: Props) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    ref.current?.querySelector('button')?.focus({ preventScroll: true });
-  }, []);
-  return (
-    // 직접 누를 버튼을 기다리는 단계는 말풍선 아래 버튼이 없어 빈 칸을 남기지 않는다
-    <div ref={ref} className="flex flex-col gap-2 empty:hidden">
-      <BubbleActions tutorial={tutorial} />
-    </div>
-  );
-}
-
 export function TutorialBubble({ tutorial }: Props) {
   return (
     <OtterBubble message={tutorial.message}>
-      <FocusFirstButton key={`${tutorial.step.id}-${tutorial.phase}`} tutorial={tutorial} />
+      <FocusFirstButton key={`${tutorial.step.id}-${tutorial.phase}`}>
+        <BubbleActions tutorial={tutorial} />
+      </FocusFirstButton>
     </OtterBubble>
   );
 }

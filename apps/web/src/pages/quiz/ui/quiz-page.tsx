@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import { quizQueries, type TodayQuizResponse } from '@/entities/quiz';
+import { QuizTutorial, tutorialTarget } from '@/features/welcome-tutorial';
 import { env } from '@/shared/config/env';
 import { type RewardedAd, useRewardedAd } from '@/shared/lib/rewarded-ad';
 import { Button } from '@/shared/ui/button';
@@ -30,7 +31,8 @@ function QuizList({ today, ad }: { today: TodayQuizResponse; ad: RewardedAd }) {
       </p>
       <ol className="flex flex-col gap-4">
         {today.items.map((item, index) => (
-          <li key={item.quizId}>
+          // 화면 안내는 첫 문제를 비춘다 (세 문제를 다 비추면 화면보다 길다)
+          <li key={item.quizId} {...(index === 0 ? tutorialTarget('quiz-first') : {})}>
             <QuizItem
               order={index + 1}
               item={item}
@@ -61,6 +63,8 @@ export function QuizPage() {
       {isPending && <QuizListSkeleton />}
       {isError && <p className="text-destructive">{error.message}</p>}
       {today && <QuizList today={today} ad={rewardedAd} />}
+      {/* 처음 열 때 한 번: 퀴즈 설명과 연습 문제 (광고 없이 한 번 강화) */}
+      {today && <QuizTutorial />}
 
       <Button asChild variant="ghost" className="h-11 self-start px-3 text-base">
         <Link to="/">홈으로</Link>

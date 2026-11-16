@@ -5,4 +5,5 @@ export {
   useWelcomeTutorial,
   type WelcomeTutorial,
 } from './model/use-welcome-tutorial';
+export { QuizTutorial, RouletteTutorial } from './ui/page-tutorial';
 export { WelcomeTutorialOverlay } from './ui/welcome-tutorial-overlay';

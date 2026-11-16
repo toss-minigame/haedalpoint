@@ -10,6 +10,7 @@ import {
   rouletteQueries,
 } from '@/entities/roulette';
 import { BaitResultDialog, useSpinRoulette } from '@/features/bait-roulette';
+import { RouletteTutorial, tutorialTarget } from '@/features/welcome-tutorial';
 import { env } from '@/shared/config/env';
 import { type RewardedAd, useRewardedAd } from '@/shared/lib/rewarded-ad';
 import { useReducedMotion } from '@/shared/lib/use-reduced-motion';
@@ -82,27 +83,31 @@ function RouletteBody({ today, ad }: { today: RouletteToday; ad: RewardedAd }) {
 
   return (
     <>
-      <RouletteWheel
-        fishes={today.fishes}
-        rotation={shownRotation}
-        instant={reducedMotion || rotation === null}
-        onSpinEnd={isSpinning ? finishSpin : undefined}
-      />
+      <div {...tutorialTarget('roulette-wheel')}>
+        <RouletteWheel
+          fishes={today.fishes}
+          rotation={shownRotation}
+          instant={reducedMotion || rotation === null}
+          onSpinEnd={isSpinning ? finishSpin : undefined}
+        />
+      </div>
 
-      {showSpinButton ? (
-        <Button
-          type="button"
-          size="lg"
-          className={ACTION_BUTTON_CLASS}
-          disabled={!today.canSpin || isPending || isSpinning}
-          onClick={handleSpin}
-        >
-          {(isPending || isSpinning) && <Spinner />}
-          {isPending || isSpinning ? '돌아가는 중' : '룰렛 돌리기'}
-        </Button>
-      ) : (
-        today.spin && <TodayBait spin={today.spin} onOpen={() => setIsResultOpen(true)} />
-      )}
+      <div {...tutorialTarget('roulette-spin')}>
+        {showSpinButton ? (
+          <Button
+            type="button"
+            size="lg"
+            className={ACTION_BUTTON_CLASS}
+            disabled={!today.canSpin || isPending || isSpinning}
+            onClick={handleSpin}
+          >
+            {(isPending || isSpinning) && <Spinner />}
+            {isPending || isSpinning ? '돌아가는 중' : '룰렛 돌리기'}
+          </Button>
+        ) : (
+          today.spin && <TodayBait spin={today.spin} onOpen={() => setIsResultOpen(true)} />
+        )}
+      </div>
 
       {!isSpinning && !isPending && (
         <p className="text-center text-sm text-muted-foreground">
@@ -116,6 +121,7 @@ function RouletteBody({ today, ad }: { today: RouletteToday; ad: RewardedAd }) {
         size="lg"
         className={ACTION_BUTTON_CLASS}
         onClick={() => setIsChanceOpen(true)}
+        {...tutorialTarget('roulette-effects')}
       >
         미끼별 효과 보기
       </Button>
@@ -167,6 +173,8 @@ export function RoulettePage() {
       {isPending && <RouletteSkeleton />}
       {isError && <p className="text-destructive">{error.message}</p>}
       {today && <RouletteBody today={today} ad={rewardedAd} />}
+      {/* 처음 열 때 한 번: 룰렛 설명 (랜덤 보상이라 체험은 없다) */}
+      {today && <RouletteTutorial />}
 
       <Button asChild variant="ghost" className="h-11 self-start px-3 text-base">
         <Link to="/">홈으로</Link>

@@ -35,7 +35,7 @@
 | `MONTHLY_TOSS_POINT_BUDGET` | 5,000 | 사용자 1명 월 예산. 코드로 강제하지 않고 테스트로 지킨다 |
 | `ROD_POLICY.SPEED_BONUS_PERCENT_PER_LEVEL` | 1 | 강화 1단계 = 기본 속도의 +1% |
 | `OTTER_FRIEND_POLICY.SPEED_BONUS_PERCENT` | 50 | 해달 친구 한 명당 속도 +50% |
-| `OTTER_FRIEND_POLICY.CAPACITY_BONUS_PERCENT` | 50 | 해달 친구 한 명당 해먹 용량 +50% |
+| `OTTER_FRIEND_POLICY.CAPACITY_BONUS_PERCENT` | 10 | 해달 친구 한 명당 해먹 용량 +10% (2026-11-16 50%에서 줄임) |
 | `OTTER_FRIEND_POLICY.MAX_FRIENDS` | 2 | 동시에 함께 있는 해달 친구 최대 인원 (7일차 출석 1 + 출석 광고 2배 1) |
 | `OTTER_FRIEND_POLICY.STAY_HOURS` | 24 | 해달 친구가 머무는 시간. 자정과 상관없이 온 때부터 센다 ([tutorial.md](./tutorial.md) 5장) |
 | `QUIZ_POLICY.ROD_LEVELS_PER_REWARD` | 1 | 퀴즈 광고 1회당 강화 단계 |
@@ -53,7 +53,7 @@
 
 ```
 속도(%)   = 100 + 1 × 강화 단계 + 50 × 해달 친구 수
-해먹 용량 = 0.56 × (100 + 50 × 해달 친구 수) / 100 × 1.1^해먹 단계
+해먹 용량 = 0.56 × (100 + 10 × 해달 친구 수) / 100 × 1.1^해먹 단계
 ```
 
 강화 단계에는 하루 최대 단계가 없다. 대신 홈 광고 강화 쿨타임(20분)·퀴즈 3문제·출석(2배 포함 2회)·해먹 넓히기(10회) 횟수가
