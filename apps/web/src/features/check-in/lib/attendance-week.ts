@@ -1,10 +1,20 @@
-import type { AttendanceStamp, AttendanceStatus } from '@/entities/attendance';
+import type { AttendanceReward, AttendanceStamp, AttendanceStatus } from '@/entities/attendance';
 
 const DAYS_PER_WEEK = 7;
 
 /** 다음에 출석할 일차. 오늘 출석했으면 null */
 export function nextAttendanceDay(status: AttendanceStatus): number | null {
   return status.checkedToday ? null : status.attendanceDays + 1;
+}
+
+/**
+ * 오늘 출석해서 받은 보상. 오늘 아직 출석하지 않았으면 null.
+ * 첫 주(1~7일차)는 서버가 준 그날 칸의 보상, 그 뒤로는 날마다 같은 보상(낚싯대 강화)이라 다음 출석 보상과 같다.
+ */
+export function todayReward(status: AttendanceStatus): AttendanceReward | null {
+  if (!status.checkedToday) return null;
+  const firstWeekStamp = status.firstWeek.find((stamp) => stamp.day === status.attendanceDays);
+  return firstWeekStamp?.reward ?? status.nextReward;
 }
 
 /**
