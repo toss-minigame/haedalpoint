@@ -64,7 +64,7 @@ function CheckInAction({ status, ad }: Props) {
   );
 }
 
-// 출석 현황 (Figma attendance-card 본문): 몇 번째 출석인지, 이번 7일 묶음의 출석 칸, 지급 중인 토스 포인트, 출석 버튼.
+// 출석 현황 (Figma attendance-card 본문): 몇 번째 출석인지, 이번 7일 묶음의 출석 칸, 출석 버튼.
 // 보상은 누적 출석 일차로 정해진다: 1~6일차 토스 포인트, 7일차 해달 친구, 8일차부터 낚싯대 강화
 export function AttendanceDetails({ status, ad }: Props) {
   return (
@@ -73,11 +73,6 @@ export function AttendanceDetails({ status, ad }: Props) {
         <Headline status={status} />
       </p>
       <AttendanceStamps stamps={attendanceWeek(status)} nextDay={nextAttendanceDay(status)} />
-      {status.pendingTossPoints > 0 && (
-        <p className="text-[15px] break-keep text-muted-foreground">
-          지급 중인 토스 포인트 {status.pendingTossPoints}원
-        </p>
-      )}
       <CheckInAction status={status} ad={ad} />
     </div>
   );

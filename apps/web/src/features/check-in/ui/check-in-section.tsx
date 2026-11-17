@@ -1,10 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
 import { ChevronUpIcon } from 'lucide-react';
 import type { Ref } from 'react';
-import { type AttendanceStatus, attendanceQueries, formatReward } from '@/entities/attendance';
+import {
+  type AttendanceReward,
+  type AttendanceStatus,
+  attendanceQueries,
+  formatReward,
+} from '@/entities/attendance';
 import type { RewardedAd } from '@/shared/lib/rewarded-ad';
 import { cn } from '@/shared/lib/utils';
 import { AttendanceIcon } from '@/shared/ui/reward-icons';
+import { todayReward } from '../lib/attendance-week';
 import { AttendanceDetails } from './attendance-details';
 
 type Props = {
@@ -17,10 +23,23 @@ type Props = {
   detailsRef?: Ref<HTMLDivElement>;
 };
 
+/** 오늘 출석해서 받은 보상을 알리는 말 */
+function receivedSummary(reward: AttendanceReward): string {
+  switch (reward.type) {
+    case 'TOSS_POINT':
+      return '토스포인트 지급 완료';
+    case 'OTTER_FRIEND':
+      return '해달 친구가 왔어요';
+    case 'ENHANCE_BONUS':
+      return '낚싯대 강화 완료';
+  }
+}
+
 /** 머리 줄 오른쪽 한 줄 요약 */
 function summaryOf(status: AttendanceStatus | undefined): string {
   if (!status) return '불러오는 중';
-  if (status.checkedToday) return `${status.attendanceDays}일째 출석 완료`;
+  const received = todayReward(status);
+  if (received) return receivedSummary(received);
   return `오늘 출석하면 ${formatReward(status.nextReward)}`;
 }
 
