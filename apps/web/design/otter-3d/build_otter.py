@@ -12,8 +12,8 @@ Blender 의 Python 콘솔(또는 MCP)에서 이 파일을 실행한 뒤 build() 
       ArmL, ArmR                    어깨가 원점, 로컬 Z 방향으로 뻗은 팔 (손 위치까지 늘여 맞춘다)
       HandL, HandR                  손
       RodPivot                      낚싯대 (GripL, GripR = 손 자리, RodTip = 줄이 시작하는 끝)
-      Bucket                        물고기 양동이, 원점은 손잡이 꼭대기 (HoldL = 손 자리)
-      HoldR                         양동이를 들 때 배에 얹는 손 자리
+      Bucket                        물고기 양동이, 원점은 손잡이 꼭대기 (FishPile = 넘치는 물고기)
+      HoldR, HoldL                  양동이를 들 때 손 자리 (오른손은 손잡이, 왼손은 배)
 """
 
 import math
@@ -214,7 +214,7 @@ class Builder:
         self.ell("Body", (0, 0, 0.78), (0.74, 0.64, 0.84), "Fur", torso, shape=pear, seg=32, rings=18)
         self.ell("Belly", (0, -0.36, 0.64), (0.46, 0.34, 0.52), "Belly", torso, shape=pear)
 
-        self.ell("Tail", (0.82, 0.18, 0.12), (0.56, 0.2, 0.12), "Fur", root, rot=(0, 0, math.radians(20)))
+        self.ell("Tail", (0.76, 0.18, 0.12), (0.48, 0.2, 0.12), "Fur", root, rot=(0, 0, math.radians(20)))
         for side, sx in (("L", -1), ("R", 1)):
             foot = self.empty(f"Foot{side}", (0.4 * sx, -0.46, 0.16), root)
             self.ell(f"FootMesh{side}", (0.4 * sx, -0.46, 0.16), (0.23, 0.31, 0.17), "Fur", foot)
@@ -386,10 +386,11 @@ class Builder:
 
     def build_bucket(self):
         torso = self.torso
-        top = Vector((-1.22, -0.36, 1.52))  # 손잡이 꼭대기 (왼손이 쥐는 곳)
+        # 낚시하는 동안에는 코드가 양동이를 오른쪽 눈밭에 내려놓는다. 여기 자리는 들었을 때의 자리다
+        top = Vector((1.22, -0.36, 1.52))  # 손잡이 꼭대기 (오른손이 쥐는 곳)
         bucket = self.empty("Bucket", top, torso)
-        self.empty("HoldL", top, bucket)
-        self.empty("HoldR", (0.1, -0.66, 0.74), torso)  # 오른손은 배에 얹는다
+        self.empty("HoldR", top, torso)
+        self.empty("HoldL", (-0.1, -0.66, 0.74), torso)  # 왼손은 배에 얹는다
         rim_z, bottom_z, r_top, r_bottom = -0.4, -0.92, 0.37, 0.29
         thetas = [2 * math.pi * i / 28 for i in range(28)]
         profile = [(0.001, bottom_z), (r_bottom, bottom_z), (r_top, rim_z), (0.001, rim_z - 0.03)]
@@ -403,7 +404,8 @@ class Builder:
         handle = self.curve("BucketHandle", arc, "Bucket", bucket, 0.028)
         handle.data.bevel_resolution = 2
 
-        # 양동이 위로 넘치는 물고기
+        # 양동이 위로 넘치는 물고기 (가득 찼을 때만 FishPile 을 키워 보인다)
+        pile = self.empty("FishPile", top + Vector((0, 0, rim_z)), bucket)
         fish = [
             ("Bluefish", (-0.16, -0.12, 0.06), 25, 20),
             ("Goldfish", (0.14, -0.14, 0.04), -30, 160),
@@ -413,7 +415,7 @@ class Builder:
         ]
         for i, (mat, off, pitch, yaw) in enumerate(fish):
             center = top + Vector((off[0], off[1], rim_z + off[2]))
-            holder = self.empty(f"Fish{i}", center, bucket)
+            holder = self.empty(f"Fish{i}", center, pile)
             holder.rotation_euler = (0, math.radians(pitch), math.radians(yaw))
             bpy.context.view_layer.update()
             m = holder.matrix_world

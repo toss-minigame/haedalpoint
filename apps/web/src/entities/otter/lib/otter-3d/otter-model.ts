@@ -43,6 +43,13 @@ const STAND = { RISE: 0.34, FEET_BACK: 0.22, FEET_IN: 0.05 } as const;
 /** 낚싯대가 이보다 작아지면(치우는 중) 줄을 그리지 않는다 */
 const ROD_LINE_MIN_SCALE = 0.95;
 const HIDDEN_SCALE = 0.01;
+/**
+ * 양동이를 놓는 자리 (손잡이 꼭대기, 해달 기준 모델 단위).
+ * 해달 오른쪽 눈밭, 꼬리 끝보다 바깥이라 해달과 겹치지 않는다. 좁은 화면(320px)에서도 화면 안에 든다.
+ * 양동이는 해달 몸에서 떼어 두어, 낚시하는 동안은 해달이 숨쉬거나 끌려 돌아가도 제자리에 가만히 있다.
+ * 가득 차면 오른손으로 뛰어올라 손을 따라다닌다
+ */
+const BUCKET_GROUND = { x: 1.88, y: 0.92, z: 0.3 } as const;
 
 /** 재질 이름(Blender) → 색. 만화처럼 밝은 면·어두운 면 두 단계로 칠한다 */
 const TOON_COLORS: Record<string, string> = {
@@ -92,6 +99,7 @@ const NODE_NAMES = {
   rod: 'RodPivot',
   tip: 'RodTip',
   bucket: 'Bucket',
+  fishPile: 'FishPile',
   footL: 'FootL',
   footR: 'FootR',
   armL: 'ArmL',
@@ -188,13 +196,17 @@ function createPoser(nodes: Nodes) {
     torsoY: nodes.torso.position.y,
     head: nodes.head.rotation.clone(),
     rod: nodes.rod.rotation.clone(),
-    bucket: nodes.bucket.rotation.clone(),
     footL: nodes.footL.position.clone(),
     footR: nodes.footR.position.clone(),
     // 팔 길이 = 어깨에서 낚싯대를 쥔 손까지 (모델을 만든 그대로의 자세)
     armLengthL: nodes.handL.position.distanceTo(nodes.armL.position),
     armLengthR: nodes.handR.position.distanceTo(nodes.armR.position),
   };
+  // 양동이를 해달 몸에서 떼어 모델 맨 위에 붙인다. 눈밭에 있을 때 해달의 움직임을 따라가지 않게
+  const stage = nodes.root.parent ?? nodes.root;
+  stage.add(nodes.bucket);
+  const ground = new Vector3(BUCKET_GROUND.x, BUCKET_GROUND.y, BUCKET_GROUND.z);
+  const held = new Vector3();
   const grip = new Vector3();
   const hold = new Vector3();
   const reach = new Vector3();
@@ -241,11 +253,15 @@ function createPoser(nodes: Nodes) {
     rod.rotation.set(rest.rod.x, rest.rod.y, rest.rod.z - pose.rodLift);
     rod.visible = pose.rodScale > HIDDEN_SCALE;
     rod.scale.setScalar(Math.max(pose.rodScale, HIDDEN_SCALE));
-    bucket.rotation.set(rest.bucket.x, rest.bucket.y, rest.bucket.z + pose.bucketSwing);
-    bucket.visible = pose.bucketScale > HIDDEN_SCALE;
-    bucket.scale.setScalar(Math.max(pose.bucketScale, HIDDEN_SCALE));
+    nodes.fishPile.visible = pose.fishScale > HIDDEN_SCALE;
+    nodes.fishPile.scale.setScalar(Math.max(pose.fishScale, HIDDEN_SCALE));
     placeArm(nodes.armL, nodes.handL, nodes.gripL, nodes.holdL, rest.armLengthL, pose.hold);
     placeArm(nodes.armR, nodes.handR, nodes.gripR, nodes.holdR, rest.armLengthR, pose.hold);
+    // 양동이: 눈밭 자리에서 오른손으로. 손에 들면 손과 해달이 도는 방향을 따라간다
+    stage.worldToLocal(nodes.handR.getWorldPosition(held));
+    bucket.position.lerpVectors(ground, held, pose.bucketLift);
+    bucket.position.y += pose.bucketHop;
+    bucket.rotation.set(0, yaw * pose.bucketLift, pose.bucketSwing);
   };
 }
 
