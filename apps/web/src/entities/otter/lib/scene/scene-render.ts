@@ -18,6 +18,7 @@ import {
   type SceneState,
   splashProgresses,
 } from './scene-state';
+import { drawSnowfall } from './snow/snow-render';
 
 export type FishImages = Record<FishKind, HTMLImageElement>;
 
@@ -326,6 +327,8 @@ export function drawScene(
   ctx.clearRect(0, 0, state.width, state.height);
   if (sprites) drawBackground(ctx, state, sprites.background);
   else drawFallbackBackground(ctx, state);
+  // 눈은 배경에만 내린다 (해달·웅덩이·물고기 뒤로 지나가, 해달 얼굴과 매달린 물고기를 가리지 않는다)
+  if (state.snowfall) drawSnowfall(ctx, state.snowfall);
 
   // 웅덩이는 눈밭에 있으므로 해달들보다 먼저 그린다
   drawPuddle(ctx, state, sprites?.puddle ?? null);
