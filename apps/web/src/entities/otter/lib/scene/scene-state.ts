@@ -95,6 +95,9 @@ const CATCH_END = CAST_START + SCENE.CAST_DURATION;
 const REENTRY_SPLASH_START = CATCH_END - 0.1;
 const SETTLE_END = CATCH_END + SCENE.SETTLE_DURATION;
 
+/** 잡는 동작의 구간 시작 시각 (잡기 시작한 뒤 초). 3D 해달이 자세를 정할 때 쓴다 */
+export const CATCH_TIMELINE = { REEL_START, HOLD_START, CAST_START, CATCH_END } as const;
+
 /** 잡은 물고기를 줄 끝에 매달아 보여 주는 시간 (초). 동작 줄이기 모드에서 탭했을 때도 이만큼 보인다 */
 export const HOLD_SECONDS = SCENE.HOLD_DURATION;
 
@@ -224,6 +227,8 @@ export function otterLayout(size: SceneSize) {
     scale,
     centerX,
     bottomY,
+    /** 해달 키 (모자 꼭대기 ~ 발 아래 끝, px) */
+    bodyHeight: sizeUnit(size) * SCENE.OTTER_BODY_RATIO,
     frames: OTTER_SCENE_FRAMES.map((frame) => spriteRect(frame, centerX, bottomY, scale)),
     full: spriteRect(OTTER_FULL_FRAME, centerX, bottomY, scale * FULL_FRAME_SCALE),
   };
@@ -335,7 +340,7 @@ export function stepScene(
 }
 
 /** 잡기 시작한 뒤 지난 시간 (초). 대기 중이면 null */
-function catchElapsed({ catch: current, time }: SceneState): number | null {
+export function catchElapsed({ catch: current, time }: SceneState): number | null {
   return current ? time - current.startedAt : null;
 }
 
@@ -432,10 +437,13 @@ export type FishingLine = {
   fish: { kind: FishKind; size: number; center: Point; swing: number; opacity: number } | null;
 };
 
-/** 줄·바늘·매달린 물고기의 지금 모습 */
-export function fishingLine(state: SceneState): FishingLine {
+/**
+ * 줄·바늘·매달린 물고기의 지금 모습.
+ * tipOverride 를 주면 그림 속 낚싯대 끝 대신 그 자리에서 줄이 시작한다 (3D 해달의 낚싯대 끝).
+ */
+export function fishingLine(state: SceneState, tipOverride?: Point): FishingLine {
   const elapsed = catchElapsed(state);
-  const tip = rodTip(state);
+  const tip = tipOverride ?? rodTip(state);
   const hole = holeLayout(state);
   const unit = sizeUnit(state);
   const out = hookOut(elapsed);

@@ -1,4 +1,5 @@
 import snowfield from '@/shared/assets/background/snowfield.jpg';
+import otter3dModel from '@/shared/assets/otter/otter-3d.glb?url';
 import otterAwkward from '@/shared/assets/otter/otter-awkward.png';
 import otterExcited from '@/shared/assets/otter/otter-excited.png';
 import otterFishingCaught from '@/shared/assets/otter/otter-fishing-caught.png';
@@ -42,6 +43,12 @@ export const OTTER_FISHING_FRAMES = [
   otterFishingLift,
   otterFishingCaught,
 ] as const;
+
+/**
+ * 3D 해달 모델 (시험판, Blender 에서 만든 glb). 낚싯대를 쥔 앉은 모습이고 동작은 코드로 움직인다.
+ * 주소만 들고 있고, 3D 를 켤 때만 내려받는다
+ */
+export const OTTER_3D_MODEL = otter3dModel;
 
 /** 해먹이 가득 찼을 때 해달: 물고기가 가득한 양동이를 들고 선 모습 (투명 배경, 사방 20px 여백) */
 export const OTTER_FULL_SPRITE = otterHammockFull;

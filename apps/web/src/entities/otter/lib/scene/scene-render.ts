@@ -12,6 +12,7 @@ import {
   otterFrame,
   otterFriendLayout,
   otterLayout,
+  type Point,
   type Rect,
   SCENE,
   type SceneState,
@@ -28,6 +29,17 @@ export type SceneSprites = {
   fish: FishImages;
   background: HTMLImageElement;
   puddle: HTMLImageElement;
+};
+
+/**
+ * 그림 대신 해달을 그리는 3D 모델 (otter-3d 시험판). 해먹이 가득 찬 모습은 그대로 그림으로 그린다.
+ * draw 는 해달을 그리고 낚싯대 끝의 장면 좌표를 돌려준다 (줄이 여기서 시작한다).
+ */
+export type OtterModelView = {
+  draw: (ctx: CanvasRenderingContext2D, state: SceneState) => Point;
+  /** 사용자가 끌어서 돌린 각도 (rad, 0 = 원래 방향). 다음 draw 부터 반영한다 */
+  setUserYaw: (yaw: number) => void;
+  dispose: () => void;
 };
 
 /** 함께 낚시하는 해달 친구. 그림을 못 불러왔으면 frames 가 null 이라 그리지 않는다 */
@@ -309,6 +321,7 @@ export function drawScene(
   sprites: SceneSprites | null,
   catchLabel: string | null,
   friend: SceneFriend,
+  otterModel: OtterModelView | null = null,
 ) {
   ctx.clearRect(0, 0, state.width, state.height);
   if (sprites) drawBackground(ctx, state, sprites.background);
@@ -317,14 +330,13 @@ export function drawScene(
   // 웅덩이는 눈밭에 있으므로 해달들보다 먼저 그린다
   drawPuddle(ctx, state, sprites?.puddle ?? null);
   drawSplash(ctx, state);
-  if (sprites) {
-    drawOtterFriend(ctx, state, friend);
-    drawOtter(ctx, state, sprites);
-  }
+  if (sprites) drawOtterFriend(ctx, state, friend);
+  const modelTip = otterModel && !isShowingFull(state) ? otterModel.draw(ctx, state) : null;
+  if (sprites && !modelTip) drawOtter(ctx, state, sprites);
 
-  // 줄은 그림 속 낚싯대 끝에서 시작한다. 해먹이 가득 차 양동이를 든 동안은 낚싯대가 없다
+  // 줄은 낚싯대 끝(그림 속, 또는 3D 모델)에서 시작한다. 해먹이 가득 차 양동이를 든 동안은 낚싯대가 없다
   if (!isShowingFull(state)) {
-    const line = fishingLine(state);
+    const line = fishingLine(state, modelTip ?? undefined);
     drawLine(ctx, line);
     drawHangingFish(ctx, line, sprites?.fish ?? null);
     if (sprites) drawCatchLabel(ctx, state, line, catchLabel);

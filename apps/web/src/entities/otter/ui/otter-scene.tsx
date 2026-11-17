@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/shared/lib/utils';
 import {
   FISH_SPRITES,
+  OTTER_3D_MODEL,
   OTTER_FISHING_FRAMES,
   OTTER_FRIEND_FISHING_FRAMES,
   OTTER_FULL_SPRITE,
@@ -31,6 +32,17 @@ function sceneLabel(withOtterFriend: boolean, hammockFull: boolean): string {
 
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
+/**
+ * 3D 해달 시험판을 켤지. 빌드 환경 변수 VITE_OTTER_3D=true 로 켜거나,
+ * 브라우저에서 주소에 ?otter3d 를 붙여 켠다. 기본은 꺼져 있어 지금 그림 해달을 그린다
+ */
+function isOtter3dEnabled(): boolean {
+  return (
+    import.meta.env.VITE_OTTER_3D === 'true' ||
+    new URLSearchParams(window.location.search).has('otter3d')
+  );
+}
+
 // 해달이 설원에 앉아 물웅덩이에서 물고기를 낚는 장면 (캔버스). CATCH_INTERVAL_SECONDS 마다 스스로 잡고,
 // 탭하면 바로 한 마리 잡는다 (탭은 연출만 하고 catchLabel 은 띄우지 않는다). 해먹이 가득 차면 잡지 않는다.
 export function OtterScene({
@@ -41,6 +53,7 @@ export function OtterScene({
   hammockFull = false,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [otter3dEnabled] = useState(isOtter3dEnabled);
   const engineRef = useRef<SceneEngine | null>(null);
   // 엔진은 한 번만 만들므로, 만들 때 쓸 최신 값을 ref 로 들고 있는다
   const catchLabelRef = useRef(catchLabel);
@@ -81,6 +94,7 @@ export function OtterScene({
         friend: OTTER_FRIEND_FISHING_FRAMES,
       },
       reducedMotion: window.matchMedia(REDUCED_MOTION_QUERY).matches,
+      otterModelUrl: otter3dEnabled ? OTTER_3D_MODEL : null,
     });
     engineRef.current = engine;
     engine.setCatchLabel(catchLabelRef.current);
@@ -91,7 +105,8 @@ export function OtterScene({
       engine.destroy();
       engineRef.current = null;
     };
-  }, []);
+    // otter3dEnabled 는 처음 정한 뒤 바뀌지 않아, 엔진은 한 번만 만든다
+  }, [otter3dEnabled]);
 
   return (
     <button
@@ -101,9 +116,19 @@ export function OtterScene({
         'block w-full overflow-hidden outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset',
         className,
       )}
-      onClick={() => engineRef.current?.catchFish()}
+      onClick={() => {
+        const engine = engineRef.current;
+        // 3D 해달을 끌어 돌린 뒤 손을 뗀 것은 탭이 아니다
+        if (!engine || engine.consumeDrag()) return;
+        engine.catchFish();
+      }}
     >
-      <canvas ref={canvasRef} aria-hidden className="block h-full w-full" />
+      {/* 3D 해달은 가로로 끌어 돌리므로, 브라우저는 세로 스크롤만 맡게 한다 */}
+      <canvas
+        ref={canvasRef}
+        aria-hidden
+        className={cn('block h-full w-full', otter3dEnabled && 'touch-pan-y')}
+      />
     </button>
   );
 }
