@@ -89,6 +89,7 @@ export const SCENE = {
   FRIEND_CATCH_PERIOD: 6, // s, 친구가 물고기를 잡는 간격
   FRIEND_CATCH_OFFSET: 1.5, // s, 처음 잡는 시각
   FRIEND_LABEL_GAP: 6, // px, 친구 머리 위와 잡은 양 글자 사이
+  FISHING_AREA_PADDING: 8, // px, 해달이 낚시하는 영역(해달·낚싯대·웅덩이)을 비출 때 둘레 여백
 } as const;
 
 const REEL_START = SCENE.BITE_DURATION;
@@ -192,6 +193,35 @@ function sizeUnit({ width }: SceneSize): number {
 /** 눈밭이 시작하는 높이 (배경 이미지를 여기에 맞춘다) */
 export function horizonY(height: number): number {
   return height * SCENE.HORIZON_RATIO;
+}
+
+/**
+ * 해달이 낚시하는 영역: 모든 낚시 프레임의 해달·낚싯대(들어 올린 모습 포함)와 물웅덩이를 감싸는 사각형.
+ * 좌우 여백을 같게 맞춰 화면 가운데에 둔다 (해달 오른쪽 눈밭의 양동이는 넣지 않는다).
+ * 튜토리얼이 장면 전체가 아니라 해달이 물고기를 잡는 곳만 비출 때 쓴다
+ */
+export function fishingArea(size: SceneSize): Rect {
+  const hole = holeLayout(size);
+  const rects: Rect[] = [
+    ...otterLayout(size).frames,
+    {
+      x: hole.x - hole.radiusX,
+      y: hole.y - hole.radiusY,
+      width: hole.radiusX * 2,
+      height: hole.radiusY * 2,
+    },
+  ];
+  const padding = SCENE.FISHING_AREA_PADDING;
+  const left = Math.max(0, Math.min(...rects.map((rect) => rect.x)) - padding);
+  const top = Math.max(0, Math.min(...rects.map((rect) => rect.y)) - padding);
+  const right = Math.max(...rects.map((rect) => rect.x + rect.width)) + padding;
+  // 좁은 쪽 여백에 맞춰 양쪽 여백을 같게 한다
+  const margin = Math.max(0, Math.min(left, size.width - right));
+  const bottom = Math.min(
+    size.height,
+    Math.max(...rects.map((rect) => rect.y + rect.height)) + padding,
+  );
+  return { x: margin, y: top, width: size.width - margin * 2, height: bottom - top };
 }
 
 /** 물웅덩이 (가운데와 가로·세로 반지름). 드리운 낚싯대 끝 바로 아래에 둔다 */

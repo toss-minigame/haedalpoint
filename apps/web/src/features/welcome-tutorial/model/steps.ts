@@ -3,6 +3,7 @@ import type { TutorialRewardKind } from '@/entities/tutorial';
 /** 튜토리얼이 비추는 화면 영역. 그 영역에 `data-tutorial` 로 붙인다 (홈, 퀴즈·룰렛 화면) */
 export type TutorialTarget =
   | 'scene'
+  | 'otter'
   | 'hammock'
   | 'store'
   | 'warehouse'
@@ -31,6 +32,9 @@ export type TutorialAction =
   | { type: 'store' }
   | { type: 'finish' };
 
+/** 말풍선 자리. auto: 비춘 곳 아래(모자라면 위), above: 비춘 곳 위(모자라면 auto) */
+export type BubblePlacement = 'auto' | 'above';
+
 export type TutorialStep = {
   id: string;
   target: TutorialTarget;
@@ -39,15 +43,18 @@ export type TutorialStep = {
   /** 보상을 받은 뒤 잠깐 보여줄 말 */
   doneMessage?: string;
   action: TutorialAction;
+  /** 말풍선 자리 (기본 auto: 비춘 곳 아래) */
+  bubble?: BubblePlacement;
 };
 
 // 홈 튜토리얼 (docs/design/tutorial.md 3장). 퀴즈·룰렛은 그 화면을 처음 열 때 따로 알려준다 (page-tutorial-steps)
 export const TUTORIAL_STEPS: readonly TutorialStep[] = [
   {
     id: 'greet',
-    target: 'scene',
-    message: '안녕하세요! 제가 물고기를 잡아올게요',
+    target: 'otter',
+    message: '제가 잡은 물고기를\n포인트로 전환할 수 있어요',
     action: { type: 'info' },
+    bubble: 'above',
   },
   {
     id: 'hammock',

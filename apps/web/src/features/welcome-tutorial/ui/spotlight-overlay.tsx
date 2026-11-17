@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useReducedMotion } from '@/shared/lib/use-reduced-motion';
 import { type TargetRect, useTargetRect } from '../lib/use-target-rect';
+import type { BubblePlacement } from '../model/steps';
 
 type Props = {
   /** 비출 요소의 data-tutorial 값 */
@@ -10,6 +11,7 @@ type Props = {
   isTargetInteractive: boolean;
   /** 말풍선이 바뀔 때마다 새로 나타나게 하는 값 (단계 id 등) */
   bubbleKey: string;
+  bubblePlacement?: BubblePlacement;
   /** 주면 오른쪽 위에 건너뛰기를 둔다 */
   onSkip?: () => void;
   label: string;
@@ -55,8 +57,11 @@ function blockerStyles(hole: TargetRect): CSSProperties[] {
   ];
 }
 
-function bubblePosition(hole: TargetRect | null): CSSProperties {
+function bubblePosition(hole: TargetRect | null, placement: BubblePlacement): CSSProperties {
   if (!hole) return { top: '50%', transform: 'translateY(-50%)' };
+  if (placement === 'above' && hole.top >= BUBBLE_SPACE) {
+    return { bottom: window.innerHeight - hole.top + BUBBLE_GAP };
+  }
   const bottom = hole.top + hole.height;
   if (window.innerHeight - bottom >= BUBBLE_SPACE) return { top: bottom + BUBBLE_GAP };
   if (hole.top >= BUBBLE_SPACE) return { bottom: window.innerHeight - hole.top + BUBBLE_GAP };
@@ -65,11 +70,12 @@ function bubblePosition(hole: TargetRect | null): CSSProperties {
 
 // 화면 위에 어두운 막을 깔고 안내할 곳만 밝게 비춘다. 비춘 곳은 누를 수 있는 단계에서만 눌린다.
 // 막은 SVG 하나로 칠해(큰 그림자보다 가볍다) 비출 곳이 바뀌면 구멍이 부드럽게 옮겨 간다.
-// 말풍선은 비춘 곳 아래에, 아래 공간이 모자라면 위에 둔다.
+// 말풍선은 비춘 곳 아래에, 아래 공간이 모자라면 위에 둔다 (bubblePlacement='above' 면 위가 먼저).
 export function SpotlightOverlay({
   target,
   isTargetInteractive,
   bubbleKey,
+  bubblePlacement = 'auto',
   onSkip,
   label,
   children,
@@ -85,7 +91,7 @@ export function SpotlightOverlay({
       <svg aria-hidden="true" className="fixed inset-0 size-full">
         <path
           fillRule="evenodd"
-          fill="rgb(0 0 0 / 0.6)"
+          fill="rgb(0 0 0 / 0.75)"
           d={hole ? `${OUTER_PATH}${holePath(hole)}` : OUTER_PATH}
         />
       </svg>
@@ -112,8 +118,8 @@ export function SpotlightOverlay({
         </button>
       )}
       <div
-        className="pointer-events-auto fixed inset-x-0 mx-auto w-[calc(100%-2rem)] max-w-md"
-        style={bubblePosition(hole)}
+        className="pointer-events-auto fixed inset-x-0 mx-auto w-fit max-w-[min(28rem,calc(100%-2rem))]"
+        style={bubblePosition(hole, bubblePlacement)}
       >
         {/* 말풍선이 바뀔 때 살짝 떠오르며 나타난다 (동작 줄이기면 바로) */}
         <div

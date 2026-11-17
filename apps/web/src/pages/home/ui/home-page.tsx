@@ -69,6 +69,7 @@ export function HomePage() {
           withOtterFriend={fishingStatus?.otterFriendActive ?? false}
           friendCatchLabel={catchLabels.friend}
           hammockFull={hammockFull}
+          fishingAreaProps={tutorialTarget('otter')}
         />
         {/* 빈 곳을 누르면 아래 장면으로 전달돼 해달이 물고기를 잡는다 */}
         <div className="pointer-events-none relative mx-auto flex w-full max-w-xl flex-col gap-3 px-4 pt-3">

@@ -14,6 +14,7 @@ export function WelcomeTutorialOverlay({ tutorial }: Props) {
       target={tutorial.step.target}
       isTargetInteractive={tutorial.isTargetInteractive}
       bubbleKey={tutorial.step.id}
+      bubblePlacement={tutorial.step.bubble}
       onSkip={isFinish ? undefined : tutorial.skip}
       label="해달해달 안내"
     >

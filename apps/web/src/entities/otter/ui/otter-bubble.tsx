@@ -20,7 +20,7 @@ export function OtterBubble({ mood = 'happy', message, children, className }: Pr
         <img src={OTTER_SPRITES[mood]} alt="" className="size-12 shrink-0 object-contain" />
         <p
           aria-live="polite"
-          className="min-w-0 pt-1 text-base leading-snug font-medium break-keep"
+          className="min-w-0 pt-1 text-base leading-snug font-medium break-keep whitespace-pre-line"
         >
           {message}
         </p>
