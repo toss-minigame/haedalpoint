@@ -3,6 +3,7 @@ import {
   DirectionalLight,
   type Object3D,
   OrthographicCamera,
+  Quaternion,
   Scene,
   Vector2,
   Vector3,
@@ -29,12 +30,17 @@ const MODEL_HEIGHT = 3.37;
  * WebGL 캔버스가 담는 모델 범위. 낚싯대를 들어 올려도, 일어서며 뛰어올라도, 끌어서 돌려
  * 낚싯대가 오른쪽을 향해도 잘리지 않게 여유를 두고 좌우를 같은 폭으로 둔다
  */
-const VIEW = { LEFT: -2.8, RIGHT: 2.8, TOP: 4.1, BOTTOM: -0.15 } as const;
+const VIEW = { LEFT: -2.8, RIGHT: 2.8, TOP: 4.5, BOTTOM: -0.15 } as const;
 /** 해달이 낚싯대 쪽(왼쪽)으로 살짝 몸을 돌려 앉는다 (3D 느낌이 나도록) */
 const BASE_YAW = -0.22;
 const MAX_PIXEL_RATIO = 2;
-/** 일어섰을 때 몸이 올라가는 높이와, 발이 몸 아래로 들어가는 거리 */
-const STAND = { RISE: 0.34, FEET_BACK: 0.22, FEET_IN: 0.05 } as const;
+/**
+ * 일어섰을 때: 몸이 올라가는 높이(그만큼 짧은 다리가 드러난다), 발이 몸 아래로 들어가는 거리,
+ * 발을 벌리는 거리, 발끝을 바깥으로 돌리는 각도 (rad)
+ */
+const STAND = { RISE: 0.48, FEET_BACK: 0.2, FEET_OUT: 0.03, FEET_YAW: 0.32 } as const;
+/** 꼬리 뿌리에서 끝까지 (build_otter.py 의 TAIL_LENGTH 와 같다). 일어서면 끝이 눈밭에 닿게 내린다 */
+const TAIL_LENGTH = 0.9;
 /** 낚싯대가 이보다 작아지면(치우는 중) 줄을 그리지 않는다 */
 const ROD_LINE_MIN_SCALE = 0.95;
 const HIDDEN_SCALE = 0.01;
@@ -67,6 +73,9 @@ const NODE_NAMES = {
   fishPile: 'FishPile',
   footL: 'FootL',
   footR: 'FootR',
+  legL: 'LegL',
+  legR: 'LegR',
+  tail: 'Tail',
   armL: 'ArmL',
   armR: 'ArmR',
   handL: 'HandL',
@@ -99,6 +108,8 @@ function createScene(): Scene {
 }
 
 const UP = new Vector3(0, 1, 0);
+/** 꼬리를 위아래로 꺾는 축 (꼬리의 로컬 z) */
+const FORWARD = new Vector3(0, 0, 1);
 
 /**
  * 모델에 자세를 입히는 함수를 만든다.
@@ -111,6 +122,12 @@ function createPoser(nodes: Nodes) {
     rod: nodes.rod.rotation.clone(),
     footL: nodes.footL.position.clone(),
     footR: nodes.footR.position.clone(),
+    footYawL: nodes.footL.rotation.y,
+    footYawR: nodes.footR.rotation.y,
+    tail: nodes.tail.quaternion.clone(),
+    // 다리 길이 = 엉덩이에서 앉았을 때의 발까지 (모델을 만든 그대로의 자세)
+    legLengthL: nodes.footL.position.distanceTo(nodes.legL.position),
+    legLengthR: nodes.footR.position.distanceTo(nodes.legR.position),
     // 팔 길이 = 어깨에서 낚싯대를 쥔 손까지 (모델을 만든 그대로의 자세)
     armLengthL: nodes.handL.position.distanceTo(nodes.armL.position),
     armLengthR: nodes.handR.position.distanceTo(nodes.armR.position),
@@ -123,6 +140,23 @@ function createPoser(nodes: Nodes) {
   const grip = new Vector3();
   const hold = new Vector3();
   const reach = new Vector3();
+  const droop = new Quaternion();
+
+  /** 한쪽 끝이 원점인 팔·다리를 target(몸 기준)까지 돌려 늘인다 */
+  const stretchTo = (limb: Object3D, target: Vector3, restLength: number) => {
+    reach.subVectors(target, limb.position);
+    const length = reach.length();
+    limb.quaternion.setFromUnitVectors(UP, reach.normalize());
+    limb.scale.set(1, length / restLength, 1);
+  };
+
+  /** 다리를 엉덩이에서 발까지 잇는다 (발은 눈밭에, 엉덩이는 몸과 함께 올라간다) */
+  const placeLeg = (leg: Object3D, foot: Object3D, restLength: number) => {
+    // 발은 몸(torso) 밖에 있으므로, 이번 프레임에 옮긴 몸의 위치를 먼저 반영해 둔다
+    nodes.torso.updateWorldMatrix(true, false);
+    nodes.torso.worldToLocal(foot.getWorldPosition(hold));
+    stretchTo(leg, hold, restLength);
+  };
 
   /** 손을 낚싯대 쥔 자리와 양동이 든 자리 사이에 두고, 팔을 어깨에서 손까지 잇는다 */
   const placeArm = (
@@ -136,10 +170,7 @@ function createPoser(nodes: Nodes) {
     nodes.torso.worldToLocal(gripNode.getWorldPosition(grip));
     nodes.torso.worldToLocal(holdNode.getWorldPosition(hold));
     hand.position.lerpVectors(grip, hold, blend);
-    reach.subVectors(hand.position, arm.position);
-    const length = reach.length();
-    arm.quaternion.setFromUnitVectors(UP, reach.normalize());
-    arm.scale.set(1, length / restLength, 1);
+    stretchTo(arm, hand.position, restLength);
   };
 
   return (pose: OtterPose, yaw: number) => {
@@ -148,17 +179,25 @@ function createPoser(nodes: Nodes) {
     const side = 1 / Math.sqrt(pose.squash);
     root.scale.set(side, pose.squash, side);
     torso.position.y = rest.torsoY + STAND.RISE * pose.stand + pose.hop;
-    // 발은 눈밭에 둔 채 몸 아래로 들어간다 (모델의 앞쪽이 +z)
+    // 발은 눈밭에 둔 채 몸 아래로 들어가고, 살짝 벌려 발끝을 바깥으로 돌린다 (모델의 앞쪽이 +z)
     footL.position.set(
-      rest.footL.x + STAND.FEET_IN * pose.stand,
+      rest.footL.x - STAND.FEET_OUT * pose.stand,
       rest.footL.y + pose.hop,
       rest.footL.z - STAND.FEET_BACK * pose.stand,
     );
     footR.position.set(
-      rest.footR.x - STAND.FEET_IN * pose.stand,
+      rest.footR.x + STAND.FEET_OUT * pose.stand,
       rest.footR.y + pose.hop,
       rest.footR.z - STAND.FEET_BACK * pose.stand,
     );
+    footL.rotation.y = rest.footYawL - STAND.FEET_YAW * pose.stand;
+    footR.rotation.y = rest.footYawR + STAND.FEET_YAW * pose.stand;
+    placeLeg(nodes.legL, footL, rest.legLengthL);
+    placeLeg(nodes.legR, footR, rest.legLengthR);
+    // 꼬리는 몸에 붙어 함께 올라간다. 뿌리가 올라간 만큼 끝을 내려 눈밭에 닿게 한다
+    const lifted = STAND.RISE * pose.stand;
+    droop.setFromAxisAngle(FORWARD, -Math.asin(Math.min(lifted / TAIL_LENGTH, 1)));
+    nodes.tail.quaternion.copy(rest.tail).multiply(droop);
     head.rotation.set(rest.head.x + pose.headNod, rest.head.y, rest.head.z + pose.headRoll);
     nodes.eyesOpen.visible = !pose.happy;
     nodes.eyesHappy.visible = pose.happy;
