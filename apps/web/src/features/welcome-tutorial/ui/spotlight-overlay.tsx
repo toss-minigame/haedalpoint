@@ -19,7 +19,7 @@ type Props = {
 };
 
 /** 비춘 영역 둘레 여백 (px) */
-const HOLE_PADDING = 6;
+const HOLE_PADDING = 12;
 const HOLE_RADIUS = 16;
 /** 말풍선과 비춘 영역 사이 (px) */
 const BUBBLE_GAP = 12;

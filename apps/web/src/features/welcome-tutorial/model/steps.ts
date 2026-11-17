@@ -59,7 +59,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
   {
     id: 'hammock',
     target: 'hammock',
-    message: '잡은 물고기는 양동이에 쌓여요',
+    message: '쉬는 동안 잡은 물고기는\n여기 양동이에 쌓여요',
     action: { type: 'info' },
   },
   {
