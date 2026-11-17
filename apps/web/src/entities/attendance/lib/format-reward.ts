@@ -17,7 +17,7 @@ export function formatReward(reward: AttendanceReward): string {
   }
 }
 
-/** 출석 도장 칸에 들어가는 짧은 보상 이름 (예: 1원, 친구) */
+/** 출석 칸 동그라미에 들어가는 짧은 보상 이름 (예: 1원, 친구, 강화) */
 export function formatRewardShort(reward: AttendanceReward): string {
   switch (reward.type) {
     case 'TOSS_POINT':
@@ -25,6 +25,6 @@ export function formatRewardShort(reward: AttendanceReward): string {
     case 'OTTER_FRIEND':
       return '친구';
     case 'ENHANCE_BONUS':
-      return `+${reward.amount}단계`;
+      return '강화';
   }
 }

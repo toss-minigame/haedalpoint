@@ -9,4 +9,4 @@ export type {
   CheckInResponse,
   TossPointGrantStatus,
 } from './model/types';
-export { AttendanceStamps } from './ui/attendance-stamps';
+export { type AttendanceStamp, AttendanceStamps } from './ui/attendance-stamps';

@@ -1,1 +1,1 @@
-export { CheckInCard } from './ui/check-in-card';
+export { CheckInSheet } from './ui/check-in-sheet';
