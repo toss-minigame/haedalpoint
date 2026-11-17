@@ -10,6 +10,7 @@ import {
   type SceneState,
   showCaught,
   stepScene,
+  setHammockFull as withHammockFull,
 } from './scene-state';
 
 const MAX_FRAME_DT = 0.05; // 탭 전환 등으로 프레임이 길게 끊겨도 한 번에 크게 점프하지 않게
@@ -19,6 +20,8 @@ export type SceneEngineOptions = {
   sprites: {
     /** 해달 프레임 (0 = 기다리는 모습, 마지막 = 잡은 모습) */
     otter: readonly string[];
+    /** 해먹이 가득 찼을 때 해달 */
+    full: string;
     fish: Record<FishKind, string>;
     background: string;
     puddle: string;
@@ -35,6 +38,8 @@ export type SceneEngine = {
   setCatchLabel: (label: string | null) => void;
   /** 해달 친구를 함께 그릴지 */
   setOtterFriendVisible: (visible: boolean) => void;
+  /** 해먹이 가득 찼는지. 가득 차면 더 잡지 않고 양동이를 든 모습으로 바뀐다 */
+  setHammockFull: (full: boolean) => void;
   /** 해달 친구가 물고기를 잡을 때 띄울 글자 (친구 몫). null 이면 띄우지 않는다 */
   setFriendCatchLabel: (label: string | null) => void;
   destroy: () => void;
@@ -70,6 +75,7 @@ export function createSceneEngine(
       catchFish: () => {},
       setCatchLabel: () => {},
       setOtterFriendVisible: () => {},
+      setHammockFull: () => {},
       setFriendCatchLabel: () => {},
       destroy: () => {},
     };
@@ -136,12 +142,13 @@ export function createSceneEngine(
 
   Promise.all([
     Promise.all(options.sprites.otter.map(loadImage)),
+    loadImage(options.sprites.full),
     loadFishImages(options.sprites.fish),
     loadImage(options.sprites.background),
     loadImage(options.sprites.puddle),
   ])
-    .then(([otter, fish, background, puddle]) => {
-      sprites = { otter, fish, background, puddle };
+    .then(([otter, full, fish, background, puddle]) => {
+      sprites = { otter, full, fish, background, puddle };
       render();
     })
     // 이미지를 못 불러와도 단색 하늘·눈밭과 웅덩이·이모지 물고기는 그린다 (해달만 빠짐)
@@ -159,7 +166,8 @@ export function createSceneEngine(
   if (!document.hidden) start();
 
   const catchFish = () => {
-    if (destroyed) return;
+    // 해먹이 가득 차면 눌러도 잡지 않는다
+    if (destroyed || state.hammockFull) return;
     if (!options.reducedMotion) {
       state = requestCatch(state, random);
       return;
@@ -196,5 +204,18 @@ export function createSceneEngine(
     friendCatchLabel = label;
   };
 
-  return { catchFish, setCatchLabel, setOtterFriendVisible, setFriendCatchLabel, destroy };
+  const setHammockFull = (full: boolean) => {
+    state = withHammockFull(state, full);
+    // 동작 줄이기 모드는 매 프레임 다시 그리지 않으므로 바로 그린다
+    if (!destroyed) render();
+  };
+
+  return {
+    catchFish,
+    setCatchLabel,
+    setOtterFriendVisible,
+    setHammockFull,
+    setFriendCatchLabel,
+    destroy,
+  };
 }

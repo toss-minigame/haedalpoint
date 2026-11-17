@@ -53,8 +53,8 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* 해달 장면(바다·모래)에 맞춘 브랜드 색. 주 색상은 딥 틸(흰 글자 대비 5.97:1),
-   보조 글자는 바탕 위 대비 5.17:1 */
+/* 브랜드 색. 주 색상은 블루 #3082F5 (흰 글자 대비 3.7:1 — 굵은 버튼 글자에 쓴다).
+   보조 색(secondary·accent)은 아직 이전 틸 계열이다 */
 :root {
   --background: #f3f8fa;
   /* 홈 바탕: 설원 장면과 이어지는 하늘색 */
@@ -64,7 +64,7 @@
   --card-foreground: #1a2a30;
   --popover: #ffffff;
   --popover-foreground: #1a2a30;
-  --primary: #0b6e78;
+  --primary: #3082f5;
   --primary-foreground: #ffffff;
   --secondary: #e8f5f7;
   --secondary-foreground: #0b5560;
@@ -75,7 +75,7 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: #dce8ec;
   --input: #dce8ec;
-  --ring: #0b6e78;
+  --ring: #3082f5;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);

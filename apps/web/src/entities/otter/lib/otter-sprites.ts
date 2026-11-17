@@ -6,6 +6,7 @@ import otterFishingIdle from '@/shared/assets/otter/otter-fishing-idle.png';
 import otterFishingLift from '@/shared/assets/otter/otter-fishing-lift.png';
 import otterFishingNotice from '@/shared/assets/otter/otter-fishing-notice.png';
 import otterFishingPull from '@/shared/assets/otter/otter-fishing-pull.png';
+import otterHammockFull from '@/shared/assets/otter/otter-hammock-full.png';
 import otterHappy from '@/shared/assets/otter/otter-happy.png';
 import otterIdle from '@/shared/assets/otter/otter-idle.png';
 import otterLove from '@/shared/assets/otter/otter-love.png';
@@ -43,6 +44,9 @@ export const OTTER_FISHING_FRAMES = [
   otterFishingLift,
   otterFishingCaught,
 ] as const;
+
+/** 해먹이 가득 찼을 때 해달: 물고기가 가득한 양동이를 들고 선 모습 (투명 배경, 사방 20px 여백) */
+export const OTTER_FULL_SPRITE = otterHammockFull;
 
 /**
  * 해달 친구 (7일차 출석으로 와서 물웅덩이 왼쪽에 앉는다). 낚싯대 없이 표정 그림으로

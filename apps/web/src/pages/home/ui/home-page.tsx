@@ -4,6 +4,7 @@ import {
   fishingQueries,
   formatFish,
   otterFriendFishPerHour,
+  useHammockFull,
 } from '@/entities/fishing';
 import {
   CATCH_INTERVAL_SECONDS,
@@ -33,8 +34,8 @@ const NO_CATCH_LABELS: CatchLabels = { otter: null, friend: null };
  * 친구가 있으면 친구 몫(친구 속도 보너스)은 친구가 들어 올릴 때 따로 띄우고 해달 몫에서는 뺀다.
  * 그래서 두 글자를 시간당으로 더하면 실제로 쌓이는 양과 거의 같다 (화면은 정수로 내림해 보여준다).
  */
-function catchLabelsOf(status: FishingStatus | undefined): CatchLabels {
-  if (!status || status.hammockFullAt === null) return NO_CATCH_LABELS;
+function catchLabelsOf(status: FishingStatus | undefined, hammockFull: boolean): CatchLabels {
+  if (!status || hammockFull) return NO_CATCH_LABELS;
   const friendFishPerHour = status.otterFriendActive ? otterFriendFishPerHour(status) : 0;
   const perCatch = (fishPerHour: number, seconds: number) =>
     `+${formatFish((fishPerHour * seconds) / SECONDS_PER_HOUR)}`;
@@ -48,8 +49,10 @@ function catchLabelsOf(status: FishingStatus | undefined): CatchLabels {
 export function HomePage() {
   // 같은 광고 그룹은 한 번에 하나만 미리 불러올 수 있어, 홈의 보상형 광고 버튼이 모두 이 광고를 함께 쓴다
   const rewardedAd = useRewardedAd(env.rewardedAdGroupId);
-  const { data: fishingStatus } = useQuery(fishingQueries.me());
-  const catchLabels = catchLabelsOf(fishingStatus);
+  const { data: fishingStatus, dataUpdatedAt } = useQuery(fishingQueries.me());
+  // 가득 차는 시각이 되면 다시 조회하지 않아도 낚시를 멈추고 양동이를 든 모습으로 바뀐다
+  const hammockFull = useHammockFull(fishingStatus, dataUpdatedAt);
+  const catchLabels = catchLabelsOf(fishingStatus, hammockFull);
   const tutorial = useWelcomeTutorial();
 
   return (
@@ -63,6 +66,7 @@ export function HomePage() {
           catchLabel={catchLabels.otter}
           withOtterFriend={fishingStatus?.otterFriendActive ?? false}
           friendCatchLabel={catchLabels.friend}
+          hammockFull={hammockFull}
         />
         {/* 빈 곳을 누르면 아래 장면으로 전달돼 해달이 물고기를 잡는다 */}
         <div className="pointer-events-none relative mx-auto flex w-full max-w-xl flex-col gap-3 px-4 pt-3">
