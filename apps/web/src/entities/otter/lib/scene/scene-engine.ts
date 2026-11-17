@@ -249,7 +249,7 @@ export function createSceneEngine(
   const modelUrl = options.otterModelUrl;
   if (modelUrl) {
     import('../otter-3d/otter-model')
-      .then(({ createOtterModel }) => createOtterModel(modelUrl))
+      .then(({ createOtterModel }) => createOtterModel(modelUrl, options.reducedMotion))
       .then((model) => {
         if (destroyed) {
           model.dispose();

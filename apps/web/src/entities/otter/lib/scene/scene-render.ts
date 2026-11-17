@@ -33,11 +33,11 @@ export type SceneSprites = {
 };
 
 /**
- * 그림 대신 해달을 그리는 3D 모델 (otter-3d 시험판). 해먹이 가득 찬 모습은 그대로 그림으로 그린다.
- * draw 는 해달을 그리고 낚싯대 끝의 장면 좌표를 돌려준다 (줄이 여기서 시작한다).
+ * 그림 대신 해달을 그리는 3D 모델 (otter-3d 시험판). 해먹이 가득 차면 낚싯대를 치우고 양동이를 든 모습으로 넘어간다.
+ * draw 는 해달을 그리고 낚싯대 끝의 장면 좌표를 돌려준다 (줄이 여기서 시작한다). 낚싯대를 치웠으면 null.
  */
 export type OtterModelView = {
-  draw: (ctx: CanvasRenderingContext2D, state: SceneState) => Point;
+  draw: (ctx: CanvasRenderingContext2D, state: SceneState) => Point | null;
   /** 사용자가 끌어서 돌린 각도 (rad, 0 = 원래 방향). 다음 draw 부터 반영한다 */
   setUserYaw: (yaw: number) => void;
   dispose: () => void;
@@ -334,11 +334,12 @@ export function drawScene(
   drawPuddle(ctx, state, sprites?.puddle ?? null);
   drawSplash(ctx, state);
   if (sprites) drawOtterFriend(ctx, state, friend);
-  const modelTip = otterModel && !isShowingFull(state) ? otterModel.draw(ctx, state) : null;
-  if (sprites && !modelTip) drawOtter(ctx, state, sprites);
+  // 3D 해달은 양동이를 든 모습까지 스스로 그린다. 낚싯대를 쥐고 있는 동안만 낚싯대 끝을 돌려준다
+  const modelTip = otterModel ? otterModel.draw(ctx, state) : null;
+  if (sprites && !otterModel) drawOtter(ctx, state, sprites);
 
   // 줄은 낚싯대 끝(그림 속, 또는 3D 모델)에서 시작한다. 해먹이 가득 차 양동이를 든 동안은 낚싯대가 없다
-  if (!isShowingFull(state)) {
+  if (otterModel ? modelTip !== null : !isShowingFull(state)) {
     const line = fishingLine(state, modelTip ?? undefined);
     drawLine(ctx, line);
     drawHangingFish(ctx, line, sprites?.fish ?? null);
