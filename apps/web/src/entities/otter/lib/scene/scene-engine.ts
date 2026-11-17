@@ -107,7 +107,12 @@ export function createSceneEngine(
   const ctx = context;
 
   const random = Math.random;
-  let state: SceneState = createSceneState(canvas.clientWidth, canvas.clientHeight);
+  let state: SceneState = createSceneState(
+    canvas.clientWidth,
+    canvas.clientHeight,
+    random,
+    !options.reducedMotion,
+  );
   let sprites: SceneSprites | null = null;
   let frameId: number | null = null;
   let lastTimestamp: number | null = null;
@@ -151,7 +156,7 @@ export function createSceneEngine(
     canvas.width = Math.round(width * dpr);
     canvas.height = Math.round(height * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    state = resizeScene(state, width, height);
+    state = resizeScene(state, width, height, random);
     render();
   };
 
