@@ -15,7 +15,7 @@
 
 export type Random = () => number;
 
-export const FISH_KINDS = ['angelfish', 'goldfish', 'pufferfish', 'bluefish'] as const;
+export const FISH_KINDS = ['bluefish', 'goldfish'] as const;
 export type FishKind = (typeof FISH_KINDS)[number];
 
 /** 지금 잡고 있는 물고기 한 마리 */
