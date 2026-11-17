@@ -1,57 +1,57 @@
 import {
+  CAUGHT_HEAD_X,
+  catchLabelOpacity,
+  type FishingLine,
   type FishKind,
-  friendCatchBlend,
-  happyBlend,
-  hookedFishCenter,
-  hookedFishOpacity,
-  hookedFishSwing,
-  jumpPosition,
+  fishingLine,
+  friendCatchLabelOpacity,
+  friendFrame,
+  holeLayout,
+  horizonY,
+  otterFrame,
   otterFriendLayout,
   otterLayout,
-  pierLayout,
+  type Rect,
   SCENE,
   type SceneState,
-  waterLineY,
+  splashProgresses,
 } from './scene-state';
 
 export type FishImages = Record<FishKind, HTMLImageElement>;
 
 export type SceneSprites = {
-  idle: HTMLImageElement;
-  happy: HTMLImageElement;
-  pier: HTMLImageElement;
+  /** 해달 프레임 (0 = 기다리는 모습, 마지막 = 잡은 모습) */
+  otter: readonly HTMLImageElement[];
   fish: FishImages;
   background: HTMLImageElement;
-  wave: HTMLImageElement;
+  puddle: HTMLImageElement;
 };
 
-/** 해달 친구 스프라이트. 앉은 모습과 들어 올린 모습을 같은 자리에 겹쳐 그린다 */
-export type FriendSprites = {
-  idle: HTMLImageElement;
-  catch: HTMLImageElement;
-};
-
-/** 함께 낚시하는 해달 친구. 그림을 못 불러왔으면 sprites 가 null 이라 그리지 않는다 */
+/** 함께 낚시하는 해달 친구. 그림을 못 불러왔으면 frames 가 null 이라 그리지 않는다 */
 export type SceneFriend = {
   visible: boolean;
-  sprites: FriendSprites | null;
-  /** 낚싯대를 들어 올릴 때 머리 위에 띄울 글자 (친구 몫, 예: +3). null 이면 띄우지 않는다 */
+  /** 친구 프레임 (해달 프레임과 같은 순서) */
+  frames: readonly HTMLImageElement[] | null;
+  /** 물고기를 잡을 때 머리 위에 띄울 글자 (친구 몫, 예: +3). null 이면 띄우지 않는다 */
   catchLabel: string | null;
 };
 
 // 장면 색 토큰 (캔버스는 CSS 변수를 직접 못 쓰므로 여기 한 곳에 모은다)
 const PALETTE = {
-  // 배경 이미지를 못 불러왔을 때만 쓰는 하늘·바다
-  skyTop: '#cfe9f8',
-  skyBottom: '#f1f9fd',
-  waterTop: '#7cc3e2',
-  waterBottom: '#2e7aa8',
-  // 물속(선착장 기둥 아래쪽·헤엄치는 물고기)을 살짝 덮는 색. 배경 수면 아래 색과 맞춘다
-  underwater: 'rgba(95, 195, 222, 0.35)',
-  splash: 'rgba(255, 255, 255, 0.9)',
-  // 잡은 양 글자. 하늘·바다 어느 배경 위에서도 읽히도록 흰 글자에 짙은 바다색 테두리를 두른다
+  // 배경 이미지를 못 불러왔을 때만 쓰는 하늘·눈밭 (설원 배경 색과 맞춘다)
+  skyTop: '#dceafa',
+  skyBottom: '#eef5fd',
+  snowTop: '#f4f8fe',
+  snowBottom: '#e3eefb',
+  // 설원 배경 이미지 맨 위 하늘 색. 이미지보다 장면 위쪽이 더 높으면 이 색으로 이어 칠한다
+  backgroundSkyTop: '#dcecfd',
+  // 웅덩이 이미지를 못 불러왔을 때 그리는 물 색 (웅덩이 이미지 색과 맞춘다)
+  puddle: '#9acee5',
+  splash: 'rgba(255, 255, 255, 0.95)',
+  line: 'rgba(60, 72, 96, 0.75)',
+  // 잡은 양 글자. 하늘·눈밭 어느 배경 위에서도 읽히도록 흰 글자에 짙은 파란 테두리를 두른다
   catchLabel: '#ffffff',
-  catchLabelOutline: 'rgba(16, 64, 96, 0.85)',
+  catchLabelOutline: 'rgba(30, 70, 120, 0.85)',
 } as const;
 
 const FISH_EMOJI = '🐟';
@@ -59,70 +59,70 @@ const CATCH_LABEL_FONT = '600 13px system-ui, -apple-system, "Apple SD Gothic Ne
 const CATCH_LABEL_OUTLINE_WIDTH = 3; // px
 const CATCH_LABEL_GAP = 0.7; // 매달린 물고기 중심에서 글자까지 (물고기 크기 대비)
 const CATCH_LABEL_EDGE_MARGIN = 4; // px, 화면 오른쪽 끝과 글자 사이
+const LINE_WIDTH = 1.2; // px
+const SMALL_RIPPLE_SCALE = 0.5; // 입질 물결 크기 (큰 물결 대비)
 const EMOJI_FONT =
   '"Tossface", "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
 
-/** 배경 이미지를 못 불러왔을 때 그리는 단색 그라데이션 하늘·바다 */
+/** 배경 이미지를 못 불러왔을 때 그리는 단색 그라데이션 하늘·눈밭 */
 function drawFallbackBackground(ctx: CanvasRenderingContext2D, { width, height }: SceneState) {
-  const waterY = waterLineY(height);
-  const sky = ctx.createLinearGradient(0, 0, 0, waterY);
+  const groundY = horizonY(height);
+  const sky = ctx.createLinearGradient(0, 0, 0, groundY);
   sky.addColorStop(0, PALETTE.skyTop);
   sky.addColorStop(1, PALETTE.skyBottom);
   ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, width, waterY);
-  const water = ctx.createLinearGradient(0, waterY, 0, height);
-  water.addColorStop(0, PALETTE.waterTop);
-  water.addColorStop(1, PALETTE.waterBottom);
-  ctx.fillStyle = water;
-  ctx.fillRect(0, waterY, width, height - waterY);
+  ctx.fillRect(0, 0, width, groundY);
+  const snow = ctx.createLinearGradient(0, groundY, 0, height);
+  snow.addColorStop(0, PALETTE.snowTop);
+  snow.addColorStop(1, PALETTE.snowBottom);
+  ctx.fillStyle = snow;
+  ctx.fillRect(0, groundY, width, height - groundY);
 }
 
 /**
- * 하늘·바다 배경. 이미지의 수평선을 장면 수면에 맞추고 장면을 빈틈없이 덮는다.
- * 넘치는 가로는 왼쪽을 잘라 오른쪽 위 구름이 보이게 한다.
+ * 설원 배경. 이미지의 눈밭 시작선을 장면의 눈밭 시작선에 맞추고, 너비와 눈밭(아래쪽)을 빈틈없이 덮는 배율로 그린다.
+ * 위쪽 하늘은 배율을 정하는 데 쓰지 않는다 (장면 위쪽을 늘려도 배경이 커지지 않게). 모자라는 위쪽은 하늘 색으로 칠한다.
+ * 넘치는 가로는 왼쪽을 잘라 오른쪽 이글루가 보이게 한다.
  */
 function drawBackground(
   ctx: CanvasRenderingContext2D,
   { width, height }: SceneState,
   image: HTMLImageElement,
 ) {
-  const waterY = waterLineY(height);
+  const groundY = horizonY(height);
   const horizon = image.naturalHeight * SCENE.BACKGROUND_HORIZON_RATIO;
   const scale = Math.max(
     width / image.naturalWidth,
-    waterY / horizon,
-    (height - waterY) / (image.naturalHeight - horizon),
+    (height - groundY) / (image.naturalHeight - horizon),
   );
   const drawWidth = image.naturalWidth * scale;
-  ctx.drawImage(
-    image,
-    width - drawWidth,
-    waterY - horizon * scale,
-    drawWidth,
-    image.naturalHeight * scale,
-  );
-}
-
-function drawUnderwater(ctx: CanvasRenderingContext2D, { width, height }: SceneState) {
-  const waterY = waterLineY(height);
-  ctx.fillStyle = PALETTE.underwater;
-  ctx.fillRect(0, waterY, width, height - waterY);
-}
-
-/** 수면 파도 띠. 같은 이미지를 가로로 이어 붙여 천천히 흘린다 (이미지 양 끝이 이어지는 모양) */
-function drawWaves(
-  ctx: CanvasRenderingContext2D,
-  { width, height, time }: SceneState,
-  image: HTMLImageElement,
-) {
-  const tileWidth = SCENE.WAVE_TILE_WIDTH;
-  const tileHeight = (tileWidth * image.naturalHeight) / image.naturalWidth;
-  const y = waterLineY(height) - tileHeight * SCENE.WAVE_SURFACE_Y_RATIO;
-  // 타일 너비와 위치를 정수 px 로 맞춰 타일 사이에 틈이나 겹침 선이 생기지 않게 한다
-  const offset = Math.floor((time * SCENE.WAVE_SCROLL_SPEED) % tileWidth);
-  for (let x = -offset; x < width; x += tileWidth) {
-    ctx.drawImage(image, x, y, tileWidth, tileHeight);
+  const top = groundY - horizon * scale;
+  if (top > 0) {
+    ctx.fillStyle = PALETTE.backgroundSkyTop;
+    // 이미지와 맞닿는 줄에 틈이 생기지 않게 1px 겹친다
+    ctx.fillRect(0, 0, width, Math.ceil(top) + 1);
   }
+  ctx.drawImage(image, width - drawWidth, top, drawWidth, image.naturalHeight * scale);
+}
+
+/** 해달 앞 물웅덩이. 이미지를 못 불러왔으면 같은 색 타원으로 대신한다 */
+function drawPuddle(
+  ctx: CanvasRenderingContext2D,
+  state: SceneState,
+  image: HTMLImageElement | null,
+) {
+  const hole = holeLayout(state);
+  if (image) {
+    const { radiusX: rx, radiusY: ry } = hole;
+    ctx.drawImage(image, hole.x - rx, hole.y - ry, rx * 2, ry * 2);
+    return;
+  }
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(hole.x, hole.y, hole.radiusX, hole.radiusY, 0, 0, Math.PI * 2);
+  ctx.fillStyle = PALETTE.puddle;
+  ctx.fill();
+  ctx.restore();
 }
 
 /**
@@ -152,34 +152,44 @@ function drawFishBody(
   ctx.drawImage(image, -width / 2, -height / 2, width, height);
 }
 
-function drawFish(
+/** 바늘에 매달린 물고기. 입이 바늘을 향하게 머리를 위로 세우고, 바늘을 축으로 흔들린다 */
+function drawHangingFish(
   ctx: CanvasRenderingContext2D,
-  fish: { kind: FishKind; x: number; y: number; size: number },
-  facingRight: boolean,
+  line: FishingLine,
   images: FishImages | null,
 ) {
+  const { fish, hook } = line;
+  if (!fish) return;
   ctx.save();
-  ctx.translate(fish.x, fish.y);
-  drawFishBody(ctx, fish.kind, fish.size, facingRight, images);
+  ctx.globalAlpha = fish.opacity;
+  ctx.translate(hook.x, hook.y);
+  ctx.rotate(fish.swing);
+  ctx.translate(fish.center.x - hook.x, fish.center.y - hook.y);
+  // 물고기 그림은 왼쪽을 바라보므로 90° 돌려 입을 위(바늘)로 향하게 한다
+  ctx.rotate(Math.PI / 2);
+  drawFishBody(ctx, fish.kind, fish.size, false, images);
   ctx.restore();
 }
 
-/** 바늘에 걸린 물고기. 바늘 끝을 축으로 살짝 흔들린다 */
-function drawHookedFish(ctx: CanvasRenderingContext2D, state: SceneState, images: FishImages) {
-  const opacity = hookedFishOpacity(state);
-  if (!state.hooked || opacity === 0) return;
-  const { hookX, hookY } = otterLayout(state);
+/** 낚싯대 끝에서 웅덩이 수면(바늘이 물속일 때) 또는 바늘(물 밖일 때)까지 줄. 드리웠을 때는 살짝 처진다 */
+function drawLine(ctx: CanvasRenderingContext2D, line: FishingLine) {
+  const end = line.slack === 0 ? line.hook : line.entry;
   ctx.save();
-  ctx.globalAlpha = opacity;
-  ctx.translate(hookX, hookY);
-  ctx.rotate(hookedFishSwing(state));
-  ctx.translate(0, state.hooked.size * SCENE.HOOKED_FISH_DROP);
-  drawFishBody(ctx, state.hooked.kind, state.hooked.size, false, images);
+  ctx.strokeStyle = PALETTE.line;
+  ctx.lineWidth = LINE_WIDTH;
+  ctx.beginPath();
+  ctx.moveTo(line.tip.x, line.tip.y);
+  ctx.quadraticCurveTo(
+    (line.tip.x + end.x) / 2,
+    (line.tip.y + end.y) / 2 + line.slack,
+    end.x,
+    end.y,
+  );
+  ctx.stroke();
   ctx.restore();
 }
 
-/** 자동으로 잡은 물고기 옆에 잡은 양(예: +3)을 띄운다. 매달린 물고기와 함께 사라진다 */
-/** 잡은 양 글자. 하늘·바다 어느 배경에서도 읽히게 흰 글자에 짙은 바다색 테두리를 두른다 */
+/** 잡은 양 글자. 하늘·눈밭 어느 배경에서도 읽히게 흰 글자에 짙은 파란 테두리를 두른다 */
 function drawLabel(
   ctx: CanvasRenderingContext2D,
   label: string,
@@ -202,84 +212,86 @@ function drawLabel(
   ctx.restore();
 }
 
-function drawCatchLabel(ctx: CanvasRenderingContext2D, state: SceneState, label: string | null) {
-  const opacity = hookedFishOpacity(state);
-  if (!label || !state.hooked?.labeled || opacity === 0) return;
-  const { x, y } = hookedFishCenter(state, state.hooked.size);
+/** 자동으로 잡은 물고기 옆에 잡은 양(예: +3)을 띄운다. 매달린 물고기와 함께 사라진다 */
+function drawCatchLabel(
+  ctx: CanvasRenderingContext2D,
+  state: SceneState,
+  line: FishingLine,
+  label: string | null,
+) {
+  const opacity = catchLabelOpacity(state);
+  if (!label || !line.fish || opacity === 0) return;
+  const { center, size } = line.fish;
   ctx.save();
   ctx.font = CATCH_LABEL_FONT;
   const maxX = state.width - ctx.measureText(label).width - CATCH_LABEL_EDGE_MARGIN;
   ctx.restore();
-  const labelX = Math.min(x + state.hooked.size * CATCH_LABEL_GAP, maxX);
-  drawLabel(ctx, label, labelX, y, 'left', opacity);
+  const labelX = Math.min(center.x + size * CATCH_LABEL_GAP, maxX);
+  drawLabel(ctx, label, labelX, center.y, 'left', opacity);
 }
 
-/** 해달 친구가 낚싯대를 들어 올리는 동안 머리 위 가운데에 친구 몫을 띄운다 (들어 올리는 동작과 함께 나타나고 사라진다) */
+/** 해달 친구가 물고기를 잡은 동안 머리 위 가운데에 친구 몫을 띄운다 (잡은 모습과 함께 나타나고 사라진다) */
 function drawFriendCatchLabel(
   ctx: CanvasRenderingContext2D,
   state: SceneState,
   friend: SceneFriend,
 ) {
-  const opacity = friendCatchBlend(state.time);
-  if (!friend.visible || !friend.sprites || !friend.catchLabel || opacity === 0) return;
-  const { x, y, width } = otterFriendLayout(state);
+  const opacity = friendCatchLabelOpacity(state.time);
+  if (!friend.visible || !friend.frames || !friend.catchLabel || opacity === 0) return;
+  const { frames, scale } = otterFriendLayout(state);
+  const rect = frames.at(-1);
+  if (!rect) return;
   ctx.save();
   ctx.font = CATCH_LABEL_FONT;
   const halfWidth = ctx.measureText(friend.catchLabel).width / 2;
   ctx.restore();
   // 친구는 화면 왼쪽 끝에 앉으므로 글자가 왼쪽으로 잘리지 않게 한다
-  const centerX = Math.max(
-    x + width * SCENE.FRIEND_HEAD_CENTER_RATIO,
-    halfWidth + CATCH_LABEL_EDGE_MARGIN,
-  );
-  drawLabel(ctx, friend.catchLabel, centerX, y - SCENE.FRIEND_LABEL_GAP, 'center', opacity);
+  const centerX = Math.max(rect.x + CAUGHT_HEAD_X * scale, halfWidth + CATCH_LABEL_EDGE_MARGIN);
+  drawLabel(ctx, friend.catchLabel, centerX, rect.y - SCENE.FRIEND_LABEL_GAP, 'center', opacity);
 }
 
-function drawSplashes(ctx: CanvasRenderingContext2D, state: SceneState) {
-  for (const splash of state.splashes) {
-    const t = splash.elapsed / SCENE.SPLASH_DURATION;
+/** 입질·바늘이 물을 떠나거나 들어갈 때 웅덩이에 퍼지는 물결 */
+function drawSplash(ctx: CanvasRenderingContext2D, state: SceneState) {
+  const hole = holeLayout(state);
+  for (const { t, small } of splashProgresses(state)) {
+    const size = small ? SMALL_RIPPLE_SCALE : 1;
     ctx.save();
     ctx.globalAlpha = 1 - t;
     ctx.strokeStyle = PALETTE.splash;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = small ? 1.5 : 2;
     ctx.beginPath();
-    ctx.ellipse(splash.x, splash.y, 10 + t * 26, 3 + t * 6, 0, 0, Math.PI * 2);
+    ctx.ellipse(
+      hole.x,
+      hole.y,
+      (6 + t * hole.radiusX) * size,
+      (2 + t * hole.radiusY) * size,
+      0,
+      0,
+      Math.PI * 2,
+    );
     ctx.stroke();
     ctx.restore();
   }
 }
 
-/** 대기·기쁜 스프라이트를 같은 자리에 겹쳐 그려 표정 전환을 페이드로 잇는다 */
-function drawOtter(ctx: CanvasRenderingContext2D, state: SceneState, sprites: SceneSprites) {
-  const { x, y, size } = otterLayout(state);
-  const blend = happyBlend(state);
-  ctx.save();
-  if (blend < 1) {
-    ctx.globalAlpha = 1 - blend;
-    ctx.drawImage(sprites.idle, x, y, size, size);
-  }
-  if (blend > 0) {
-    ctx.globalAlpha = blend;
-    ctx.drawImage(sprites.happy, x, y, size, size);
-  }
-  ctx.restore();
+function drawFrame(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement | undefined,
+  rect: Rect | undefined,
+) {
+  if (image && rect) ctx.drawImage(image, rect.x, rect.y, rect.width, rect.height);
 }
 
-/** 앉은 모습·들어 올린 모습을 같은 자리에 겹쳐 그려 동작 전환을 페이드로 잇는다 */
+/** 해달. 잡는 동작은 프레임을 바꿔 가며 보인다 (몸 가운데와 발 아래 끝을 맞춰 그린다) */
+function drawOtter(ctx: CanvasRenderingContext2D, state: SceneState, sprites: SceneSprites) {
+  const frame = otterFrame(state);
+  drawFrame(ctx, sprites.otter[frame], otterLayout(state).frames[frame]);
+}
+
 function drawOtterFriend(ctx: CanvasRenderingContext2D, state: SceneState, friend: SceneFriend) {
-  if (!friend.visible || !friend.sprites) return;
-  const { x, y, width, height } = otterFriendLayout(state);
-  const blend = friendCatchBlend(state.time);
-  ctx.save();
-  if (blend < 1) {
-    ctx.globalAlpha = 1 - blend;
-    ctx.drawImage(friend.sprites.idle, x, y, width, height);
-  }
-  if (blend > 0) {
-    ctx.globalAlpha = blend;
-    ctx.drawImage(friend.sprites.catch, x, y, width, height);
-  }
-  ctx.restore();
+  if (!friend.visible || !friend.frames) return;
+  const frame = friendFrame(state.time);
+  drawFrame(ctx, friend.frames[frame], otterFriendLayout(state).frames[frame]);
 }
 
 /** 장면 한 프레임을 그린다. 좌표는 CSS px 기준 (devicePixelRatio 변환은 호출 측에서 설정) */
@@ -294,28 +306,19 @@ export function drawScene(
   if (sprites) drawBackground(ctx, state, sprites.background);
   else drawFallbackBackground(ctx, state);
 
-  const fishImages = sprites?.fish ?? null;
-  for (const fish of state.fish) drawFish(ctx, fish, fish.dir === 1, fishImages);
-
+  // 웅덩이는 눈밭에 있으므로 해달들보다 먼저 그린다
+  drawPuddle(ctx, state, sprites?.puddle ?? null);
+  drawSplash(ctx, state);
   if (sprites) {
-    const pier = pierLayout(state);
-    ctx.drawImage(sprites.pier, pier.x, pier.y, pier.width, pier.height);
     drawOtterFriend(ctx, state, friend);
     drawOtter(ctx, state, sprites);
-    drawHookedFish(ctx, state, sprites.fish);
   }
 
-  // 선착장 기둥과 물고기가 물속에 있어 보이도록 수면 아래를 살짝 덮고, 그 위에 파도를 얹는다
-  drawUnderwater(ctx, state);
-  if (sprites) drawWaves(ctx, state, sprites.wave);
-  drawSplashes(ctx, state);
+  // 줄은 그림 속 낚싯대 끝에서 시작한다
+  const line = fishingLine(state);
+  drawLine(ctx, line);
+  drawHangingFish(ctx, line, sprites?.fish ?? null);
 
-  if (state.jumping) {
-    const { kind, size, fromX, toX } = state.jumping;
-    const { x, y } = jumpPosition(state.jumping);
-    drawFish(ctx, { kind, x, y, size }, toX > fromX, fishImages);
-  }
-
-  if (sprites) drawCatchLabel(ctx, state, catchLabel);
+  if (sprites) drawCatchLabel(ctx, state, line, catchLabel);
   drawFriendCatchLabel(ctx, state, friend);
 }

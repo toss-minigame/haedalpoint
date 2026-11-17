@@ -1,32 +1,35 @@
-import { Spinner } from '@/shared/ui/spinner';
+import type { ReactNode } from 'react';
+import { REWARD_TILE_CLASS, RewardTileContent } from '@/shared/ui/reward-tile';
 
-/**
- * 해달 장면 위에 두 개씩 나란히 놓는 광고 강화 버튼 모양 (두 줄, 터치 영역 44px 이상).
- * 화면 바탕이 연한 하늘색이라 흰 바탕 + 바다색 테두리로 경계를 드러낸다
- */
-export const BOOST_BUTTON_CLASS =
-  'h-auto min-h-16 min-w-0 flex-1 flex-col gap-0.5 rounded-2xl border-primary/40 bg-card px-3 py-3 whitespace-normal hover:bg-secondary';
+/** 홈 위쪽 리워드 아이콘 줄에 놓는 광고 강화 버튼 모양 */
+export const BOOST_BUTTON_CLASS = REWARD_TILE_CLASS;
 
 type Props = {
+  icon: ReactNode;
   title: string;
-  /** 강화 효과 (예: +1%) */
-  value: string;
-  /** 버튼 상태 문구 (예: 광고 보기, 18분 뒤 가능) */
+  /** 아랫줄: 지금 누를 수 있는지 (예: 광고 +1%, 18분 뒤) */
   status: string;
+  /** 지금 광고를 보고 받을 수 있으면 true (빨간 ! 를 붙인다) */
+  isAvailable?: boolean;
   isPending?: boolean;
 };
 
-// 광고 강화 버튼 안의 두 줄: 윗줄은 무엇이 얼마나 오르는지, 아랫줄은 지금 누를 수 있는지
-export function BoostButtonLabel({ title, value, status, isPending = false }: Props) {
+// 광고 강화 버튼 안: 아이콘 + 무엇을 하는지 + 지금 누를 수 있는지
+export function BoostButtonLabel({
+  icon,
+  title,
+  status,
+  isAvailable = false,
+  isPending = false,
+}: Props) {
   return (
-    <>
-      <span className="text-[15px] font-semibold">
-        {title} <span className="text-primary tabular-nums">{value}</span>
-      </span>
-      <span className="flex items-center gap-1 text-[13px] font-medium text-muted-foreground">
-        {isPending && <Spinner />}
-        {status}
-      </span>
-    </>
+    <RewardTileContent
+      icon={icon}
+      title={title}
+      status={status}
+      hasBadge={isAvailable}
+      isDimmed={!isAvailable && !isPending}
+      isPending={isPending}
+    />
   );
 }

@@ -1,237 +1,283 @@
-// 해달 낚시 장면의 상태와 상태 전이. DOM·캔버스에 의존하지 않는 순수 함수만 둔다.
-// 매 프레임 새 상태 객체를 돌려준다 (물고기 수가 적어 비용이 작다).
+// 해달 얼음낚시 장면의 상태와 상태 전이. DOM·캔버스에 의존하지 않는 순수 함수만 둔다.
+//
+// 설원 위에 해달이 앉아 낚싯대를 물웅덩이에 드리우고 있다. 낚싯줄은 늘 낚싯대 끝과 이어져 있고,
+// 물고기는 줄 끝(바늘)에만 매달려 움직인다 (물고기가 스스로 움직이는 장면은 없다).
+//   대기   줄이 낚싯대 끝에서 웅덩이 수면으로 드리워져 있다
+//   입질   줄 끝이 툭툭 당겨지고 웅덩이에 작은 물결이 인다 (해달이 알아챈다)
+//   챔질   해달이 낚싯대를 들어 올리면 바늘이 웅덩이에서 낚싯대 끝 아래로 끌려 올라오고, 물고기가 따라 올라온다
+//   잡음   물고기가 줄 끝에 매달려 흔들린다 (잡은 양을 띄운다)
+//   던짐   물고기가 사라지고 낚싯대를 내리면 바늘이 다시 웅덩이로 들어간다
+// 단계는 잡기 시작한 시각(catch.startedAt)부터 지난 시간으로만 정해진다.
+//
+// 낚싯대는 해달 그림(otter-fishing-*.png)에 함께 그려져 있고, 줄은 프레임마다 그림 속 낚싯대 끝(tip)에서 시작한다.
+// 해달 친구가 오면 웅덩이 왼쪽에 앉는다 (낚싯대 없이 같은 동작만 한다).
 
 export type Random = () => number;
 
 export const FISH_KINDS = ['angelfish', 'goldfish', 'pufferfish', 'bluefish'] as const;
 export type FishKind = (typeof FISH_KINDS)[number];
 
-export type Fish = {
-  id: number;
+/** 지금 잡고 있는 물고기 한 마리 */
+export type Catch = {
   kind: FishKind;
-  x: number;
-  y: number;
-  speed: number; // px/s
-  dir: 1 | -1; // 1 = 오른쪽으로 헤엄
-  size: number; // px
-};
-
-export type JumpingFish = {
-  kind: FishKind;
-  fromX: number;
-  fromY: number;
-  toX: number;
-  toY: number;
   size: number;
-  elapsed: number;
-  /** 자동으로 잡은 물고기면 true. 바늘에 걸리면 옆에 잡은 양을 띄운다 (탭으로 잡은 물고기는 띄우지 않음) */
+  /** 잡기 시작한(입질이 온) 장면 시각 */
+  startedAt: number;
+  /** 자동으로 잡은 물고기면 true. 잡으면 옆에 잡은 양을 띄운다 (탭으로 잡은 물고기는 띄우지 않음) */
   labeled: boolean;
-};
-
-export type Splash = {
-  x: number;
-  y: number;
-  elapsed: number;
 };
 
 export type SceneState = {
   width: number;
   height: number;
   time: number;
-  fish: readonly Fish[];
-  jumping: JumpingFish | null;
-  splashes: readonly Splash[];
-  happySince: number; // 기쁜 표정이 시작된 시각(time). 표정 전환 페이드에 쓴다
-  happyUntil: number; // 이 시각(time)까지 해달이 기쁜 표정
-  hooked: { kind: FishKind; size: number; labeled: boolean } | null; // 바늘에 걸린 물고기 (기쁜 표정일 때만 보인다)
+  /** 잡는 중인 물고기. 대기 중이면 null */
+  catch: Catch | null;
   nextAutoCatchAt: number;
-  nextFishId: number;
 };
 
 export const SCENE = {
-  WATER_LINE_RATIO: 0.62,
-  FISH_COUNT: 4,
   FISH_MIN_SIZE: 22,
   FISH_MAX_SIZE: 32,
-  FISH_MIN_SPEED: 18,
-  FISH_MAX_SPEED: 42,
-  // 3초마다 한 마리 잡는다. 튀어 오르기 + 기쁜 표정(2.3초)이 이 간격 안에 끝나야 연출이 겹치지 않는다
+  // 3초마다 한 마리 잡는다. 입질부터 물결이 잦아들 때까지(2.95초)가 이 간격 안에 끝나야 연출이 겹치지 않는다
   AUTO_CATCH_INTERVAL: 3, // s
-  JUMP_DURATION: 0.7, // s
-  JUMP_ARC_HEIGHT: 70, // px
-  HAPPY_DURATION: 1.6, // s
-  HAPPY_FADE: 0.15, // s, 대기 ↔ 기쁜 스프라이트 전환 페이드
-  SPLASH_DURATION: 0.6, // s
-  // 배경 (shared/assets/scene/sea-background.jpg 기준). 이미지 안 수평선 높이
-  BACKGROUND_HORIZON_RATIO: 0.637,
-  // 파도 띠 (shared/assets/scene/sea-wave.png 기준). 마루 4개가 한 타일
-  WAVE_TILE_WIDTH: 320, // px
-  WAVE_SURFACE_Y_RATIO: 0.335, // 타일 안 파도 골(수면) 높이
-  WAVE_SCROLL_SPEED: 12, // px/s
-  // 선착장 (shared/assets/scene/pier.png 기준). 왼쪽 끝을 화면 왼쪽에 붙여 그린다
-  PIER_ASPECT: 600 / 455, // 이미지 가로 / 세로
-  PIER_HEIGHT_RATIO: 0.49, // 장면 높이 대비 선착장 이미지 높이
-  PIER_DECK_Y_RATIO: 0.353, // 이미지 안 상판 가운데 높이 (의자가 놓이는 곳)
-  PIER_WATER_Y_RATIO: 0.614, // 이미지 안에서 수면이 닿는 높이 (기둥 중간)
-  // 해달 스프라이트 (otter-fishing-*.png 기준)
-  OTTER_PIER_RATIO: 0.715, // 선착장 너비 대비 해달 이미지 크기
-  OTTER_PIER_END_OFFSET: 0.659, // 선착장 끝에서 해달 이미지 왼쪽까지 (해달 크기 대비)
-  OTTER_FOOT_RATIO: 0.98, // 이미지 안 의자 다리·발 아래 끝 높이
-  // 성공 스프라이트 안 낚싯바늘 끝 위치 (이미지 크기 대비 비율). 잡힌 물고기가 여기에 매달린다
-  HOOK_X_RATIO: 0.933,
-  HOOK_Y_RATIO: 0.453,
-  HOOKED_FISH_DROP: 0.4, // 바늘 끝에서 매달린 물고기 중심까지 (물고기 크기 대비)
-  HOOKED_FISH_SWING: 0.12, // rad, 매달린 물고기가 좌우로 흔들리는 각도
-  HOOKED_FISH_SWING_SPEED: 3, // rad/s
-  // 해달 친구 스프라이트 (otter-friend-fishing-*.png 기준). 해달 왼쪽에서 선착장 앞 모서리에 걸터앉아 다리를 내린다
-  FRIEND_ASPECT: 698 / 576, // 이미지 세로 / 가로
-  FRIEND_WIDTH_RATIO: 0.64, // 해달 이미지 크기 대비 친구 이미지 너비 (머리 크기가 해달과 비슷해지는 값)
-  FRIEND_SEAT_RATIO: 0.68, // 이미지 안 엉덩이(걸터앉는 곳) 높이
-  FRIEND_CONTENT_RIGHT_RATIO: 0.99, // 이미지 안 그림 오른쪽 끝 (들어 올린 낚싯줄까지)
-  OTTER_CONTENT_LEFT_RATIO: 9 / 576, // 해달 이미지 안 그림 왼쪽 끝 (의자에 건 바구니)
-  FRIEND_GAP: 4, // px, 친구 그림 오른쪽 끝과 해달 그림 왼쪽 끝 사이. 둘이 겹치지 않게 한다
-  PIER_LIP_Y_RATIO: 0.445, // 선착장 이미지 안 앞쪽 모서리 높이 (친구가 걸터앉는 곳)
-  FRIEND_CATCH_PERIOD: 6, // s, 친구가 낚싯대를 들어 올리는 간격
-  FRIEND_CATCH_OFFSET: 1.5, // s, 첫 들어 올림 시각. 해달이 3초마다 잡으므로 그 사이에 들어 올려 동작이 겹치지 않게 한다
+  BITE_DURATION: 0.5, // s, 입질
+  REEL_DURATION: 0.6, // s, 챔질 (바늘이 웅덩이에서 낚싯대 끝 아래까지 올라온다)
+  HOLD_DURATION: 1.2, // s, 잡음 (물고기가 줄 끝에 매달려 있다)
+  CAST_DURATION: 0.4, // s, 던짐 (낚싯대를 내리고 바늘이 웅덩이로 돌아간다)
+  FADE: 0.15, // s, 매달린 물고기·잡은 양 글자가 나타나고 사라지는 페이드
+  SPLASH_DURATION: 0.6, // s, 바늘이 물을 떠나거나 들어갈 때 웅덩이에 퍼지는 물결
+  SETTLE_DURATION: 0.25, // s, 바늘이 물에 들어간 뒤 물결을 보여 주고 대기로 돌아가기까지
+  // 설원 배경 (shared/assets/background/snowfield.jpg 기준). 이미지 안 눈밭이 시작하는 높이를 장면의 HORIZON_RATIO 에 맞춘다
+  BACKGROUND_HORIZON_RATIO: 0.51,
+  HORIZON_RATIO: 0.585, // 장면 높이 대비 눈밭이 시작하는 높이 (위쪽 하늘에 콘텐츠를 얹는다)
+  // 해달·웅덩이 크기의 기준 길이 = min(SIZE_UNIT_MAX, 장면 너비 × SIZE_UNIT_WIDTH_RATIO).
+  // 장면 높이와 상관없이 정해, 위쪽에 콘텐츠 자리를 늘려도 해달 크기는 그대로다. 좁은 화면에서는 너비에 맞춰 작게 그린다
+  SIZE_UNIT_MAX: 352, // px
+  SIZE_UNIT_WIDTH_RATIO: 0.86,
+  // 해달 (OTTER_SCENE_FRAMES 기준). 눈밭에 엉덩이를 대고 앉는다
+  OTTER_BODY_RATIO: 0.56, // 기준 길이 대비 해달 키 (모자 꼭대기 ~ 발 아래 끝)
+  OTTER_X_RATIO: 0.66, // 장면 너비 대비 해달 몸 가운데 가로 위치 (왼쪽에 낚싯대가 뻗을 자리를 둔다)
+  OTTER_GROUND_Y_RATIO: 0.843, // 장면 높이 대비 해달 발 아래 끝 높이 (장면 아래쪽은 카드가 덮는다)
+  // 물웅덩이 (shared/assets/waterSurface/puddle.png 기준). 드리운 낚싯대 끝 바로 아래에 있다
+  HOLE_TIP_OFFSET_RATIO: 0.03, // 기준 길이 대비, 드리운 낚싯대 끝에서 웅덩이 가운데까지 가로 (오른쪽 +)
+  HOLE_Y_RATIO: 0.871, // 장면 높이 대비 웅덩이 가운데 높이 (해달보다 조금 앞)
+  HOLE_RADIUS_RATIO: 0.14, // 기준 길이 대비 웅덩이 가로 반지름
+  HOLE_ASPECT: 85 / 446, // 웅덩이 이미지 세로 / 가로
+  // 낚싯줄 · 바늘
+  LINE_HANG_RATIO: 0.17, // 기준 길이 대비, 잡은 뒤 낚싯대 끝에서 바늘까지 줄 길이
+  LINE_SLACK: 8, // px, 드리웠을 때 줄이 아래로 처지는 정도
+  BITE_TUG: 1.5, // px, 입질 때 줄 끝이 좌우로 떨리는 폭
+  BITE_TUG_SPEED: 38, // rad/s
+  BITE_PULL: 2, // px, 입질 때 줄 끝이 물속으로 당겨지는 정도
+  FISH_HOOK_DROP: 0.45, // 바늘에서 물고기 중심까지 (물고기 크기 대비)
+  FISH_SWING: 0.18, // rad, 매달린 물고기가 좌우로 흔들리는 각도
+  FISH_SWING_SPEED: 5, // rad/s
+  FISH_EMERGE: 0.25, // 챔질 중 물고기가 물 밖으로 나타나는 데 걸리는 비율 (챔질 시간 대비)
+  // 해달 친구 (FRIEND_SCENE_FRAMES 기준). 웅덩이 왼쪽 뒤 눈밭에 앉는다 (낚싯대 끝·줄을 가리지 않게 작게, 뒤에)
+  FRIEND_SCALE_RATIO: 0.65, // 해달 대비 친구 크기 (멀리 앉아 작게 보인다)
+  FRIEND_X_RATIO: 0.12, // 장면 너비 대비 친구 몸 가운데 가로 위치 (좁으면 왼쪽 끝에 닿지 않게 오른쪽으로 민다)
+  FRIEND_EDGE_MARGIN: 4, // px, 친구 그림 왼쪽 끝과 장면 왼쪽 끝 사이
+  FRIEND_GROUND_Y_RATIO: 0.771, // 장면 높이 대비 친구 발 아래 끝 높이 (해달보다 뒤)
+  FRIEND_CATCH_PERIOD: 6, // s, 친구가 물고기를 잡는 간격
+  FRIEND_CATCH_OFFSET: 1.5, // s, 처음 잡는 시각
   FRIEND_LABEL_GAP: 6, // px, 친구 머리 위와 잡은 양 글자 사이
-  FRIEND_HEAD_CENTER_RATIO: 0.42, // 이미지 안 머리 가운데 가로 위치 (잡은 양 글자를 머리 위 가운데에 띄운다)
 } as const;
+
+const REEL_START = SCENE.BITE_DURATION;
+const HOLD_START = REEL_START + SCENE.REEL_DURATION;
+const CAST_START = HOLD_START + SCENE.HOLD_DURATION;
+const CATCH_END = CAST_START + SCENE.CAST_DURATION;
+/** 바늘이 다시 물에 들어가는 물결의 시작 (바늘이 수면에 닿기 조금 전) */
+const REENTRY_SPLASH_START = CATCH_END - 0.1;
+const SETTLE_END = CATCH_END + SCENE.SETTLE_DURATION;
+
+/** 잡은 물고기를 줄 끝에 매달아 보여 주는 시간 (초). 동작 줄이기 모드에서 탭했을 때도 이만큼 보인다 */
+export const HOLD_SECONDS = SCENE.HOLD_DURATION;
+
+export type Point = { x: number; y: number };
+
+/**
+ * 장면에 그리는 해달 그림의 원본 크기와 기준점 (원본 px).
+ * 프레임마다 이미지 크기·자세가 달라, 몸 가운데(centerX)와 발 아래 끝을 맞춰 같은 자리에 그린다.
+ * 모든 이미지는 사방에 SPRITE_PADDING 만큼 투명 여백이 있다.
+ */
+export type SceneSpriteFrame = {
+  width: number;
+  height: number;
+  /** 몸 가운데 가로 위치 */
+  centerX: number;
+};
+
+const SPRITE_PADDING = 20;
+
+/** 해달 프레임 (otter-sprites.ts 의 OTTER_FISHING_FRAMES 와 같은 순서). tip 은 그림 속 낚싯대 끝 */
+export const OTTER_SCENE_FRAMES = [
+  { width: 545, height: 509, centerX: 372, tip: { x: 22, y: 306 } }, // otter-fishing-idle.png
+  { width: 554, height: 519, centerX: 372, tip: { x: 22, y: 247 } }, // otter-fishing-notice.png
+  { width: 573, height: 493, centerX: 402, tip: { x: 22, y: 223 } }, // otter-fishing-pull.png
+  { width: 529, height: 516, centerX: 354, tip: { x: 22, y: 41 } }, // otter-fishing-lift.png
+  { width: 540, height: 514, centerX: 363, tip: { x: 22, y: 45 } }, // otter-fishing-caught.png
+] as const satisfies readonly (SceneSpriteFrame & { tip: Point })[];
+
+/** 해달 키 (otter-fishing-idle.png 의 모자 꼭대기 ~ 발 아래 끝, 원본 px). 크기를 정하는 기준 */
+const OTTER_BODY_HEIGHT = 468;
+
+/**
+ * 해달 친구 프레임 (OTTER_FRIEND_FISHING_FRAMES 와 같은 순서, 낚싯대 없는 표정 그림).
+ * otter-love → otter-surprised → otter-awkward → otter-excited → otter-happy
+ */
+export const FRIEND_SCENE_FRAMES = [
+  { width: 398, height: 508, centerX: 159 },
+  { width: 442, height: 531, centerX: 212 },
+  { width: 403, height: 528, centerX: 168 },
+  { width: 411, height: 513, centerX: 183 },
+  { width: 455, height: 507, centerX: 212 },
+] as const satisfies readonly SceneSpriteFrame[];
+
+/** 친구 키 (otter-idle.png 기준 표정 그림의 모자 꼭대기 ~ 발 아래 끝, 원본 px) */
+const FRIEND_BODY_HEIGHT = 491;
+
+/** 프레임 번호: 대기 → 알아챔(입질) → 당김(챔질 앞·뒤 절반) → 잡음 */
+const FRAME = { IDLE: 0, NOTICE: 1, PULL: 2, LIFT: 3, CAUGHT: 4 } as const;
+
+/** otter-happy.png 안 머리 가운데 가로 위치. 친구가 잡은 양 글자를 머리 위 가운데에 띄운다 */
+export const CAUGHT_HEAD_X = 235;
 
 /** 해달이 스스로 물고기를 잡는 간격 (초). 잡을 때 띄우는 양을 계산할 때 쓴다 */
 export const CATCH_INTERVAL_SECONDS = SCENE.AUTO_CATCH_INTERVAL;
 
-/** 해달 친구가 낚싯대를 들어 올리는 간격 (초). 친구 몫으로 띄우는 양을 계산할 때 쓴다 */
+/** 해달 친구가 물고기를 잡는 간격 (초). 친구 몫으로 띄우는 양을 계산할 때 쓴다 */
 export const FRIEND_CATCH_INTERVAL_SECONDS = SCENE.FRIEND_CATCH_PERIOD;
 
 const between = (random: Random, min: number, max: number) => min + random() * (max - min);
+const clamp01 = (value: number) => Math.min(Math.max(value, 0), 1);
+const lerp = (from: number, to: number, t: number) => from + (to - from) * t;
+const easeOut = (t: number) => 1 - (1 - t) ** 3;
+const easeInOut = (t: number) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
 
 export function randomFishKind(random: Random): FishKind {
   return FISH_KINDS[Math.floor(random() * FISH_KINDS.length)] ?? FISH_KINDS[0];
 }
 
-export function waterLineY(height: number): number {
-  return height * SCENE.WATER_LINE_RATIO;
-}
+type SceneSize = Pick<SceneState, 'width' | 'height'>;
 
 export type Rect = { x: number; y: number; width: number; height: number };
 
-/** 선착장 그리기 영역. 장면 높이에 맞춰 크기를 정하고, 기둥 중간이 수면에 오게 둔다 */
-export function pierLayout({ height }: Pick<SceneState, 'height'>): Rect {
-  const pierHeight = height * SCENE.PIER_HEIGHT_RATIO;
+/** 해달·웅덩이·낚싯대 크기의 기준 길이 */
+function sizeUnit({ width }: SceneSize): number {
+  return Math.min(SCENE.SIZE_UNIT_MAX, width * SCENE.SIZE_UNIT_WIDTH_RATIO);
+}
+
+/** 눈밭이 시작하는 높이 (배경 이미지를 여기에 맞춘다) */
+export function horizonY(height: number): number {
+  return height * SCENE.HORIZON_RATIO;
+}
+
+/** 물웅덩이 (가운데와 가로·세로 반지름). 드리운 낚싯대 끝 바로 아래에 둔다 */
+export function holeLayout(size: SceneSize) {
+  const unit = sizeUnit(size);
+  const radiusX = unit * SCENE.HOLE_RADIUS_RATIO;
+  const idleTip = otterTip(otterLayout(size), FRAME.IDLE);
   return {
-    x: 0,
-    y: waterLineY(height) - pierHeight * SCENE.PIER_WATER_Y_RATIO,
-    width: pierHeight * SCENE.PIER_ASPECT,
-    height: pierHeight,
+    x: idleTip.x + unit * SCENE.HOLE_TIP_OFFSET_RATIO,
+    y: size.height * SCENE.HOLE_Y_RATIO,
+    radiusX,
+    radiusY: radiusX * SCENE.HOLE_ASPECT,
   };
 }
 
-/** 선착장 끝 상판 위에 앉은 해달의 그리기 위치(왼쪽 위)·크기와 낚싯바늘 위치 */
-export function otterLayout(state: Pick<SceneState, 'height'>) {
-  const pier = pierLayout(state);
-  const deckY = pier.y + pier.height * SCENE.PIER_DECK_Y_RATIO;
-  const size = pier.width * SCENE.OTTER_PIER_RATIO;
-  const x = pier.x + pier.width - size * SCENE.OTTER_PIER_END_OFFSET;
-  const y = deckY - size * SCENE.OTTER_FOOT_RATIO;
+/** 몸 가운데·발 아래 끝을 (centerX, bottomY) 에 맞춘 그리기 영역 */
+function spriteRect(
+  frame: SceneSpriteFrame,
+  centerX: number,
+  bottomY: number,
+  scale: number,
+): Rect {
   return {
-    x,
-    y,
-    size,
-    hookX: x + size * SCENE.HOOK_X_RATIO,
-    hookY: y + size * SCENE.HOOK_Y_RATIO,
+    x: centerX - frame.centerX * scale,
+    y: bottomY - (frame.height - SPRITE_PADDING) * scale,
+    width: frame.width * scale,
+    height: frame.height * scale,
   };
 }
 
-function spawnFish(
-  id: number,
-  width: number,
-  height: number,
-  random: Random,
-  atEdge: boolean,
-): Fish {
-  const dir = random() < 0.5 ? 1 : -1;
-  const size = between(random, SCENE.FISH_MIN_SIZE, SCENE.FISH_MAX_SIZE);
-  const top = waterLineY(height) + size;
-  const x = atEdge ? (dir === 1 ? -size : width + size) : between(random, size, width - size);
+/** 눈밭에 앉은 해달의 프레임별 그리기 영역 */
+export function otterLayout(size: SceneSize) {
+  const scale = (sizeUnit(size) * SCENE.OTTER_BODY_RATIO) / OTTER_BODY_HEIGHT;
+  const centerX = size.width * SCENE.OTTER_X_RATIO;
+  const bottomY = size.height * SCENE.OTTER_GROUND_Y_RATIO;
   return {
-    id,
-    kind: randomFishKind(random),
-    x,
-    y: between(random, top, height - size / 2),
-    speed: between(random, SCENE.FISH_MIN_SPEED, SCENE.FISH_MAX_SPEED),
-    dir,
-    size,
+    scale,
+    centerX,
+    bottomY,
+    frames: OTTER_SCENE_FRAMES.map((frame) => spriteRect(frame, centerX, bottomY, scale)),
   };
 }
 
-export function createSceneState(width: number, height: number, random: Random): SceneState {
-  const fish = Array.from({ length: SCENE.FISH_COUNT }, (_, i) =>
-    spawnFish(i, width, height, random, false),
+/** 해달 친구의 프레임별 그리기 영역. 웅덩이 왼쪽에 앉는다 */
+export function otterFriendLayout(size: SceneSize) {
+  const scale =
+    (sizeUnit(size) * SCENE.OTTER_BODY_RATIO * SCENE.FRIEND_SCALE_RATIO) / FRIEND_BODY_HEIGHT;
+  // 어느 프레임이든 그림 왼쪽 끝(여백 제외)이 장면 안에 들어오게 한다
+  const leftReach = Math.max(...FRIEND_SCENE_FRAMES.map((frame) => frame.centerX - SPRITE_PADDING));
+  const centerX = Math.max(
+    size.width * SCENE.FRIEND_X_RATIO,
+    leftReach * scale + SCENE.FRIEND_EDGE_MARGIN,
   );
+  const bottomY = size.height * SCENE.FRIEND_GROUND_Y_RATIO;
   return {
-    width,
-    height,
-    time: 0,
-    fish,
-    jumping: null,
-    splashes: [],
-    happySince: 0,
-    happyUntil: 0,
-    hooked: null,
-    nextAutoCatchAt: SCENE.AUTO_CATCH_INTERVAL,
-    nextFishId: fish.length,
+    scale,
+    frames: FRIEND_SCENE_FRAMES.map((frame) => spriteRect(frame, centerX, bottomY, scale)),
   };
 }
 
-/** 크기가 바뀌면 물고기를 새 영역 안에서 다시 배치한다 */
-export function resizeScene(
-  state: SceneState,
-  width: number,
-  height: number,
-  random: Random,
-): SceneState {
+export function createSceneState(width: number, height: number): SceneState {
+  return { width, height, time: 0, catch: null, nextAutoCatchAt: SCENE.AUTO_CATCH_INTERVAL };
+}
+
+/** 크기가 바뀌면 진행 중인 연출을 지우고 새 크기로 다시 시작한다 */
+export function resizeScene(state: SceneState, width: number, height: number): SceneState {
   return {
-    ...createSceneState(width, height, random),
+    ...createSceneState(width, height),
     time: state.time,
     nextAutoCatchAt: state.nextAutoCatchAt,
   };
 }
 
-function swim(fish: Fish, dt: number, width: number): Fish {
-  const x = fish.x + fish.speed * fish.dir * dt;
-  const hitRight = fish.dir === 1 && x > width - fish.size / 2;
-  const hitLeft = fish.dir === -1 && x < fish.size / 2;
-  return hitRight || hitLeft ? { ...fish, dir: (fish.dir * -1) as 1 | -1 } : { ...fish, x };
-}
-
-/** 낚싯바늘과 가장 가까운 물고기를 바늘로 튀어 오르게 하고, 그 자리는 새 물고기로 채운다 */
+/** 입질을 시작한다. 이미 잡는 중이면 그대로 둔다 */
 export function requestCatch(state: SceneState, random: Random, labeled = false): SceneState {
-  if (state.jumping || state.fish.length === 0) return state;
-
-  const { hookX } = otterLayout(state);
-  const target = state.fish.reduce((nearest, fish) =>
-    Math.abs(fish.x - hookX) < Math.abs(nearest.x - hookX) ? fish : nearest,
-  );
-  const landing = hookedFishCenter(state, target.size);
-  const replacement = spawnFish(state.nextFishId, state.width, state.height, random, true);
-
+  if (state.catch) return state;
   return {
     ...state,
-    fish: state.fish.map((fish) => (fish.id === target.id ? replacement : fish)),
-    nextFishId: state.nextFishId + 1,
-    jumping: {
-      kind: target.kind,
-      fromX: target.x,
-      fromY: target.y,
-      toX: landing.x,
-      toY: landing.y,
-      size: target.size,
-      elapsed: 0,
+    catch: {
+      kind: randomFishKind(random),
+      size: between(random, SCENE.FISH_MIN_SIZE, SCENE.FISH_MAX_SIZE),
+      startedAt: state.time,
       labeled,
     },
-    splashes: [...state.splashes, { x: target.x, y: waterLineY(state.height), elapsed: 0 }],
     nextAutoCatchAt: state.time + SCENE.AUTO_CATCH_INTERVAL,
   };
+}
+
+/**
+ * 동작 줄이기 모드: 입질·챔질 없이 바로 잡은 모습(물고기가 줄 끝에 매달림)을 보인다.
+ * 시각이 흐르지 않으므로 끝낼 때는 endCatch 를 부른다.
+ */
+export function showCaught(state: SceneState, random: Random): SceneState {
+  return {
+    ...state,
+    catch: {
+      kind: randomFishKind(random),
+      size: SCENE.FISH_MAX_SIZE,
+      startedAt: state.time - HOLD_START,
+      labeled: false,
+    },
+  };
+}
+
+export function endCatch(state: SceneState): SceneState {
+  return { ...state, catch: null };
 }
 
 /** 한 프레임 진행. autoCatch 가 true 면 일정 주기로 스스로 물고기를 잡는다 */
@@ -242,105 +288,163 @@ export function stepScene(
   autoCatch: boolean,
 ): SceneState {
   const time = state.time + dt;
-  const advanced: SceneState = {
-    ...state,
-    time,
-    fish: state.fish.map((fish) => swim(fish, dt, state.width)),
-    splashes: state.splashes
-      .map((splash) => ({ ...splash, elapsed: splash.elapsed + dt }))
-      .filter((splash) => splash.elapsed < SCENE.SPLASH_DURATION),
-  };
-
-  if (advanced.jumping) {
-    const jumping = { ...advanced.jumping, elapsed: advanced.jumping.elapsed + dt };
-    const landed = jumping.elapsed >= SCENE.JUMP_DURATION;
-    return landed
-      ? {
-          ...advanced,
-          jumping: null,
-          happySince: time,
-          happyUntil: time + SCENE.HAPPY_DURATION,
-          hooked: { kind: jumping.kind, size: jumping.size, labeled: jumping.labeled },
-        }
-      : { ...advanced, jumping };
-  }
-
+  const finished = state.catch !== null && time - state.catch.startedAt >= SETTLE_END;
+  const advanced: SceneState = { ...state, time, catch: finished ? null : state.catch };
   return autoCatch && time >= advanced.nextAutoCatchAt
     ? requestCatch(advanced, random, true)
     : advanced;
 }
 
-/**
- * 기쁜 스프라이트를 얼마나 보여줄지 (0 = 대기, 1 = 기쁨).
- * 시작·끝에서 HAPPY_FADE 동안 서서히 바뀐다.
- */
-export function happyBlend({ time, happySince, happyUntil }: SceneState): number {
-  if (time >= happyUntil) return 0;
-  const fadeIn = (time - happySince) / SCENE.HAPPY_FADE;
-  const fadeOut = (happyUntil - time) / SCENE.HAPPY_FADE;
-  return Math.min(Math.max(Math.min(fadeIn, fadeOut), 0), 1);
+/** 잡기 시작한 뒤 지난 시간 (초). 대기 중이면 null */
+function catchElapsed({ catch: current, time }: SceneState): number | null {
+  return current ? time - current.startedAt : null;
 }
 
-/**
- * 해달 친구의 그리기 위치(왼쪽 위)·크기. 선착장 앞 모서리에 엉덩이를 맞춰 다리가 앞으로 내려오게 하고,
- * 그림 오른쪽 끝(낚싯줄)이 해달 그림 왼쪽 끝보다 FRIEND_GAP 만큼 왼쪽에 오게 해 둘이 겹치지 않는다.
- */
-export function otterFriendLayout(state: Pick<SceneState, 'height'>): Rect {
-  const otter = otterLayout(state);
-  const pier = pierLayout(state);
-  const width = otter.size * SCENE.FRIEND_WIDTH_RATIO;
-  const height = width * SCENE.FRIEND_ASPECT;
-  const otterLeft = otter.x + otter.size * SCENE.OTTER_CONTENT_LEFT_RATIO;
-  const lipY = pier.y + pier.height * SCENE.PIER_LIP_Y_RATIO;
-  return {
-    x: otterLeft - SCENE.FRIEND_GAP - width * SCENE.FRIEND_CONTENT_RIGHT_RATIO,
-    y: lipY - height * SCENE.FRIEND_SEAT_RATIO,
-    width,
-    height,
-  };
+/** 잡는 동작을 시작한 지 elapsed 초 뒤의 프레임 (해달·친구 같이 쓴다) */
+function framesAt(elapsed: number | null): number {
+  if (elapsed === null || elapsed >= CAST_START) return FRAME.IDLE;
+  if (elapsed < REEL_START) return FRAME.NOTICE;
+  if (elapsed < HOLD_START) {
+    return elapsed < REEL_START + SCENE.REEL_DURATION / 2 ? FRAME.PULL : FRAME.LIFT;
+  }
+  return FRAME.CAUGHT;
 }
 
-/**
- * 해달 친구가 낚싯대를 들어 올린 스프라이트를 얼마나 보여줄지 (0 = 앉은 모습, 1 = 들어 올림).
- * 장면 시각만으로 정해지는 반복 연출이라 상태를 따로 두지 않는다. 시각 0 에서는 앉은 모습이다
- * (동작 줄이기 모드는 시각이 흐르지 않아 계속 앉아 있다).
- */
-export function friendCatchBlend(time: number): number {
+/** 지금 그릴 해달 프레임 */
+export function otterFrame(state: SceneState): number {
+  return framesAt(catchElapsed(state));
+}
+
+/** 해달 친구가 잡는 동작을 시작한 뒤 지난 시간 (초). 아직 시작 전이거나 동작이 끝났으면 null */
+function friendCatchElapsed(time: number): number | null {
   const sinceFirst = time - SCENE.FRIEND_CATCH_OFFSET;
-  if (sinceFirst < 0) return 0;
+  if (sinceFirst < 0) return null;
   const phase = sinceFirst % SCENE.FRIEND_CATCH_PERIOD;
-  if (phase >= SCENE.HAPPY_DURATION) return 0;
-  const fadeIn = phase / SCENE.HAPPY_FADE;
-  const fadeOut = (SCENE.HAPPY_DURATION - phase) / SCENE.HAPPY_FADE;
-  return Math.min(Math.max(Math.min(fadeIn, fadeOut), 0), 1);
+  return phase < CAST_START ? phase : null;
 }
 
-/** 바늘에 매달린 물고기의 중심 (흔들리기 전). 튀어 오른 물고기는 여기에 내려앉는다 */
-export function hookedFishCenter(state: Pick<SceneState, 'height'>, size: number) {
-  const { hookX, hookY } = otterLayout(state);
-  return { x: hookX, y: hookY + size * SCENE.HOOKED_FISH_DROP };
+/**
+ * 지금 그릴 해달 친구 프레임. 장면 시각만으로 정해지는 반복 연출이라 상태를 따로 두지 않는다.
+ * 시각 0 에서는 기다리는 모습이다 (동작 줄이기 모드는 시각이 흐르지 않아 계속 기다린다).
+ */
+export function friendFrame(time: number): number {
+  return framesAt(friendCatchElapsed(time));
 }
 
-/** 매달린 물고기가 바늘을 축으로 흔들리는 각도. 걸린 순간 0 에서 시작한다 */
-export function hookedFishSwing({ time, happySince }: SceneState): number {
-  const elapsed = time - happySince;
-  // 동작 줄이기 모드는 happySince 가 -Infinity 라 흔들지 않는다
-  if (!Number.isFinite(elapsed)) return 0;
-  return Math.sin(elapsed * SCENE.HOOKED_FISH_SWING_SPEED) * SCENE.HOOKED_FISH_SWING;
+/** elapsed 가 [start, end) 안에서 나타났다 사라지는 페이드 (0~1) */
+function windowOpacity(elapsed: number | null, start: number, end: number): number {
+  if (elapsed === null || elapsed < start || elapsed >= end) return 0;
+  return clamp01(Math.min((elapsed - start) / SCENE.FADE, (end - elapsed) / SCENE.FADE));
 }
 
-/** 매달린 물고기의 불투명도. 튀어 오른 물고기를 그대로 이어받으므로 끝날 때만 서서히 사라진다 */
-export function hookedFishOpacity({ time, happyUntil }: SceneState): number {
-  return Math.min(Math.max((happyUntil - time) / SCENE.HAPPY_FADE, 0), 1);
+/** 해달 친구가 잡은 양 글자의 불투명도. 잡은 모습이 되면 나타나고 동작이 끝날 때 사라진다 */
+export function friendCatchLabelOpacity(time: number): number {
+  return windowOpacity(friendCatchElapsed(time), HOLD_START, CAST_START);
 }
 
-/** 튀어 오르는 물고기의 현재 위치 (포물선) */
-export function jumpPosition(jumping: JumpingFish) {
-  const t = Math.min(jumping.elapsed / SCENE.JUMP_DURATION, 1);
-  const x = jumping.fromX + (jumping.toX - jumping.fromX) * t;
-  const y =
-    jumping.fromY +
-    (jumping.toY - jumping.fromY) * t -
-    Math.sin(Math.PI * t) * SCENE.JUMP_ARC_HEIGHT;
-  return { x, y, t };
+/** 잡은 양 글자의 불투명도. 물고기가 줄 끝에 매달려 있는 동안 보인다 */
+export function catchLabelOpacity(state: SceneState): number {
+  if (!state.catch?.labeled) return 0;
+  return windowOpacity(catchElapsed(state), HOLD_START, CAST_START);
+}
+
+/** 프레임 그림 속 낚싯대 끝의 장면 좌표 */
+function otterTip(otter: ReturnType<typeof otterLayout>, frame: number): Point {
+  const rect = otter.frames[frame];
+  const tip = OTTER_SCENE_FRAMES[frame]?.tip;
+  if (!rect || !tip) return { x: 0, y: 0 };
+  return { x: rect.x + tip.x * otter.scale, y: rect.y + tip.y * otter.scale };
+}
+
+/** 지금 프레임의 낚싯대 끝 */
+export function rodTip(state: SceneState): Point {
+  return otterTip(otterLayout(state), otterFrame(state));
+}
+
+/** 줄이 웅덩이 수면에 들어가는 자리. 입질 때는 물고기가 바늘을 물어 툭툭 당겨진다 */
+function waterEntry(state: SceneState, elapsed: number | null): Point {
+  const hole = holeLayout(state);
+  if (elapsed === null || elapsed >= REEL_START) return { x: hole.x, y: hole.y };
+  // 입질: 점점 세게 당겨지며 좌우로 떨린다
+  const progress = clamp01(elapsed / SCENE.BITE_DURATION);
+  const tug = Math.sin(elapsed * SCENE.BITE_TUG_SPEED) * SCENE.BITE_TUG * progress;
+  return { x: hole.x + tug, y: hole.y + SCENE.BITE_PULL * easeOut(progress) };
+}
+
+/** 줄 끝(바늘)이 물 밖으로 나와 있는 정도 (0 = 웅덩이 안, 1 = 낚싯대 끝 아래에 매달림) */
+function hookOut(elapsed: number | null): number {
+  if (elapsed === null || elapsed < REEL_START) return 0;
+  if (elapsed < HOLD_START) return easeOut((elapsed - REEL_START) / SCENE.REEL_DURATION);
+  if (elapsed < CAST_START) return 1;
+  return 1 - easeInOut(clamp01((elapsed - CAST_START) / SCENE.CAST_DURATION));
+}
+
+export type FishingLine = {
+  /** 낚싯대 끝 (줄이 시작하는 곳) */
+  tip: Point;
+  /** 줄 끝 (바늘). 물속에 있으면 웅덩이 가운데 */
+  hook: Point;
+  /** 줄이 처진 정도 (px). 물고기를 끌어올리는 동안은 팽팽해서 0 */
+  slack: number;
+  /** 줄이 웅덩이 수면에 들어가는 자리 (바늘이 물속에 있을 때 줄은 여기까지 보인다) */
+  entry: Point;
+  /** 바늘에 매달린 물고기. 물 밖에 없으면 null */
+  fish: { kind: FishKind; size: number; center: Point; swing: number; opacity: number } | null;
+};
+
+/** 줄·바늘·매달린 물고기의 지금 모습 */
+export function fishingLine(state: SceneState): FishingLine {
+  const elapsed = catchElapsed(state);
+  const tip = rodTip(state);
+  const hole = holeLayout(state);
+  const unit = sizeUnit(state);
+  const out = hookOut(elapsed);
+
+  if (out === 0) {
+    const entry = waterEntry(state, elapsed);
+    return { tip, hook: hole, slack: SCENE.LINE_SLACK, entry, fish: null };
+  }
+
+  // 바늘은 웅덩이에서 낚싯대 끝 아래 매달리는 자리까지 올라온다
+  const hang = { x: tip.x, y: tip.y + unit * SCENE.LINE_HANG_RATIO };
+  const hook = { x: lerp(hole.x, hang.x, out), y: lerp(hole.y, hang.y, out) };
+  const entry = { x: hole.x, y: hole.y };
+
+  const current = state.catch;
+  if (!current || elapsed === null) return { tip, hook, slack: 0, entry, fish: null };
+  // 물고기는 챔질 초반에 물 밖으로 나타나고, 던지기 전에 사라진다
+  const opacity = Math.min(
+    clamp01((elapsed - REEL_START) / (SCENE.REEL_DURATION * SCENE.FISH_EMERGE)),
+    clamp01((CAST_START - elapsed) / SCENE.FADE),
+  );
+  const sinceHold = Math.max(elapsed - REEL_START, 0);
+  const swing = Math.sin(sinceHold * SCENE.FISH_SWING_SPEED) * SCENE.FISH_SWING * out;
+  const fish =
+    opacity > 0
+      ? {
+          kind: current.kind,
+          size: current.size,
+          center: { x: hook.x, y: hook.y + current.size * SCENE.FISH_HOOK_DROP },
+          swing,
+          opacity,
+        }
+      : null;
+  return { tip, hook, slack: 0, entry, fish };
+}
+
+/**
+ * 웅덩이에 퍼지는 물결들의 진행도 (0~1): 입질이 올 때(작게), 바늘이 물을 떠날 때, 다시 들어갈 때.
+ * 퍼지는 중인 물결만 돌려준다.
+ */
+export function splashProgresses(state: SceneState): { t: number; small: boolean }[] {
+  const elapsed = catchElapsed(state);
+  if (elapsed === null) return [];
+  const ripples = [
+    { start: 0, small: true },
+    { start: REEL_START, small: false },
+    { start: REENTRY_SPLASH_START, small: false },
+  ];
+  return ripples
+    .map(({ start, small }) => ({ t: (elapsed - start) / SCENE.SPLASH_DURATION, small }))
+    .filter(({ t }) => t >= 0 && t < 1);
 }

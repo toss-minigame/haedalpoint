@@ -1,52 +1,62 @@
+import snowfield from '@/shared/assets/background/snowfield.jpg';
 import otterAwkward from '@/shared/assets/otter/otter-awkward.png';
-import otterFishingCatch from '@/shared/assets/otter/otter-fishing-catch.png';
+import otterExcited from '@/shared/assets/otter/otter-excited.png';
+import otterFishingCaught from '@/shared/assets/otter/otter-fishing-caught.png';
 import otterFishingIdle from '@/shared/assets/otter/otter-fishing-idle.png';
-import otterFriendFishingCatch from '@/shared/assets/otter/otter-friend-fishing-catch.png';
-import otterFriendFishingIdle from '@/shared/assets/otter/otter-friend-fishing-idle.png';
+import otterFishingLift from '@/shared/assets/otter/otter-fishing-lift.png';
+import otterFishingNotice from '@/shared/assets/otter/otter-fishing-notice.png';
+import otterFishingPull from '@/shared/assets/otter/otter-fishing-pull.png';
 import otterHappy from '@/shared/assets/otter/otter-happy.png';
 import otterIdle from '@/shared/assets/otter/otter-idle.png';
-import otterSad from '@/shared/assets/otter/otter-sad.png';
+import otterLove from '@/shared/assets/otter/otter-love.png';
+import otterSurprised from '@/shared/assets/otter/otter-surprised.png';
 import fishAngelfish from '@/shared/assets/scene/fish-angelfish.png';
 import fishBluefish from '@/shared/assets/scene/fish-bluefish.png';
 import fishGoldfish from '@/shared/assets/scene/fish-goldfish.png';
 import fishPufferfish from '@/shared/assets/scene/fish-pufferfish.png';
-import pier from '@/shared/assets/scene/pier.png';
-import seaBackground from '@/shared/assets/scene/sea-background.jpg';
-import seaWave from '@/shared/assets/scene/sea-wave.png';
+import puddle from '@/shared/assets/waterSurface/puddle.png';
 
-/** 해달 감정 상태별 스프라이트 (400×400, 투명 배경) */
+/**
+ * 해달 표정별 스프라이트 (앉은 모습, 투명 배경, 사방 20px 여백).
+ * 표정마다 크기가 조금씩 다르다 (가로 398~455, 세로 507~531).
+ */
 export const OTTER_SPRITES = {
-  idle: otterIdle,
-  happy: otterHappy,
-  sad: otterSad,
-  awkward: otterAwkward,
+  idle: otterIdle, // 기본 미소
+  happy: otterHappy, // 활짝 웃으며 손을 든 모습
+  surprised: otterSurprised, // 무언가 알아챈 모습 (!)
+  awkward: otterAwkward, // 눈을 찡긋하며 땀 흘리는 모습
+  excited: otterExcited, // 눈을 꼭 감고 신난 모습
+  love: otterLove, // 하트를 띄운 모습
 } as const;
 
 export type OtterMood = keyof typeof OTTER_SPRITES;
 
 /**
- * 낚시 장면 스프라이트 (576×576, 투명 배경).
- * 두 장은 의자·바구니 위치를 맞춰 두었으므로 같은 자리에 겹쳐 그리면 된다.
- * 성공 스프라이트의 바늘은 비어 있고, 잡힌 물고기는 장면에서 따로 그린다.
+ * 낚시 장면의 해달 애니메이션 프레임 (낚싯대를 쥔 그림, 투명 배경, 사방 20px 여백).
+ * 대기 → 입질 알아챔 → 당김 → 들어 올림 → 잡음 순서. 줄·물고기는 장면에서 그린다.
+ * 그리는 자리·크기·낚싯대 끝은 scene-state.ts 의 OTTER_SCENE_FRAMES 에 맞춰 두었다.
  */
-export const OTTER_FISHING_SPRITES = {
-  idle: otterFishingIdle, // 의자에 앉아 낚싯대를 드리운 모습
-  catch: otterFishingCatch, // 일어나 낚싯대를 들어 올린 모습 (바늘은 비어 있음)
-} as const;
+export const OTTER_FISHING_FRAMES = [
+  otterFishingIdle,
+  otterFishingNotice,
+  otterFishingPull,
+  otterFishingLift,
+  otterFishingCaught,
+] as const;
 
 /**
- * 해달 친구 낚시 스프라이트 (576×698, 투명 배경). 7일차 출석으로 오는 친구가 선착장에서 함께 낚시한다.
- * 두 장은 같은 영역으로 잘라 몸 위치를 맞춰 두었으므로 같은 자리에 겹쳐 그리면 된다.
+ * 해달 친구 (7일차 출석으로 와서 물웅덩이 왼쪽에 앉는다). 낚싯대 없이 표정 그림으로
+ * 해달과 같은 순서의 동작을 한다 (기다릴 때는 하트).
  */
-export const OTTER_FRIEND_FISHING_SPRITES = {
-  idle: otterFriendFishingIdle, // 앉아서 낚싯대를 쥔 모습
-  catch: otterFriendFishingCatch, // 팔을 들고 낚싯대를 들어 올린 모습
-} as const;
+export const OTTER_FRIEND_FISHING_FRAMES = [
+  OTTER_SPRITES.love,
+  OTTER_SPRITES.surprised,
+  OTTER_SPRITES.awkward,
+  OTTER_SPRITES.excited,
+  OTTER_SPRITES.happy,
+] as const;
 
-/** 해달이 앉아 낚시하는 나무 선착장 (600×455, 투명 배경, 왼쪽 끝은 화면 밖으로 이어지는 모양) */
-export const PIER_SPRITE = pier;
-
-/** 바다에서 헤엄치는 물고기 (긴 변 128px, 투명 배경, 모두 왼쪽을 바라봄) */
+/** 물웅덩이에서 튀어 오르는 물고기 (긴 변 128px, 투명 배경, 모두 왼쪽을 바라봄) */
 export const FISH_SPRITES = {
   angelfish: fishAngelfish,
   goldfish: fishGoldfish,
@@ -54,8 +64,8 @@ export const FISH_SPRITES = {
   bluefish: fishBluefish,
 } as const;
 
-/** 하늘·바다 배경 (1536×1024, 수평선은 위에서 63.7%) */
-export const SEA_BACKGROUND_SPRITE = seaBackground;
+/** 설원 배경 (1536×1024, 눈밭은 위에서 51%부터, 오른쪽에 이글루) */
+export const SNOW_BACKGROUND_SPRITE = snowfield;
 
-/** 수면 파도 띠 (960×157, 양 끝이 이어지는 타일, 아래로 갈수록 투명) */
-export const SEA_WAVE_SPRITE = seaWave;
+/** 해달 앞 물웅덩이 (446×85, 투명 배경, 사방 3px 여백) */
+export const PUDDLE_SPRITE = puddle;
