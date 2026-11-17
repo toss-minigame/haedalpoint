@@ -12,10 +12,8 @@ import otterIdle from '@/shared/assets/otter/otter-idle.png';
 import otter3dModel from '@/shared/assets/otter/otter-3d.glb?url';
 import otterLove from '@/shared/assets/otter/otter-love.png';
 import otterSurprised from '@/shared/assets/otter/otter-surprised.png';
-import fishAngelfish from '@/shared/assets/scene/fish-angelfish.png';
 import fishBluefish from '@/shared/assets/scene/fish-bluefish.png';
 import fishGoldfish from '@/shared/assets/scene/fish-goldfish.png';
-import fishPufferfish from '@/shared/assets/scene/fish-pufferfish.png';
 import puddle from '@/shared/assets/waterSurface/puddle.png';
 
 /**
@@ -69,9 +67,7 @@ export const OTTER_FRIEND_FISHING_FRAMES = [
 
 /** 물웅덩이에서 튀어 오르는 물고기 (긴 변 128px, 투명 배경, 모두 왼쪽을 바라봄) */
 export const FISH_SPRITES = {
-  angelfish: fishAngelfish,
   goldfish: fishGoldfish,
-  pufferfish: fishPufferfish,
   bluefish: fishBluefish,
 } as const;
 
