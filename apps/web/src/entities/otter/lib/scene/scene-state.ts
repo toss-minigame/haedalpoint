@@ -13,6 +13,8 @@
 // 해달 친구가 오면 웅덩이 왼쪽에 앉는다 (낚싯대 없이 같은 동작만 한다).
 // 해먹이 가득 차면 더 잡지 않고, 하던 동작을 마친 뒤 물고기가 가득한 양동이를 든 모습(otter-hammock-full.png)으로 바뀐다.
 
+import { createSnowfall, type Snowfall, stepSnowfall } from './snow/snowfall';
+
 export type Random = () => number;
 
 export const FISH_KINDS = ['bluefish', 'goldfish'] as const;
@@ -37,6 +39,8 @@ export type SceneState = {
   nextAutoCatchAt: number;
   /** 해먹이 가득 찼으면 true. 더 잡지 않는다 */
   hammockFull: boolean;
+  /** 장면에 내리는 눈. 눈을 그리지 않으면(동작 줄이기 모드) null */
+  snowfall: Snowfall | null;
 };
 
 export const SCENE = {
@@ -251,7 +255,13 @@ export function otterFriendLayout(size: SceneSize) {
   };
 }
 
-export function createSceneState(width: number, height: number): SceneState {
+/** snowing 이 false 면 눈을 내리지 않는다 (동작 줄이기 모드는 멈춘 눈송이도 그리지 않는다) */
+export function createSceneState(
+  width: number,
+  height: number,
+  random: Random,
+  snowing: boolean,
+): SceneState {
   return {
     width,
     height,
@@ -259,6 +269,7 @@ export function createSceneState(width: number, height: number): SceneState {
     catch: null,
     nextAutoCatchAt: SCENE.AUTO_CATCH_INTERVAL,
     hammockFull: false,
+    snowfall: snowing ? createSnowfall(random, { width, height }) : null,
   };
 }
 
@@ -278,10 +289,15 @@ export function isShowingFull({ hammockFull, catch: current }: SceneState): bool
   return hammockFull && current === null;
 }
 
-/** 크기가 바뀌면 진행 중인 연출을 지우고 새 크기로 다시 시작한다 */
-export function resizeScene(state: SceneState, width: number, height: number): SceneState {
+/** 크기가 바뀌면 진행 중인 연출을 지우고 새 크기로 다시 시작한다 (눈도 새 크기에 다시 흩뿌린다) */
+export function resizeScene(
+  state: SceneState,
+  width: number,
+  height: number,
+  random: Random,
+): SceneState {
   return {
-    ...createSceneState(width, height),
+    ...createSceneState(width, height, random, state.snowfall !== null),
     time: state.time,
     nextAutoCatchAt: state.nextAutoCatchAt,
     hammockFull: state.hammockFull,
@@ -333,7 +349,13 @@ export function stepScene(
 ): SceneState {
   const time = state.time + dt;
   const finished = state.catch !== null && time - state.catch.startedAt >= SETTLE_END;
-  const advanced: SceneState = { ...state, time, catch: finished ? null : state.catch };
+  const advanced: SceneState = {
+    ...state,
+    time,
+    catch: finished ? null : state.catch,
+    // 해먹이 가득 차 낚시를 멈춰도 눈은 계속 내린다
+    snowfall: state.snowfall && stepSnowfall(state.snowfall, dt, random, state),
+  };
   return autoCatch && !advanced.hammockFull && time >= advanced.nextAutoCatchAt
     ? requestCatch(advanced, random, true)
     : advanced;
