@@ -11,7 +11,7 @@ import {
   FRIEND_CATCH_INTERVAL_SECONDS,
   OtterScene,
 } from '@/entities/otter';
-import { CheckInCard } from '@/features/check-in';
+import { CheckInSection } from '@/features/check-in';
 import { TodayBoost } from '@/features/today-boost';
 import {
   tutorialTarget,
@@ -21,6 +21,7 @@ import {
 import { env } from '@/shared/config/env';
 import { useRewardedAd } from '@/shared/lib/rewarded-ad';
 import { HammockPanel } from './hammock-panel';
+import { HomeDrawer } from './home-drawer';
 import { RewardTiles } from './reward-tiles';
 import { WarehouseChip } from './warehouse-chip';
 
@@ -83,15 +84,22 @@ export function HomePage() {
           />
         </div>
       </div>
-      {/* 아래: 해먹 카드와 출석체크 카드. 둥근 위 모서리가 장면 아래쪽(눈밭)에 겹쳐 올라온다 */}
-      <div className="relative -mt-6 rounded-t-3xl bg-card shadow-[0_-6px_20px_rgb(30_70_120/0.08)]">
-        <div className="mx-auto flex max-w-xl flex-col gap-6 px-5 pt-6 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
-          <HammockPanel rewardedAd={rewardedAd} onTutorialStored={tutorial?.onStored} />
+      {/* 아래: 양동이 카드 + 출석체크. 위로 끌면 카드가 통째로 올라와 출석 현황이 보인다.
+          튜토리얼 출석 단계에서는 펼쳐 둔다 */}
+      <HomeDrawer
+        forceOpen={tutorial?.step.target === 'check-in'}
+        peek={<HammockPanel rewardedAd={rewardedAd} onTutorialStored={tutorial?.onStored} />}
+        renderMore={({ isOpen, toggle, moreRef }) => (
           <div {...tutorialTarget('check-in')}>
-            <CheckInCard className="rounded-3xl border p-5" ad={rewardedAd} />
+            <CheckInSection
+              ad={rewardedAd}
+              isExpanded={isOpen}
+              onToggle={toggle}
+              detailsRef={moreRef}
+            />
           </div>
-        </div>
-      </div>
+        )}
+      />
       {tutorial && <WelcomeTutorialOverlay tutorial={tutorial} />}
     </main>
   );
