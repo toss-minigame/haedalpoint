@@ -32,7 +32,7 @@ type Props = {
   isPending: boolean;
   /** 보상을 처리하는 동안의 문구 (스피너와 함께 보인다) */
   pendingLabel?: string;
-  variant: 'default' | 'outline' | 'secondary';
+  variant: 'default' | 'outline' | 'secondary' | 'ghost';
   /** 좁은 카드용 작은 버튼과 짧은 상태 문구 */
   compact?: boolean;
   /** label 이 짧아 무엇을 하는지 드러나지 않을 때 화면 낭독기가 읽을 문구 (광고를 볼 수 있을 때만 쓴다) */

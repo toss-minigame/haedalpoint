@@ -43,6 +43,7 @@
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
+  --color-home-sky-top: var(--home-sky-top);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -56,6 +57,8 @@
    보조 글자는 바탕 위 대비 5.17:1 */
 :root {
   --background: #f3f8fa;
+  /* 홈 바탕: 설원 장면과 이어지는 하늘색 */
+  --home-sky-top: #f4f9fe;
   --foreground: #1a2a30;
   --card: #ffffff;
   --card-foreground: #1a2a30;
@@ -91,6 +94,7 @@
 
 .dark {
   --background: oklch(0.145 0 0);
+  --home-sky-top: var(--background);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
   --card-foreground: oklch(0.985 0 0);

@@ -20,8 +20,7 @@ type Props = {
   className?: string;
 };
 
-// 오늘의 강화: 해달 장면 왼쪽 위에 겹치는 작은 조개 표시. 누르면 아래에서 지금 적용 중인 강화 목록이 올라온다.
-// 장면을 가리지 않도록 바탕 없이 글자와 아이콘만 그린다.
+// 오늘의 강화: 홈 오른쪽 위 칩. 누르면 아래에서 지금 적용 중인 강화 목록이 올라온다.
 // 해달 낚시 카드와 같은 현황(fishingQueries.me)을 함께 쓰고, 현황이 없으면 그리지 않는다.
 // 해달 친구만 자정이 아니라 온 지 24시간 뒤(otterFriendUntil)에 떠난다.
 export function TodayBoost({ className }: Props) {
@@ -44,8 +43,7 @@ export function TodayBoost({ className }: Props) {
           type="button"
           aria-label={`오늘의 강화 ${speedBonus}, 강화 목록 보기`}
           className={cn(
-            // 보이는 크기는 작게, 누르는 영역은 44px 을 유지한다
-            'flex h-11 items-center gap-1 rounded-full px-2 text-[13px] font-semibold text-foreground outline-none [text-shadow:0_0_6px_rgb(255_255_255/0.9)] focus-visible:ring-3 focus-visible:ring-ring/50',
+            'flex h-11 items-center gap-1.5 rounded-full bg-card/90 px-3 text-[15px] font-semibold text-foreground shadow-[0_2px_10px_rgb(30_70_120/0.14)] outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
             className,
           )}
         >

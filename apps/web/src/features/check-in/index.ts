@@ -1,1 +1,1 @@
-export { CheckInButton } from './ui/check-in-button';
+export { CheckInTile } from './ui/check-in-tile';

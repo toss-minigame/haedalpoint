@@ -1,3 +1,4 @@
+import { ZapIcon } from 'lucide-react';
 import type { FishingStatus } from '@/entities/fishing';
 import type { RewardedAd } from '@/shared/lib/rewarded-ad';
 import { Button } from '@/shared/ui/button';
@@ -17,6 +18,7 @@ type Props = {
 };
 
 const TITLE = '낚싯대 강화';
+const ICON = <ZapIcon />;
 
 // 쿨타임마다 광고를 보고 낚싯대를 한 단계 강화한다. 강화는 오늘 자정까지 유지된다.
 // 튜토리얼 체험 중(trial)에는 광고 없이 한 번 강화한다.
@@ -30,9 +32,10 @@ export function AdEnhanceRodButton({ status, receivedAt, ad, trial }: Props) {
   if (trial) {
     return (
       <TrialBoostButton
+        icon={ICON}
         title={TITLE}
-        value={bonus}
-        label="광고 없이 강화하기"
+        label="광고 없이"
+        accessibleLabel={`광고 없이 낚싯대 강화하기 (${bonus})`}
         pendingLabel="강화 중"
         trial={trial}
       />
@@ -42,11 +45,11 @@ export function AdEnhanceRodButton({ status, receivedAt, ad, trial }: Props) {
   // 지금 받을 수 없는 보상이면 광고를 띄우지 않는다
   if (isMaxLevel || remainingMs > 0) {
     return (
-      <Button type="button" variant="secondary" size="lg" className={BOOST_BUTTON_CLASS} disabled>
+      <Button type="button" variant="ghost" size="lg" className={BOOST_BUTTON_CLASS} disabled>
         <BoostButtonLabel
+          icon={ICON}
           title={TITLE}
-          value={bonus}
-          status={isMaxLevel ? '오늘 최대' : `${formatCooldown(remainingMs)} 뒤 가능`}
+          status={isMaxLevel ? '오늘 최대' : `${formatCooldown(remainingMs)} 뒤`}
         />
       </Button>
     );
@@ -55,16 +58,22 @@ export function AdEnhanceRodButton({ status, receivedAt, ad, trial }: Props) {
   return (
     <RewardedAdButton
       ad={ad}
-      label="광고 보기"
+      label={`광고 ${bonus}`}
       accessibleLabel={`광고 보고 낚싯대 강화하기 (${bonus})`}
       incompleteMessage="광고를 끝까지 보면 낚싯대를 강화할 수 있어요"
-      variant="secondary"
+      variant="ghost"
       compact
       className={BOOST_BUTTON_CLASS}
       pendingLabel="강화 중"
       isPending={isPending}
       renderLabel={(text, pending) => (
-        <BoostButtonLabel title={TITLE} value={bonus} status={text} isPending={pending} />
+        <BoostButtonLabel
+          icon={ICON}
+          title={TITLE}
+          status={text}
+          isAvailable={ad.status === 'ready'}
+          isPending={pending}
+        />
       )}
       onReward={() => mutate()}
     />

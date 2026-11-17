@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Button } from '@/shared/ui/button';
 import { BOOST_BUTTON_CLASS, BoostButtonLabel } from './boost-button-label';
 
@@ -5,29 +6,40 @@ import { BOOST_BUTTON_CLASS, BoostButtonLabel } from './boost-button-label';
 export type BoostTrial = { onTry: () => void; isPending: boolean };
 
 type Props = {
+  icon: ReactNode;
   title: string;
-  value: string;
-  /** 버튼 아랫줄 문구 (예: 광고 없이 강화하기) */
+  /** 아랫줄 문구 (예: 광고 없이) */
   label: string;
+  /** 낭독기가 읽을 문구 (예: 광고 없이 낚싯대 강화하기) */
+  accessibleLabel: string;
   pendingLabel: string;
   trial: BoostTrial;
 };
 
 // 광고 강화 버튼과 같은 모양이지만 광고를 띄우지 않는다
-export function TrialBoostButton({ title, value, label, pendingLabel, trial }: Props) {
+export function TrialBoostButton({
+  icon,
+  title,
+  label,
+  accessibleLabel,
+  pendingLabel,
+  trial,
+}: Props) {
   return (
     <Button
       type="button"
-      variant="secondary"
+      variant="ghost"
       size="lg"
       className={BOOST_BUTTON_CLASS}
+      aria-label={trial.isPending ? undefined : accessibleLabel}
       disabled={trial.isPending}
       onClick={trial.onTry}
     >
       <BoostButtonLabel
+        icon={icon}
         title={title}
-        value={value}
         status={trial.isPending ? pendingLabel : label}
+        isAvailable={!trial.isPending}
         isPending={trial.isPending}
       />
     </Button>

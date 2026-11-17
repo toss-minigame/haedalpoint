@@ -17,7 +17,7 @@ export function OtterBubble({ mood = 'happy', message, children, className }: Pr
     <div className={cn('flex flex-col gap-3 rounded-3xl bg-card p-4 shadow-lg', className)}>
       <div className="flex items-start gap-3">
         {/* 장식용: 말풍선 글이 같은 내용을 전한다 */}
-        <img src={OTTER_SPRITES[mood]} alt="" className="size-12 shrink-0" />
+        <img src={OTTER_SPRITES[mood]} alt="" className="size-12 shrink-0 object-contain" />
         <p
           aria-live="polite"
           className="min-w-0 pt-1 text-base leading-snug font-medium break-keep"

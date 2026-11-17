@@ -1,13 +1,14 @@
-import { drawScene, type FishImages, type FriendSprites, type SceneSprites } from './scene-render';
+import { drawScene, type FishImages, type SceneSprites } from './scene-render';
 import {
   createSceneState,
+  endCatch,
   FISH_KINDS,
   type FishKind,
-  randomFishKind,
+  HOLD_SECONDS,
   requestCatch,
   resizeScene,
-  SCENE,
   type SceneState,
+  showCaught,
   stepScene,
 } from './scene-state';
 
@@ -16,16 +17,15 @@ const MS_PER_SECOND = 1000;
 
 export type SceneEngineOptions = {
   sprites: {
-    idle: string;
-    happy: string;
-    pier: string;
+    /** 해달 프레임 (0 = 기다리는 모습, 마지막 = 잡은 모습) */
+    otter: readonly string[];
     fish: Record<FishKind, string>;
     background: string;
-    wave: string;
-    /** 해달 친구 (앉은 모습·들어 올린 모습) */
-    friend: { idle: string; catch: string };
+    puddle: string;
+    /** 해달 친구 프레임 (해달 프레임과 같은 순서) */
+    friend: readonly string[];
   };
-  /** '동작 줄이기' 설정 사용자: 애니메이션 없이 정지 장면만 그리고, 탭하면 표정만 바뀐다 */
+  /** '동작 줄이기' 설정 사용자: 애니메이션 없이 정지 장면만 그리고, 탭하면 잡은 모습만 잠깐 보인다 */
   reducedMotion: boolean;
 };
 
@@ -35,7 +35,7 @@ export type SceneEngine = {
   setCatchLabel: (label: string | null) => void;
   /** 해달 친구를 함께 그릴지 */
   setOtterFriendVisible: (visible: boolean) => void;
-  /** 해달 친구가 낚싯대를 들어 올릴 때 띄울 글자 (친구 몫). null 이면 띄우지 않는다 */
+  /** 해달 친구가 물고기를 잡을 때 띄울 글자 (친구 몫). null 이면 띄우지 않는다 */
   setFriendCatchLabel: (label: string | null) => void;
   destroy: () => void;
 };
@@ -77,21 +77,21 @@ export function createSceneEngine(
   const ctx = context;
 
   const random = Math.random;
-  let state: SceneState = createSceneState(canvas.clientWidth, canvas.clientHeight, random);
+  let state: SceneState = createSceneState(canvas.clientWidth, canvas.clientHeight);
   let sprites: SceneSprites | null = null;
   let frameId: number | null = null;
   let lastTimestamp: number | null = null;
-  let happyTimer: ReturnType<typeof setTimeout> | null = null;
+  let holdTimer: ReturnType<typeof setTimeout> | null = null;
   let destroyed = false;
   let catchLabel: string | null = null;
-  let friendSprites: FriendSprites | null = null;
+  let friendFrames: readonly HTMLImageElement[] | null = null;
   let otterFriendVisible = false;
   let friendCatchLabel: string | null = null;
 
   const render = () =>
     drawScene(ctx, state, sprites, catchLabel, {
       visible: otterFriendVisible,
-      sprites: friendSprites,
+      frames: friendFrames,
       catchLabel: friendCatchLabel,
     });
 
@@ -102,7 +102,7 @@ export function createSceneEngine(
     canvas.width = Math.round(width * dpr);
     canvas.height = Math.round(height * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    state = resizeScene(state, width, height, random);
+    state = resizeScene(state, width, height);
     render();
   };
 
@@ -135,24 +135,22 @@ export function createSceneEngine(
   document.addEventListener('visibilitychange', handleVisibility);
 
   Promise.all([
-    loadImage(options.sprites.idle),
-    loadImage(options.sprites.happy),
-    loadImage(options.sprites.pier),
+    Promise.all(options.sprites.otter.map(loadImage)),
     loadFishImages(options.sprites.fish),
     loadImage(options.sprites.background),
-    loadImage(options.sprites.wave),
+    loadImage(options.sprites.puddle),
   ])
-    .then(([idle, happy, pier, fish, background, wave]) => {
-      sprites = { idle, happy, pier, fish, background, wave };
+    .then(([otter, fish, background, puddle]) => {
+      sprites = { otter, fish, background, puddle };
       render();
     })
-    // 이미지를 못 불러와도 단색 바다·이모지 물고기는 그린다 (선착장·해달·파도만 빠짐)
+    // 이미지를 못 불러와도 단색 하늘·눈밭과 웅덩이·이모지 물고기는 그린다 (해달만 빠짐)
     .catch(() => {});
 
   // 해달 친구 그림은 따로 불러와, 못 불러와도 장면의 나머지는 그대로 그린다
-  Promise.all([loadImage(options.sprites.friend.idle), loadImage(options.sprites.friend.catch)])
-    .then(([idle, caught]) => {
-      friendSprites = { idle, catch: caught };
+  Promise.all(options.sprites.friend.map(loadImage))
+    .then((frames) => {
+      friendFrames = frames;
       render();
     })
     .catch(() => {});
@@ -166,25 +164,20 @@ export function createSceneEngine(
       state = requestCatch(state, random);
       return;
     }
-    // 동작 줄이기: 튀어 오르는 연출·페이드 없이 표정만 잠깐 바꾼다
-    state = {
-      ...state,
-      happySince: Number.NEGATIVE_INFINITY,
-      happyUntil: Number.POSITIVE_INFINITY,
-      hooked: { kind: randomFishKind(random), size: SCENE.FISH_MAX_SIZE, labeled: false },
-    };
+    // 동작 줄이기: 입질·챔질 없이 물고기가 줄 끝에 매달린 모습만 잠깐 보인다
+    state = showCaught(state, random);
     render();
-    if (happyTimer) clearTimeout(happyTimer);
-    happyTimer = setTimeout(() => {
-      state = { ...state, happyUntil: 0 };
+    if (holdTimer) clearTimeout(holdTimer);
+    holdTimer = setTimeout(() => {
+      state = endCatch(state);
       render();
-    }, SCENE.HAPPY_DURATION * MS_PER_SECOND);
+    }, HOLD_SECONDS * MS_PER_SECOND);
   };
 
   const destroy = () => {
     destroyed = true;
     stop();
-    if (happyTimer) clearTimeout(happyTimer);
+    if (holdTimer) clearTimeout(holdTimer);
     resizeObserver.disconnect();
     document.removeEventListener('visibilitychange', handleVisibility);
   };

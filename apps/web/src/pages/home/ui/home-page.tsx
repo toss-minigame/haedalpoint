@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router';
 import {
   type FishingStatus,
   fishingQueries,
@@ -11,7 +10,6 @@ import {
   FRIEND_CATCH_INTERVAL_SECONDS,
   OtterScene,
 } from '@/entities/otter';
-import { currentKstMonth } from '@/entities/roulette';
 import { TodayBoost } from '@/features/today-boost';
 import {
   tutorialTarget,
@@ -20,15 +18,11 @@ import {
 } from '@/features/welcome-tutorial';
 import { env } from '@/shared/config/env';
 import { useRewardedAd } from '@/shared/lib/rewarded-ad';
-import { Button } from '@/shared/ui/button';
-import { AttendanceSection } from './attendance-section';
-import { FishingBoostSection } from './fishing-boost-section';
-import { FishingSection } from './fishing-section';
+import { HammockPanel } from './hammock-panel';
+import { RewardTiles } from './reward-tiles';
+import { WarehouseChip } from './warehouse-chip';
 
 const SECONDS_PER_HOUR = 60 * 60;
-// 화면 바탕이 연한 하늘색이라 강화 버튼과 같이 흰 바탕 + 바다색 테두리로 경계를 드러낸다
-const SHORTCUT_CLASS =
-  'h-14 w-full rounded-2xl border-primary/40 bg-card text-base font-semibold hover:bg-secondary';
 
 type CatchLabels = { otter: string | null; friend: string | null };
 
@@ -59,37 +53,39 @@ export function HomePage() {
   const tutorial = useWelcomeTutorial();
 
   return (
-    <main className="mx-auto flex max-w-xl flex-col gap-5 px-5 pt-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+    <main className="flex min-h-dvh flex-col bg-home-sky-top">
       {/* 앱인토스 상단 바가 앱 이름을 보여주므로 화면에는 그리지 않고 낭독기용으로만 둔다 */}
       <h1 className="sr-only">해달해달</h1>
-      <FishingBoostSection
-        rewardedAd={rewardedAd}
-        rodTrial={tutorial?.trialFor('ROD')}
-        hammockTrial={tutorial?.trialFor('HAMMOCK')}
-      />
-      {/* 오늘의 강화 버튼은 장면(버튼) 안이 아니라 형제로 두고 왼쪽 위에 겹친다 */}
-      <div className="relative" {...tutorialTarget('scene')}>
+      {/* 위: 해달 낚시 장면을 화면 가득 배경으로 깔고, 그 위에 창고 · 오늘의 강화 · 리워드 아이콘을 얹는다 */}
+      <div className="relative flex min-h-[26rem] flex-1 flex-col" {...tutorialTarget('scene')}>
         <OtterScene
+          className="absolute inset-0 h-full"
           catchLabel={catchLabels.otter}
           withOtterFriend={fishingStatus?.otterFriendActive ?? false}
           friendCatchLabel={catchLabels.friend}
         />
-        <TodayBoost className="absolute top-1 left-1" />
+        {/* 빈 곳을 누르면 아래 장면으로 전달돼 해달이 물고기를 잡는다 */}
+        <div className="pointer-events-none relative mx-auto flex w-full max-w-xl flex-col gap-3 px-4 pt-3">
+          <div className="flex items-center justify-between gap-2">
+            <WarehouseChip className="pointer-events-auto" />
+            <TodayBoost className="pointer-events-auto ml-auto" />
+          </div>
+          <RewardTiles
+            className="pointer-events-auto"
+            rewardedAd={rewardedAd}
+            rodTrial={tutorial?.trialFor('ROD')}
+            hammockTrial={tutorial?.trialFor('HAMMOCK')}
+          />
+        </div>
       </div>
-      <FishingSection rewardedAd={rewardedAd} onTutorialStored={tutorial?.onStored} />
-      <AttendanceSection rewardedAd={rewardedAd} />
-      <nav
-        aria-label="오늘 할 일"
-        className="grid grid-cols-2 gap-3"
-        {...tutorialTarget('shortcuts')}
-      >
-        <Button asChild size="lg" variant="outline" className={SHORTCUT_CLASS}>
-          <Link to="/quiz">O/X 퀴즈 풀기</Link>
-        </Button>
-        <Button asChild size="lg" variant="outline" className={SHORTCUT_CLASS}>
-          <Link to="/roulette">{currentKstMonth()}월 미끼 룰렛</Link>
-        </Button>
-      </nav>
+      {/* 아래: 해먹 카드 한 장. 둥근 위 모서리가 장면 아래쪽(눈밭)에 겹쳐 올라온다 */}
+      <div className="relative -mt-6 rounded-t-3xl bg-card shadow-[0_-6px_20px_rgb(30_70_120/0.08)]">
+        <HammockPanel
+          className="mx-auto max-w-xl px-5 pt-6 pb-[calc(1.25rem+env(safe-area-inset-bottom))]"
+          rewardedAd={rewardedAd}
+          onTutorialStored={tutorial?.onStored}
+        />
+      </div>
       {tutorial && <WelcomeTutorialOverlay tutorial={tutorial} />}
     </main>
   );
