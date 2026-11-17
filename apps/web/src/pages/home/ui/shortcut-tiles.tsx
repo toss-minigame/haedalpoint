@@ -1,13 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
-import { CircleHelpIcon, DicesIcon } from 'lucide-react';
 import { Link } from 'react-router';
 import { quizQueries } from '@/entities/quiz';
 import { currentKstMonth, rouletteQueries } from '@/entities/roulette';
 import { Button } from '@/shared/ui/button';
+import { BaitWheelIcon, QuizOxIcon } from '@/shared/ui/reward-icons';
 import { REWARD_TILE_CLASS, RewardTileContent } from '@/shared/ui/reward-tile';
 
 // 홈 리워드 아이콘 줄의 O/X 퀴즈 · 미끼 룰렛. 누르면 각 화면으로 간다.
-// 오늘 아직 받을 보상이 남아 있으면 빨간 ! 를 붙인다.
+// 오늘 아직 받을 보상이 남아 있으면 빨간 점을 붙인다.
 
 export function QuizTile() {
   const { data: quiz } = useQuery(quizQueries.today());
@@ -23,7 +23,7 @@ export function QuizTile() {
     <Button asChild variant="ghost" size="lg" className={REWARD_TILE_CLASS}>
       <Link to="/quiz" aria-label={`O/X 퀴즈 풀기, 오늘 ${status}`}>
         <RewardTileContent
-          icon={<CircleHelpIcon />}
+          icon={<QuizOxIcon />}
           title="O/X 퀴즈"
           status={status}
           hasBadge={hasReward}
@@ -44,7 +44,7 @@ export function RouletteTile() {
     <Button asChild variant="ghost" size="lg" className={REWARD_TILE_CLASS}>
       <Link to="/roulette" aria-label={`${title} 룰렛, ${status}`}>
         <RewardTileContent
-          icon={<DicesIcon />}
+          icon={<BaitWheelIcon />}
           title={title}
           status={status}
           hasBadge={hasReward}

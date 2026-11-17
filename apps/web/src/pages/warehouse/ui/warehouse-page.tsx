@@ -13,7 +13,7 @@ import { WarehouseSkeleton } from './warehouse-skeleton';
 
 // 창고 이력 종류별 문구. 토스 포인트 전환이 생기면 여기에 추가한다
 const ENTRY_LABEL: Record<WarehouseEntry['type'], string> = {
-  STORE: '해먹에서 저장',
+  STORE: '양동이에서 저장',
 };
 
 function StoredStat({ label, fish }: { label: string; fish: number }) {
@@ -90,7 +90,7 @@ export function WarehousePage() {
     <main className="mx-auto flex max-w-xl flex-col gap-6 p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold">내 창고</h1>
-        <p className="text-base text-muted-foreground">해먹에서 저장한 물고기가 모여 있어요.</p>
+        <p className="text-base text-muted-foreground">양동이에서 저장한 물고기가 모여 있어요.</p>
       </header>
 
       {isPending && <WarehouseSkeleton />}

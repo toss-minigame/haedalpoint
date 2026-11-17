@@ -9,7 +9,7 @@ type Props = {
   title: string;
   /** 아랫줄: 지금 누를 수 있는지 (예: 광고 +1%, 18분 뒤) */
   status: string;
-  /** 지금 광고를 보고 받을 수 있으면 true (빨간 ! 를 붙인다) */
+  /** 지금 광고를 보고 받을 수 있으면 true (빨간 점을 붙인다) */
   isAvailable?: boolean;
   isPending?: boolean;
 };

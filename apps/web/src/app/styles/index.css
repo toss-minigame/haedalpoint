@@ -53,28 +53,28 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* 브랜드 색. 주 색상은 블루 #3082F5 (흰 글자 대비 3.7:1 — 굵은 버튼 글자에 쓴다).
-   보조 색(secondary·accent)은 아직 이전 틸 계열이다 */
+/* 브랜드 색: Figma "해달 얼음낚시" 시안의 블루. 주 색상 #3082F5 (흰 글자 대비 3.7:1 — 굵은 버튼 글자에 쓴다).
+   보조 색(secondary·accent)은 연한 블루, 회색은 블루와 어울리게 초록 기가 없는 중립 회색 */
 :root {
-  --background: #f3f8fa;
+  --background: #f2f6fb;
   /* 홈 바탕: 설원 장면과 이어지는 하늘색 */
   --home-sky-top: #f4f9fe;
-  --foreground: #1a2a30;
+  --foreground: #191f28;
   --card: #ffffff;
-  --card-foreground: #1a2a30;
+  --card-foreground: #191f28;
   --popover: #ffffff;
-  --popover-foreground: #1a2a30;
+  --popover-foreground: #191f28;
   --primary: #3082f5;
   --primary-foreground: #ffffff;
-  --secondary: #e8f5f7;
-  --secondary-foreground: #0b5560;
-  --muted: #eef3f5;
-  --muted-foreground: #5b6b73;
-  --accent: #e8f5f7;
-  --accent-foreground: #0b5560;
+  --secondary: #e8f3ff;
+  --secondary-foreground: #1b64da;
+  --muted: #f2f4f6;
+  --muted-foreground: #6b7684;
+  --accent: #e8f3ff;
+  --accent-foreground: #1b64da;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: #dce8ec;
-  --input: #dce8ec;
+  --border: #e5e8eb;
+  --input: #e5e8eb;
   --ring: #3082f5;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);

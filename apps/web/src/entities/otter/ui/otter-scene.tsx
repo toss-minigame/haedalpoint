@@ -23,7 +23,7 @@ type Props = {
 };
 
 function sceneLabel(withOtterFriend: boolean, hammockFull: boolean): string {
-  if (hammockFull) return '해먹이 가득 차 물고기 양동이를 든 해달. 창고에 저장하면 다시 낚시해요';
+  if (hammockFull) return '양동이가 가득 차 양동이를 든 해달. 창고에 저장하면 다시 낚시해요';
   return withOtterFriend
     ? '해달 친구와 함께 얼음낚시하는 해달. 누르면 해달이 물고기를 잡아요'
     : '얼음낚시하는 해달. 누르면 해달이 물고기를 잡아요';

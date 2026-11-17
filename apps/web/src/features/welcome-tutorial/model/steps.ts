@@ -52,13 +52,13 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
   {
     id: 'hammock',
     target: 'hammock',
-    message: '잡은 물고기는 해먹에 쌓여요',
+    message: '잡은 물고기는 양동이에 쌓여요',
     action: { type: 'info' },
   },
   {
     id: 'store-intro',
     target: 'store',
-    message: '해먹이 차면 이 버튼으로 창고에 옮겨요',
+    message: '양동이가 차면 이 버튼으로 창고에 옮겨요',
     action: { type: 'info' },
   },
   {
@@ -84,8 +84,8 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
   {
     id: 'hammock-expand',
     target: 'ad-hammock',
-    message: '해먹도 광고 없이 넓혀 드릴게요. 눌러보세요',
-    doneMessage: '해먹이 넓어지고 낚싯대도 강화됐어요. 평소에는 광고를 보면 오늘 자정까지예요',
+    message: '양동이도 광고 없이 키워 드릴게요. 눌러보세요',
+    doneMessage: '양동이가 커지고 낚싯대도 강화됐어요. 평소에는 광고를 보면 오늘 자정까지예요',
     action: { type: 'trial', kind: 'HAMMOCK' },
   },
   {
@@ -98,7 +98,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     id: 'gift',
     target: 'hammock',
     message: '선물을 준비하고 있어요',
-    doneMessage: '첫 선물로 해먹을 가득 채워뒀어요!',
+    doneMessage: '첫 선물로 양동이를 가득 채워뒀어요!',
     action: { type: 'gift' },
   },
   {

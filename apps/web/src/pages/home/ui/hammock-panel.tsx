@@ -61,17 +61,17 @@ type Props = {
   className?: string;
 };
 
-// 홈 맨 아래 카드: 해먹 진행 막대와 가득 차기까지 남은 시간, 창고 저장 버튼만 둔다
+// 홈 아래 양동이 카드: 진행 막대와 가득 차기까지 남은 시간, 창고 저장 버튼
 export function HammockPanel({ rewardedAd, onTutorialStored, className }: Props) {
   const { data: status, dataUpdatedAt, isPending, isError, error } = useQuery(fishingQueries.me());
 
   return (
     <section aria-labelledby="hammock-heading" className={className}>
       <h2 id="hammock-heading" className="sr-only">
-        해먹
+        양동이
       </h2>
       <div className="flex flex-col gap-4">
-        {isPending && <p className="text-[15px] text-muted-foreground">해먹을 불러오고 있어요</p>}
+        {isPending && <p className="text-[15px] text-muted-foreground">양동이를 불러오고 있어요</p>}
         {/* 주기적 재조회가 실패해도 이전 값이 있으면 그대로 보여준다 */}
         {isError && !status && <p className="text-[15px] text-destructive">{error.message}</p>}
         {status && (

@@ -1,1 +1,1 @@
-export { CheckInTile } from './ui/check-in-tile';
+export { CheckInCard } from './ui/check-in-card';

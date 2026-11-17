@@ -33,7 +33,7 @@ export function CatchBackDialog({ storedFish, onClose, ad }: Props) {
             물고기 {formatFish(storedFish)}마리를 창고에 저장했어요
           </p>
         )}
-        <DialogTitle>해먹이 가득 차서 물고기가 넘쳤어요</DialogTitle>
+        <DialogTitle>양동이가 가득 차서 물고기가 넘쳤어요</DialogTitle>
         <DialogDescription className="text-[15px] break-keep">
           광고를 보면 해달이 넘친 물고기 일부를 다시 잡아와요.
         </DialogDescription>

@@ -1,6 +1,6 @@
+import { PailIcon } from '@/shared/ui/reward-icons';
 import { formatFish } from '../lib/format-fishing';
 import { formatFullAt, formatRemaining } from '../lib/format-hammock-full';
-import { hammockImage } from '../lib/hammock-image';
 import { hammockName } from '../lib/hammock-name';
 import type { FishingStatus } from '../model/types';
 
@@ -12,7 +12,7 @@ type Props = {
   receivedAt: number;
 };
 
-/** 해먹이 가득 차기까지 남은 시간 문장 (서버 시각 기준) */
+/** 양동이가 가득 차기까지 남은 시간 문장 (서버 시각 기준) */
 function fullAtSentence(status: FishingStatus, receivedAt: number): string {
   const now = new Date(Date.parse(status.serverTime) + Date.now() - receivedAt);
   const fullAt = status.hammockFullAt ? new Date(status.hammockFullAt) : null;
@@ -21,7 +21,7 @@ function fullAtSentence(status: FishingStatus, receivedAt: number): string {
   return `${formatRemaining(remainingMs)} 뒤 가득 차요 (${formatFullAt(fullAt, now)})`;
 }
 
-// 홈 아래 카드: 해먹 그림 · 이름 · 쌓인 물고기 / 용량 · 진행 막대 · 가득 차기까지 남은 시간.
+// 홈 아래 카드: 양동이 그림 · 이름 옆에 가득 차기까지 남은 시간 · 진행 막대 · 쌓인 물고기 / 용량.
 // 부모가 1초마다 다시 그리므로 남은 시간도 1초마다 줄어든다.
 export function HammockGauge({ fish, status, receivedAt }: Props) {
   const capacity = status.hammockCapacity;
@@ -29,23 +29,23 @@ export function HammockGauge({ fish, status, receivedAt }: Props) {
 
   return (
     <div className="flex items-center gap-3">
-      {/* 장식용: 바로 옆 이름이 같은 내용을 읽어 준다 */}
-      <img
-        src={hammockImage(status.hammockLevel)}
-        alt=""
-        className="size-12 shrink-0 rounded-2xl bg-secondary p-1"
-      />
+      <span
+        aria-hidden="true"
+        className="grid size-12 shrink-0 place-items-center rounded-2xl bg-secondary"
+      >
+        <PailIcon className="size-8" />
+      </span>
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-2">
-          <span className="text-base font-semibold">{hammockName(status.hammockLevel)}</span>
-          <span className="text-[15px] whitespace-nowrap tabular-nums">
-            <strong className="font-bold">{formatFish(fish)}</strong>
-            <span className="text-muted-foreground"> / {formatFish(capacity)}마리</span>
+        {/* 이름 바로 옆에 가득 차기까지 남은 시간 (길면 자연스럽게 다음 줄로) */}
+        <p className="text-[13px] leading-snug break-keep text-muted-foreground tabular-nums">
+          <span className="mr-2 text-base font-semibold whitespace-nowrap text-foreground">
+            {hammockName(status.hammockLevel)}
           </span>
-        </div>
+          {fullAtSentence(status, receivedAt)}
+        </p>
         <div
           role="progressbar"
-          aria-label="해먹에 쌓인 물고기"
+          aria-label="양동이에 쌓인 물고기"
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={Math.floor(percent)}
@@ -57,8 +57,9 @@ export function HammockGauge({ fish, status, receivedAt }: Props) {
             style={{ width: `${percent}%` }}
           />
         </div>
-        <p className="text-[13px] break-keep text-muted-foreground tabular-nums">
-          {fullAtSentence(status, receivedAt)}
+        <p className="text-right text-[15px] whitespace-nowrap tabular-nums">
+          <strong className="font-bold">{formatFish(fish)}</strong>
+          <span className="text-muted-foreground"> / {formatFish(capacity)}마리</span>
         </p>
       </div>
     </div>
