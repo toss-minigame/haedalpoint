@@ -52,7 +52,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
   {
     id: 'greet',
     target: 'otter',
-    message: '제가 잡은 물고기를\n포인트로 전환할 수 있어요',
+    message: '편하게 쉬다 오세요\n물고기는 제가 계속 잡을게요!',
     action: { type: 'info' },
     bubble: 'above',
   },
