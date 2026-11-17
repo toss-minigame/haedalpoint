@@ -3,6 +3,7 @@ import { fishingQueries } from '@/entities/fishing';
 import { rouletteQueries } from '@/entities/roulette';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/ui/button';
+import { GiftIcon } from '@/shared/ui/reward-icons';
 import {
   Sheet,
   SheetClose,
@@ -13,7 +14,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/shared/ui/sheet';
-import { ShellIcon } from '@/shared/ui/shell-icon';
 import { todayBoostRows, todaySpeedBonusPercent } from '../lib/today-boost-rows';
 
 type Props = {
@@ -43,11 +43,12 @@ export function TodayBoost({ className }: Props) {
           type="button"
           aria-label={`오늘의 강화 ${speedBonus}, 강화 목록 보기`}
           className={cn(
-            'flex h-11 items-center gap-1.5 rounded-full bg-card/90 px-3 text-[15px] font-semibold text-foreground shadow-[0_2px_10px_rgb(30_70_120/0.14)] outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
+            // 좁은 화면에서도 "오늘의 강화"가 두 줄로 깨지지 않게 한 줄로 둔다
+            'flex h-11 items-center gap-1.5 rounded-full bg-card/90 px-3 whitespace-nowrap text-[15px] font-semibold text-foreground shadow-[0_2px_10px_rgb(30_70_120/0.14)] outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
             className,
           )}
         >
-          <ShellIcon className="size-5 shrink-0" />
+          <GiftIcon className="size-5 shrink-0" />
           오늘의 강화
           <span className="text-primary tabular-nums">{speedBonus}</span>
         </button>

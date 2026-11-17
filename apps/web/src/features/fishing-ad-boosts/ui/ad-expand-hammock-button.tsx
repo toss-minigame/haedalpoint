@@ -1,7 +1,7 @@
-import { Maximize2Icon } from 'lucide-react';
 import { type FishingStatus, hammockName } from '@/entities/fishing';
 import type { RewardedAd } from '@/shared/lib/rewarded-ad';
 import { Button } from '@/shared/ui/button';
+import { BucketIcon } from '@/shared/ui/reward-icons';
 import { RewardedAdButton } from '@/shared/ui/rewarded-ad-button';
 import { useAdExpandHammock } from '../api/use-fishing-ad-boosts';
 import { formatCooldown } from '../lib/format-cooldown';
@@ -18,7 +18,7 @@ type Props = {
 };
 
 const TITLE = '해먹 넓히기';
-const ICON = <Maximize2Icon />;
+const ICON = <BucketIcon />;
 
 // 쿨타임마다 광고를 보고 해먹을 정해진 순서로 한 단계 넓히고 낚싯대도 함께 강화한다 (랜덤 없음). 오늘 자정까지 유지된다.
 // 튜토리얼 체험 중(trial)에는 광고 없이 한 번 강화한다.

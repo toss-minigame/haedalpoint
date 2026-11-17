@@ -3,7 +3,7 @@ import { cn } from '@/shared/lib/utils';
 import { Spinner } from '@/shared/ui/spinner';
 
 /**
- * 홈 위쪽 리워드 아이콘 줄의 한 칸 모양 (흰 원 아이콘 + 두 줄 글자). Button·Link 에 className 으로 준다.
+ * 홈 위쪽 리워드 아이콘 줄의 한 칸 모양 (둥근 네모 아이콘 + 두 줄 글자, Figma mission-card). Button·Link 에 className 으로 준다.
  * 누르는 영역은 가로 4.25rem · 세로 6rem 정도라 44px 를 넘는다.
  * 쿨타임처럼 누를 수 없을 때도 글자는 흐리게 하지 않고(남은 시간을 읽어야 하므로) 아이콘만 흐리게 한다.
  */
@@ -15,7 +15,7 @@ type Props = {
   title: string;
   /** 아랫줄: 지금 할 수 있는 일이나 남은 시간 (예: 광고 +1%, 18분 뒤) */
   status: string;
-  /** 지금 받을 수 있는 보상이 있으면 빨간 ! 를 붙인다 */
+  /** 지금 받을 수 있는 보상이 있으면 오른쪽 위에 빨간 점을 붙인다 */
   hasBadge?: boolean;
   /** 지금 누를 수 없으면 아이콘을 흐리게 한다 */
   isDimmed?: boolean;
@@ -35,23 +35,18 @@ export function RewardTileContent({
 }: Props) {
   return (
     <>
-      <span className="relative grid size-14 place-items-center rounded-full bg-card shadow-[0_2px_10px_rgb(30_70_120/0.14)]">
+      <span className="relative grid size-14 place-items-center rounded-[18px] bg-card shadow-[0_2px_10px_rgb(30_70_120/0.14)]">
         <span
           aria-hidden="true"
-          className={cn(
-            'grid place-items-center text-primary [&_svg]:size-7!',
-            isDimmed && 'opacity-40',
-          )}
+          className={cn('grid place-items-center [&_svg]:size-[30px]!', isDimmed && 'opacity-40')}
         >
           {icon}
         </span>
         {hasBadge && (
           <span
             aria-hidden="true"
-            className="absolute -top-0.5 -right-0.5 grid size-5 place-items-center rounded-full bg-destructive text-[12px] leading-none font-bold text-white ring-2 ring-card"
-          >
-            !
-          </span>
+            className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-destructive ring-2 ring-card"
+          />
         )}
       </span>
       <span className={cn('text-[13px] leading-tight font-semibold break-keep', ON_SCENE_TEXT)}>

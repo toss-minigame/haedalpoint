@@ -10,6 +10,7 @@ import {
   FRIEND_CATCH_INTERVAL_SECONDS,
   OtterScene,
 } from '@/entities/otter';
+import { CheckInCard } from '@/features/check-in';
 import { TodayBoost } from '@/features/today-boost';
 import {
   tutorialTarget,
@@ -78,13 +79,14 @@ export function HomePage() {
           />
         </div>
       </div>
-      {/* 아래: 해먹 카드 한 장. 둥근 위 모서리가 장면 아래쪽(눈밭)에 겹쳐 올라온다 */}
+      {/* 아래: 해먹 카드와 출석체크 카드. 둥근 위 모서리가 장면 아래쪽(눈밭)에 겹쳐 올라온다 */}
       <div className="relative -mt-6 rounded-t-3xl bg-card shadow-[0_-6px_20px_rgb(30_70_120/0.08)]">
-        <HammockPanel
-          className="mx-auto max-w-xl px-5 pt-6 pb-[calc(1.25rem+env(safe-area-inset-bottom))]"
-          rewardedAd={rewardedAd}
-          onTutorialStored={tutorial?.onStored}
-        />
+        <div className="mx-auto flex max-w-xl flex-col gap-6 px-5 pt-6 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+          <HammockPanel rewardedAd={rewardedAd} onTutorialStored={tutorial?.onStored} />
+          <div {...tutorialTarget('check-in')}>
+            <CheckInCard className="rounded-3xl border p-5" ad={rewardedAd} />
+          </div>
+        </div>
       </div>
       {tutorial && <WelcomeTutorialOverlay tutorial={tutorial} />}
     </main>

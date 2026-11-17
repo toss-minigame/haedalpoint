@@ -5,44 +5,63 @@ import type { AttendanceWeekStamp } from '../model/types';
 
 type Props = {
   firstWeek: AttendanceWeekStamp[];
+  /** 다음에 출석할 일차 (글자를 굵게). 첫 주를 마쳤으면 없음 */
+  nextDay: number | null;
 };
 
-// 첫 주 1~7일차 출석 도장. 칸마다 그날 보상을 짧게 보여준다 (해달 친구 날은 해달 그림)
-export function AttendanceStamps({ firstWeek }: Props) {
+const DAYS = 7;
+
+// 첫 주 1~7일차 출석 현황 (Figma attendance-card). 윗줄 "N일차", 아랫줄 동그라미:
+// 출석한 날은 연한 띠 위에 체크, 아직인 날은 그날 보상(1원·친구)을 보여준다. 첫 주는 앞에서부터 차례로 채워진다
+export function AttendanceStamps({ firstWeek, nextDay }: Props) {
+  const checkedDays = firstWeek.filter((stamp) => stamp.checked).length;
+
   return (
-    <ol className="grid grid-cols-7 gap-1.5" aria-label="첫 주 출석 도장">
-      {firstWeek.map(({ day, checked, reward }) => {
-        const isOtterDay = reward.type === 'OTTER_FRIEND';
-        return (
+    <div className="rounded-2xl bg-muted/60 px-1.5 py-2">
+      <ol className="grid grid-cols-7" aria-label="첫 주 출석 현황">
+        {firstWeek.map(({ day, checked, reward }) => (
           <li
             key={day}
-            aria-label={`${day}일째 ${formatReward(reward)} ${checked ? '출석 완료' : '미출석'}`}
+            aria-label={`${day}일차 ${formatReward(reward)} ${checked ? '출석 완료' : '미출석'}`}
             className={cn(
-              'flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border',
-              checked
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-transparent bg-muted text-foreground',
-              isOtterDay && !checked && 'border-dashed border-primary/60 bg-secondary',
+              'pb-2 text-center text-[13px] leading-none text-muted-foreground',
+              day === nextDay && 'font-bold text-foreground',
             )}
           >
+            {day}일차
+          </li>
+        ))}
+      </ol>
+      <div aria-hidden className="relative grid grid-cols-7 justify-items-center">
+        {/* 출석한 날들을 잇는 연한 띠 */}
+        {checkedDays > 0 && (
+          <span
+            className="absolute inset-y-0 left-0 rounded-full bg-primary/10"
+            style={{ width: `${(checkedDays / DAYS) * 100}%` }}
+          />
+        )}
+        {firstWeek.map(({ day, checked, reward }) => {
+          const isOtterDay = reward.type === 'OTTER_FRIEND';
+          return (
             <span
-              aria-hidden
-              className="flex h-4 items-center text-[13px] leading-none font-semibold"
+              key={day}
+              className={cn(
+                'relative grid size-9 place-items-center rounded-full text-[13px] font-semibold',
+                checked
+                  ? 'text-primary'
+                  : 'border border-dashed border-border bg-card text-foreground',
+                isOtterDay && !checked && 'border-solid border-primary text-primary',
+              )}
             >
-              {isOtterDay ? (
-                <span className="font-emoji text-base">🦦</span>
-              ) : checked ? (
+              {checked ? (
                 <CheckIcon className="size-4" strokeWidth={3} />
               ) : (
-                `${day}일`
+                formatRewardShort(reward)
               )}
             </span>
-            <span aria-hidden className="text-[13px] leading-none opacity-80">
-              {formatRewardShort(reward)}
-            </span>
-          </li>
-        );
-      })}
-    </ol>
+          );
+        })}
+      </div>
+    </div>
   );
 }

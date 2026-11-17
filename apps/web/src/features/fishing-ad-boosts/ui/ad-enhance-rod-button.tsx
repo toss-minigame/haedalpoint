@@ -1,7 +1,7 @@
-import { ZapIcon } from 'lucide-react';
 import type { FishingStatus } from '@/entities/fishing';
 import type { RewardedAd } from '@/shared/lib/rewarded-ad';
 import { Button } from '@/shared/ui/button';
+import { RodIcon } from '@/shared/ui/reward-icons';
 import { RewardedAdButton } from '@/shared/ui/rewarded-ad-button';
 import { useAdEnhanceRod } from '../api/use-fishing-ad-boosts';
 import { formatCooldown } from '../lib/format-cooldown';
@@ -18,7 +18,7 @@ type Props = {
 };
 
 const TITLE = '낚싯대 강화';
-const ICON = <ZapIcon />;
+const ICON = <RodIcon />;
 
 // 쿨타임마다 광고를 보고 낚싯대를 한 단계 강화한다. 강화는 오늘 자정까지 유지된다.
 // 튜토리얼 체험 중(trial)에는 광고 없이 한 번 강화한다.
