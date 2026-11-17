@@ -1,6 +1,6 @@
 import { PailIcon } from '@/shared/ui/reward-icons';
 import { formatFish } from '../lib/format-fishing';
-import { formatFullAt, formatRemaining } from '../lib/format-hammock-full';
+import { formatRemaining } from '../lib/format-hammock-full';
 import { hammockName } from '../lib/hammock-name';
 import type { FishingStatus } from '../model/types';
 
@@ -18,7 +18,7 @@ function fullAtSentence(status: FishingStatus, receivedAt: number): string {
   const fullAt = status.hammockFullAt ? new Date(status.hammockFullAt) : null;
   const remainingMs = fullAt ? fullAt.getTime() - now.getTime() : 0;
   if (!fullAt || remainingMs <= 0) return '가득 찼어요 · 창고에 저장하세요';
-  return `${formatRemaining(remainingMs)} 뒤 가득 차요 (${formatFullAt(fullAt, now)})`;
+  return `${formatRemaining(remainingMs)} 뒤 가득 차요`;
 }
 
 // 홈 아래 카드: 양동이 그림 · 이름 옆에 가득 차기까지 남은 시간 · 진행 막대 · 쌓인 물고기 / 용량.
