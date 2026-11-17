@@ -156,7 +156,10 @@ export async function createOtterModel(url: string): Promise<OtterModelView> {
       rod: findNode(model, NODE.ROD),
       tip: findNode(model, NODE.TIP),
     };
-    const rest = { headRotation: nodes.head.rotation.clone(), rodRotation: nodes.rod.rotation.clone() };
+    const rest = {
+      headRotation: nodes.head.rotation.clone(),
+      rodRotation: nodes.rod.rotation.clone(),
+    };
     const camera = createCamera();
     const scene = createScene(model);
     const tip = new Vector3();
@@ -169,7 +172,11 @@ export async function createOtterModel(url: string): Promise<OtterModelView> {
       root.rotation.set(0, BASE_YAW + userYaw, pose.lean);
       const side = 1 / Math.sqrt(pose.squash);
       root.scale.set(side, pose.squash, side);
-      head.rotation.set(rest.headRotation.x + pose.headNod, rest.headRotation.y, rest.headRotation.z + pose.headRoll);
+      head.rotation.set(
+        rest.headRotation.x + pose.headNod,
+        rest.headRotation.y,
+        rest.headRotation.z + pose.headRoll,
+      );
       // 낚싯대는 왼쪽으로 뻗어 있어, z 축으로 음의 방향으로 돌리면 끝이 올라간다
       rod.rotation.set(rest.rodRotation.x, rest.rodRotation.y, rest.rodRotation.z - pose.rodLift);
     };

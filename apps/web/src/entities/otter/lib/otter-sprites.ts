@@ -1,4 +1,5 @@
 import snowfield from '@/shared/assets/background/snowfield.jpg';
+import otter3dModel from '@/shared/assets/otter/otter-3d.glb?url';
 import otterAwkward from '@/shared/assets/otter/otter-awkward.png';
 import otterExcited from '@/shared/assets/otter/otter-excited.png';
 import otterFishingCaught from '@/shared/assets/otter/otter-fishing-caught.png';
@@ -9,7 +10,6 @@ import otterFishingPull from '@/shared/assets/otter/otter-fishing-pull.png';
 import otterHammockFull from '@/shared/assets/otter/otter-hammock-full.png';
 import otterHappy from '@/shared/assets/otter/otter-happy.png';
 import otterIdle from '@/shared/assets/otter/otter-idle.png';
-import otter3dModel from '@/shared/assets/otter/otter-3d.glb?url';
 import otterLove from '@/shared/assets/otter/otter-love.png';
 import otterSurprised from '@/shared/assets/otter/otter-surprised.png';
 import fishBluefish from '@/shared/assets/scene/fish-bluefish.png';

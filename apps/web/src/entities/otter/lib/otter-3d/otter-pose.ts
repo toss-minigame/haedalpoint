@@ -56,7 +56,11 @@ function catchPose(base: OtterPose, elapsed: number): OtterPose {
   if (elapsed < REEL_START) {
     const p = clamp01(elapsed / REEL_START);
     const twitch = POSE.NOTICE_TWITCH * Math.sin(elapsed * POSE.NOTICE_TWITCH_SPEED) * p;
-    return { ...base, headNod: POSE.NOTICE_NOD * easeOut(p), rodLift: -POSE.NOTICE_DIP * p - twitch };
+    return {
+      ...base,
+      headNod: POSE.NOTICE_NOD * easeOut(p),
+      rodLift: -POSE.NOTICE_DIP * p - twitch,
+    };
   }
   if (elapsed < HOLD_START) {
     const p = clamp01((elapsed - REEL_START) / (HOLD_START - REEL_START));
