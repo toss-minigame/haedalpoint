@@ -11,6 +11,7 @@
 //
 // 낚싯대는 해달 그림(otter-fishing-*.png)에 함께 그려져 있고, 줄은 프레임마다 그림 속 낚싯대 끝(tip)에서 시작한다.
 // 해달 친구가 오면 웅덩이 왼쪽에 앉는다 (낚싯대 없이 같은 동작만 한다).
+// 해먹이 가득 차면 더 잡지 않고, 하던 동작을 마친 뒤 물고기가 가득한 양동이를 든 모습(otter-hammock-full.png)으로 바뀐다.
 
 export type Random = () => number;
 
@@ -34,6 +35,8 @@ export type SceneState = {
   /** 잡는 중인 물고기. 대기 중이면 null */
   catch: Catch | null;
   nextAutoCatchAt: number;
+  /** 해먹이 가득 찼으면 true. 더 잡지 않는다 */
+  hammockFull: boolean;
 };
 
 export const SCENE = {
@@ -138,6 +141,16 @@ export const FRIEND_SCENE_FRAMES = [
 /** 친구 키 (otter-idle.png 기준 표정 그림의 모자 꼭대기 ~ 발 아래 끝, 원본 px) */
 const FRIEND_BODY_HEIGHT = 491;
 
+/** 해먹이 가득 찼을 때 그림 (otter-hammock-full.png, 선 모습). 몸 가운데·발 아래 끝을 낚시 해달과 같은 자리에 맞춘다 */
+export const OTTER_FULL_FRAME = {
+  width: 515,
+  height: 622,
+  centerX: 254,
+} as const satisfies SceneSpriteFrame;
+
+/** 가득 찬 그림은 머리가 낚시 그림보다 약 8% 크게 그려져 있어, 머리 크기가 같아지게 줄여 그린다 */
+const FULL_FRAME_SCALE = 0.93;
+
 /** 프레임 번호: 대기 → 알아챔(입질) → 당김(챔질 앞·뒤 절반) → 잡음 */
 const FRAME = { IDLE: 0, NOTICE: 1, PULL: 2, LIFT: 3, CAUGHT: 4 } as const;
 
@@ -212,6 +225,7 @@ export function otterLayout(size: SceneSize) {
     centerX,
     bottomY,
     frames: OTTER_SCENE_FRAMES.map((frame) => spriteRect(frame, centerX, bottomY, scale)),
+    full: spriteRect(OTTER_FULL_FRAME, centerX, bottomY, scale * FULL_FRAME_SCALE),
   };
 }
 
@@ -233,7 +247,30 @@ export function otterFriendLayout(size: SceneSize) {
 }
 
 export function createSceneState(width: number, height: number): SceneState {
-  return { width, height, time: 0, catch: null, nextAutoCatchAt: SCENE.AUTO_CATCH_INTERVAL };
+  return {
+    width,
+    height,
+    time: 0,
+    catch: null,
+    nextAutoCatchAt: SCENE.AUTO_CATCH_INTERVAL,
+    hammockFull: false,
+  };
+}
+
+/**
+ * 해먹이 가득 찼는지 바꾼다. 하던 동작은 그대로 마친다.
+ * 다시 비면(창고에 저장) 바로 잡지 않고 한 주기 뒤부터 다시 잡는다.
+ */
+export function setHammockFull(state: SceneState, hammockFull: boolean): SceneState {
+  if (state.hammockFull === hammockFull) return state;
+  return hammockFull
+    ? { ...state, hammockFull }
+    : { ...state, hammockFull, nextAutoCatchAt: state.time + SCENE.AUTO_CATCH_INTERVAL };
+}
+
+/** 가득 찬 모습(양동이를 든 해달)을 보여줄 때인지. 하던 동작이 끝난 뒤부터다 */
+export function isShowingFull({ hammockFull, catch: current }: SceneState): boolean {
+  return hammockFull && current === null;
 }
 
 /** 크기가 바뀌면 진행 중인 연출을 지우고 새 크기로 다시 시작한다 */
@@ -242,12 +279,13 @@ export function resizeScene(state: SceneState, width: number, height: number): S
     ...createSceneState(width, height),
     time: state.time,
     nextAutoCatchAt: state.nextAutoCatchAt,
+    hammockFull: state.hammockFull,
   };
 }
 
 /** 입질을 시작한다. 이미 잡는 중이면 그대로 둔다 */
 export function requestCatch(state: SceneState, random: Random, labeled = false): SceneState {
-  if (state.catch) return state;
+  if (state.catch || state.hammockFull) return state;
   return {
     ...state,
     catch: {
@@ -265,6 +303,7 @@ export function requestCatch(state: SceneState, random: Random, labeled = false)
  * 시각이 흐르지 않으므로 끝낼 때는 endCatch 를 부른다.
  */
 export function showCaught(state: SceneState, random: Random): SceneState {
+  if (state.hammockFull) return state;
   return {
     ...state,
     catch: {
@@ -290,7 +329,7 @@ export function stepScene(
   const time = state.time + dt;
   const finished = state.catch !== null && time - state.catch.startedAt >= SETTLE_END;
   const advanced: SceneState = { ...state, time, catch: finished ? null : state.catch };
-  return autoCatch && time >= advanced.nextAutoCatchAt
+  return autoCatch && !advanced.hammockFull && time >= advanced.nextAutoCatchAt
     ? requestCatch(advanced, random, true)
     : advanced;
 }
@@ -327,8 +366,9 @@ function friendCatchElapsed(time: number): number | null {
  * 지금 그릴 해달 친구 프레임. 장면 시각만으로 정해지는 반복 연출이라 상태를 따로 두지 않는다.
  * 시각 0 에서는 기다리는 모습이다 (동작 줄이기 모드는 시각이 흐르지 않아 계속 기다린다).
  */
-export function friendFrame(time: number): number {
-  return framesAt(friendCatchElapsed(time));
+export function friendFrame({ time, hammockFull }: SceneState): number {
+  // 해먹이 가득 차면 친구도 잡지 않고 기다린다
+  return hammockFull ? FRAME.IDLE : framesAt(friendCatchElapsed(time));
 }
 
 /** elapsed 가 [start, end) 안에서 나타났다 사라지는 페이드 (0~1) */

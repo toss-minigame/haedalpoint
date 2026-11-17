@@ -53,8 +53,8 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* 브랜드 색: Figma "해달 얼음낚시" 시안의 파랑 (#3182F6). 흰 글자 대비 3.71:1 (이전 청록 5.97:1보다 낮다).
-   회색은 파랑과 어울리게 초록 기가 없는 중립 회색 */
+/* 브랜드 색: Figma "해달 얼음낚시" 시안의 블루. 주 색상 #3082F5 (흰 글자 대비 3.7:1 — 굵은 버튼 글자에 쓴다).
+   보조 색(secondary·accent)은 연한 블루, 회색은 블루와 어울리게 초록 기가 없는 중립 회색 */
 :root {
   --background: #f2f6fb;
   /* 홈 바탕: 설원 장면과 이어지는 하늘색 */
@@ -64,7 +64,7 @@
   --card-foreground: #191f28;
   --popover: #ffffff;
   --popover-foreground: #191f28;
-  --primary: #3182f6;
+  --primary: #3082f5;
   --primary-foreground: #ffffff;
   --secondary: #e8f3ff;
   --secondary-foreground: #1b64da;
@@ -75,7 +75,7 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: #e5e8eb;
   --input: #e5e8eb;
-  --ring: #3182f6;
+  --ring: #3082f5;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);

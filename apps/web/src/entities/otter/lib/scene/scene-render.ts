@@ -8,6 +8,7 @@ import {
   friendFrame,
   holeLayout,
   horizonY,
+  isShowingFull,
   otterFrame,
   otterFriendLayout,
   otterLayout,
@@ -22,6 +23,8 @@ export type FishImages = Record<FishKind, HTMLImageElement>;
 export type SceneSprites = {
   /** 해달 프레임 (0 = 기다리는 모습, 마지막 = 잡은 모습) */
   otter: readonly HTMLImageElement[];
+  /** 해먹이 가득 찼을 때 해달 (물고기가 가득한 양동이를 든 모습) */
+  full: HTMLImageElement;
   fish: FishImages;
   background: HTMLImageElement;
   puddle: HTMLImageElement;
@@ -284,13 +287,18 @@ function drawFrame(
 
 /** 해달. 잡는 동작은 프레임을 바꿔 가며 보인다 (몸 가운데와 발 아래 끝을 맞춰 그린다) */
 function drawOtter(ctx: CanvasRenderingContext2D, state: SceneState, sprites: SceneSprites) {
+  const layout = otterLayout(state);
+  if (isShowingFull(state)) {
+    drawFrame(ctx, sprites.full, layout.full);
+    return;
+  }
   const frame = otterFrame(state);
-  drawFrame(ctx, sprites.otter[frame], otterLayout(state).frames[frame]);
+  drawFrame(ctx, sprites.otter[frame], layout.frames[frame]);
 }
 
 function drawOtterFriend(ctx: CanvasRenderingContext2D, state: SceneState, friend: SceneFriend) {
   if (!friend.visible || !friend.frames) return;
-  const frame = friendFrame(state.time);
+  const frame = friendFrame(state);
   drawFrame(ctx, friend.frames[frame], otterFriendLayout(state).frames[frame]);
 }
 
@@ -314,11 +322,12 @@ export function drawScene(
     drawOtter(ctx, state, sprites);
   }
 
-  // 줄은 그림 속 낚싯대 끝에서 시작한다
-  const line = fishingLine(state);
-  drawLine(ctx, line);
-  drawHangingFish(ctx, line, sprites?.fish ?? null);
-
-  if (sprites) drawCatchLabel(ctx, state, line, catchLabel);
+  // 줄은 그림 속 낚싯대 끝에서 시작한다. 해먹이 가득 차 양동이를 든 동안은 낚싯대가 없다
+  if (!isShowingFull(state)) {
+    const line = fishingLine(state);
+    drawLine(ctx, line);
+    drawHangingFish(ctx, line, sprites?.fish ?? null);
+    if (sprites) drawCatchLabel(ctx, state, line, catchLabel);
+  }
   drawFriendCatchLabel(ctx, state, friend);
 }
