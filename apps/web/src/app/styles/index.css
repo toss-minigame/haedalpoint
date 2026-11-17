@@ -53,29 +53,29 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* 해달 장면(바다·모래)에 맞춘 브랜드 색. 주 색상은 딥 틸(흰 글자 대비 5.97:1),
-   보조 글자는 바탕 위 대비 5.17:1 */
+/* 브랜드 색: Figma "해달 얼음낚시" 시안의 파랑 (#3182F6). 흰 글자 대비 3.71:1 (이전 청록 5.97:1보다 낮다).
+   회색은 파랑과 어울리게 초록 기가 없는 중립 회색 */
 :root {
-  --background: #f3f8fa;
+  --background: #f2f6fb;
   /* 홈 바탕: 설원 장면과 이어지는 하늘색 */
   --home-sky-top: #f4f9fe;
-  --foreground: #1a2a30;
+  --foreground: #191f28;
   --card: #ffffff;
-  --card-foreground: #1a2a30;
+  --card-foreground: #191f28;
   --popover: #ffffff;
-  --popover-foreground: #1a2a30;
-  --primary: #0b6e78;
+  --popover-foreground: #191f28;
+  --primary: #3182f6;
   --primary-foreground: #ffffff;
-  --secondary: #e8f5f7;
-  --secondary-foreground: #0b5560;
-  --muted: #eef3f5;
-  --muted-foreground: #5b6b73;
-  --accent: #e8f5f7;
-  --accent-foreground: #0b5560;
+  --secondary: #e8f3ff;
+  --secondary-foreground: #1b64da;
+  --muted: #f2f4f6;
+  --muted-foreground: #6b7684;
+  --accent: #e8f3ff;
+  --accent-foreground: #1b64da;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: #dce8ec;
-  --input: #dce8ec;
-  --ring: #0b6e78;
+  --border: #e5e8eb;
+  --input: #e5e8eb;
+  --ring: #3182f6;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);

@@ -76,7 +76,7 @@ export function CheckInCard({ ad, className }: Props) {
   return (
     <section aria-labelledby="attendance-heading" className={className}>
       <div className="flex items-center gap-2 border-b pb-3">
-        <span className="grid size-8 place-items-center rounded-lg bg-[#e8f3ff]">
+        <span className="grid size-8 place-items-center rounded-lg bg-secondary">
           <AttendanceIcon className="size-6" />
         </span>
         <h2 id="attendance-heading" className="text-lg font-bold">
