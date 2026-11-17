@@ -45,7 +45,7 @@ export const OTTER_FISHING_FRAMES = [
 ] as const;
 
 /**
- * 3D 해달 모델 (시험판, Blender 에서 만든 glb). 낚싯대를 쥔 앉은 모습이고 동작은 코드로 움직인다.
+ * 3D 해달 모델 (Blender 에서 만든 glb). 낚싯대를 쥔 앉은 모습이고 동작은 코드로 움직인다.
  * 주소만 들고 있고, 3D 를 켤 때만 내려받는다
  */
 export const OTTER_3D_MODEL = otter3dModel;
