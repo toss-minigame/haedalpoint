@@ -10,9 +10,11 @@ import { CATCH_TIMELINE, catchElapsed, type SceneState } from '../scene/scene-st
  * - stand: 일어선 정도 (0 = 앉음, 1 = 섬)
  * - hop: 일어서거나 앉을 때 살짝 뛰어오르는 높이
  * - rodScale: 낚싯대 크기 (0 = 치움)
- * - bucketScale: 양동이 크기 (0 = 없음)
- * - hold: 손 위치 (0 = 낚싯대를 쥠, 1 = 왼손은 양동이 손잡이, 오른손은 배)
- * - bucketSwing: 양동이가 손잡이를 축으로 흔들리는 각도
+ * - bucketLift: 양동이 위치 (0 = 오른쪽 눈밭에 가만히 놓여 있음, 1 = 오른손에 듦)
+ * - bucketHop: 양동이가 손으로 뛰어오를 때 더 솟는 높이
+ * - bucketSwing: 손에 든 양동이가 손잡이를 축으로 흔들리는 각도
+ * - fishScale: 양동이 위로 넘치는 물고기 크기 (0 = 없음, 낚시하는 동안은 빈 양동이)
+ * - hold: 손 위치 (0 = 낚싯대를 쥠, 1 = 오른손은 양동이 손잡이, 왼손은 배)
  * - happy: 웃는 눈(^ ^)인지
  */
 export type OtterPose = {
@@ -24,9 +26,11 @@ export type OtterPose = {
   stand: number;
   hop: number;
   rodScale: number;
-  bucketScale: number;
-  hold: number;
+  bucketLift: number;
+  bucketHop: number;
   bucketSwing: number;
+  fishScale: number;
+  hold: number;
   happy: boolean;
 };
 
@@ -54,19 +58,23 @@ const POSE = {
 
 /**
  * 양동이를 든 모습으로 넘어가는 순서 (full 0 → 1).
- * 낚싯대를 들어 올리며 치우고 → 폴짝 일어서고 → 손을 옮기고 → 양동이가 톡 튀어나온다. 돌아올 때는 거꾸로다
+ * 낚싯대를 들어 올리며 치우고 → 폴짝 일어서고 → 옆에 둔 양동이가 손으로 뛰어오르고 → 물고기가 톡 솟는다.
+ * 돌아올 때는 거꾸로다 (양동이는 눈밭 제자리로 돌아가 다시 가만히 있는다)
  */
 const FULL = {
   ROD_AWAY_END: 0.4, // 여기까지 낚싯대를 치운다
   ROD_AWAY_LIFT: 0.7, // 치우면서 들어 올리는 각도
   HANDS_START: 0.2,
   HANDS_END: 0.75,
-  BUCKET_START: 0.45, // 여기부터 양동이가 나타난다
+  BUCKET_START: 0.3, // 여기부터 눈밭의 양동이가 손으로 뛰어오른다
+  BUCKET_END: 0.8,
+  BUCKET_HOP: 0.45, // 뛰어오르며 더 솟는 높이
+  BUCKET_SWING: 0.1, // 손에 든 양동이가 흔들리는 각도
+  FISH_START: 0.55, // 여기부터 물고기가 양동이 위로 톡 솟는다
   HOP: 0.2, // 일어설 때 뛰어오르는 높이
   HAPPY_FROM: 0.45, // 여기부터 웃는 눈
   SWAY: 0.035, // 양동이를 들고 몸을 좌우로 흔드는 각도
   SWAY_SPEED: 2.2, // rad/s
-  BUCKET_SWING: 0.1, // 양동이가 흔들리는 각도
   HEAD_ROLL: 0.07,
 } as const;
 
@@ -91,9 +99,11 @@ function idlePose(time: number): OtterPose {
     stand: 0,
     hop: 0,
     rodScale: 1,
-    bucketScale: 0,
-    hold: 0,
+    bucketLift: 0,
+    bucketHop: 0,
     bucketSwing: 0,
+    fishScale: 0,
+    hold: 0,
     happy: false,
   };
 }
@@ -147,6 +157,7 @@ function withFull(pose: OtterPose, full: number, time: number): OtterPose {
   const stood = easeInOut(full);
   const rodAway = easeInOut(span(full, 0, FULL.ROD_AWAY_END));
   const sway = Math.sin(time * FULL.SWAY_SPEED);
+  const lift = span(full, FULL.BUCKET_START, FULL.BUCKET_END);
   return {
     ...pose,
     rodLift: pose.rodLift + FULL.ROD_AWAY_LIFT * rodAway,
@@ -154,8 +165,10 @@ function withFull(pose: OtterPose, full: number, time: number): OtterPose {
     stand: stood,
     hop: FULL.HOP * Math.sin(Math.PI * full),
     hold: easeInOut(span(full, FULL.HANDS_START, FULL.HANDS_END)),
-    bucketScale: easeOutBack(span(full, FULL.BUCKET_START, 1)),
+    bucketLift: easeInOut(lift),
+    bucketHop: FULL.BUCKET_HOP * Math.sin(Math.PI * lift),
     bucketSwing: FULL.BUCKET_SWING * sway * stood,
+    fishScale: easeOutBack(span(full, FULL.FISH_START, 1)),
     lean: lerp(pose.lean, FULL.SWAY * sway, stood),
     headRoll: lerp(pose.headRoll, -FULL.HEAD_ROLL * sway, stood),
     happy: pose.happy || full >= FULL.HAPPY_FROM,
