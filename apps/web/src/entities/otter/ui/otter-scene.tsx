@@ -8,6 +8,7 @@ import {
   OTTER_FULL_SPRITE,
   PUDDLE_SPRITE,
   SNOW_BACKGROUND_SPRITE,
+  SNOWMAN_3D_MODEL,
 } from '../lib/otter-sprites';
 import { createSceneEngine, type SceneEngine } from '../lib/scene/scene-engine';
 
@@ -95,6 +96,7 @@ export function OtterScene({
       },
       reducedMotion: window.matchMedia(REDUCED_MOTION_QUERY).matches,
       otterModelUrl: otter3dEnabled ? OTTER_3D_MODEL : null,
+      friendModelUrl: otter3dEnabled ? SNOWMAN_3D_MODEL : null,
     });
     engineRef.current = engine;
     engine.setCatchLabel(catchLabelRef.current);

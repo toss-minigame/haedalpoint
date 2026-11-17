@@ -50,6 +50,8 @@ export type SceneEngineOptions = {
    * 불러오기 전이나 WebGL 을 못 쓰면 지금처럼 그림으로 그린다
    */
   otterModelUrl?: string | null;
+  /** 해달 친구로 그릴 3D 눈사람 모델(glb) 주소. 3D 해달과 함께 쓴다 */
+  friendModelUrl?: string | null;
 };
 
 export type SceneEngine = {
@@ -261,7 +263,15 @@ export function createSceneEngine(
     };
     modelWaitTimer = setTimeout(stopWaiting, MODEL_WAIT_MS);
     import('../otter-3d/otter-model')
-      .then(({ createOtterModel }) => createOtterModel(modelUrl, options.reducedMotion))
+      .then(({ createOtterModel }) =>
+        createOtterModel(modelUrl, {
+          reducedMotion: options.reducedMotion,
+          friendUrl: options.friendModelUrl ?? '',
+          onUpdate: () => {
+            if (!destroyed) render();
+          },
+        }),
+      )
       .then((model) => {
         if (destroyed) {
           model.dispose();

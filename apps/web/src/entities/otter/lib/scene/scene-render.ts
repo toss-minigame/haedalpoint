@@ -16,6 +16,7 @@ import {
   type Rect,
   SCENE,
   type SceneState,
+  snowmanLayout,
   splashProgresses,
 } from './scene-state';
 import { drawSnowfall } from './snow/snow-render';
@@ -37,7 +38,9 @@ export type SceneSprites = {
  * draw 는 해달을 그리고 낚싯대 끝의 장면 좌표를 돌려준다 (줄이 여기서 시작한다). 낚싯대를 치웠으면 null.
  */
 export type OtterModelView = {
-  draw: (ctx: CanvasRenderingContext2D, state: SceneState) => Point | null;
+  draw: (ctx: CanvasRenderingContext2D, state: SceneState, friendVisible: boolean) => Point | null;
+  /** 해달 친구(3D 눈사람)도 이 모델이 그리는지. 눈사람을 못 불러왔으면 false 라 그림 친구를 그린다 */
+  drawsFriend: () => boolean;
   /** 사용자가 끌어서 돌린 각도 (rad, 0 = 원래 방향). 다음 draw 부터 반영한다 */
   setUserYaw: (yaw: number) => void;
   dispose: () => void;
@@ -251,19 +254,33 @@ function drawFriendCatchLabel(
   ctx: CanvasRenderingContext2D,
   state: SceneState,
   friend: SceneFriend,
+  friendIn3d: boolean,
 ) {
   const opacity = friendCatchLabelOpacity(state.time);
-  if (!friend.visible || !friend.frames || !friend.catchLabel || opacity === 0) return;
-  const { frames, scale } = otterFriendLayout(state);
-  const rect = frames.at(-1);
-  if (!rect) return;
+  if (!friend.visible || !friend.catchLabel || opacity === 0) return;
+  const head = friendIn3d ? snowmanHead(state) : friendSpriteHead(state, friend);
+  if (!head) return;
   ctx.save();
   ctx.font = CATCH_LABEL_FONT;
   const halfWidth = ctx.measureText(friend.catchLabel).width / 2;
   ctx.restore();
-  // 친구는 화면 왼쪽 끝에 앉으므로 글자가 왼쪽으로 잘리지 않게 한다
-  const centerX = Math.max(rect.x + CAUGHT_HEAD_X * scale, halfWidth + CATCH_LABEL_EDGE_MARGIN);
-  drawLabel(ctx, friend.catchLabel, centerX, rect.y - SCENE.FRIEND_LABEL_GAP, 'center', opacity);
+  // 친구는 화면 왼쪽 끝에 있으므로 글자가 왼쪽으로 잘리지 않게 한다
+  const centerX = Math.max(head.x, halfWidth + CATCH_LABEL_EDGE_MARGIN);
+  drawLabel(ctx, friend.catchLabel, centerX, head.y - SCENE.FRIEND_LABEL_GAP, 'center', opacity);
+}
+
+/** 그림 해달 친구의 머리 위 가운데 (잡은 모습 기준). 그림을 못 불러왔으면 null */
+function friendSpriteHead(state: SceneState, friend: SceneFriend): Point | null {
+  if (!friend.frames) return null;
+  const { frames, scale } = otterFriendLayout(state);
+  const rect = frames.at(-1);
+  return rect ? { x: rect.x + CAUGHT_HEAD_X * scale, y: rect.y } : null;
+}
+
+/** 3D 눈사람 친구의 머리 위 가운데 */
+function snowmanHead(state: SceneState): Point {
+  const { centerX, bottomY, height } = snowmanLayout(state);
+  return { x: centerX, y: bottomY - height };
 }
 
 /** 입질·바늘이 물을 떠나거나 들어갈 때 웅덩이에 퍼지는 물결 */
@@ -333,14 +350,16 @@ export function drawScene(
   // 웅덩이는 눈밭에 있으므로 해달들보다 먼저 그린다
   drawPuddle(ctx, state, sprites?.puddle ?? null);
   drawSplash(ctx, state);
-  if (sprites) drawOtterFriend(ctx, state, friend);
+  // 3D 해달이면 친구도 3D 눈사람으로 함께 그린다 (눈사람을 못 불러왔을 때만 그림 친구)
+  const friendIn3d = otterModel === 'pending' || (otterModel?.drawsFriend() ?? false);
+  if (sprites && !friendIn3d) drawOtterFriend(ctx, state, friend);
   // 3D 해달은 양동이를 든 모습까지 스스로 그린다. 낚싯대를 쥐고 있는 동안만 낚싯대 끝을 돌려준다
   // 3D 모델을 불러오는 동안('pending')은 그림 해달이 잠깐 보였다 바뀌지 않게 해달과 줄을 그리지 않는다
   if (otterModel === 'pending') {
-    drawFriendCatchLabel(ctx, state, friend);
+    drawFriendCatchLabel(ctx, state, friend, friendIn3d);
     return;
   }
-  const modelTip = otterModel ? otterModel.draw(ctx, state) : null;
+  const modelTip = otterModel ? otterModel.draw(ctx, state, friend.visible) : null;
   if (sprites && !otterModel) drawOtter(ctx, state, sprites);
 
   // 줄은 낚싯대 끝(그림 속, 또는 3D 모델)에서 시작한다. 해먹이 가득 차 양동이를 든 동안은 낚싯대가 없다
@@ -350,5 +369,5 @@ export function drawScene(
     drawHangingFish(ctx, line, sprites?.fish ?? null);
     if (sprites) drawCatchLabel(ctx, state, line, catchLabel);
   }
-  drawFriendCatchLabel(ctx, state, friend);
+  drawFriendCatchLabel(ctx, state, friend, friendIn3d);
 }
