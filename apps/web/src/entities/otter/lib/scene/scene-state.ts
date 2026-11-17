@@ -255,6 +255,24 @@ export function otterFriendLayout(size: SceneSize) {
   };
 }
 
+/** 3D 눈사람 친구의 몸 가운데에서 든 팔 끝까지 (키 대비) */
+const SNOWMAN_HALF_WIDTH_RATIO = 0.45;
+
+/**
+ * 3D 눈사람 친구가 서는 자리 (해달 친구 그림과 같은 자리·같은 키). 웅덩이 왼쪽 뒤 눈밭에 선다.
+ * 팔을 들어도 장면 왼쪽 끝에 잘리지 않게 한다
+ */
+export function snowmanLayout(size: SceneSize) {
+  const height = sizeUnit(size) * SCENE.OTTER_BODY_RATIO * SCENE.FRIEND_SCALE_RATIO;
+  const halfWidth = height * SNOWMAN_HALF_WIDTH_RATIO;
+  return {
+    height,
+    halfWidth,
+    centerX: Math.max(size.width * SCENE.FRIEND_X_RATIO, halfWidth + SCENE.FRIEND_EDGE_MARGIN),
+    bottomY: size.height * SCENE.FRIEND_GROUND_Y_RATIO,
+  };
+}
+
 /** snowing 이 false 면 눈을 내리지 않는다 (동작 줄이기 모드는 멈춘 눈송이도 그리지 않는다) */
 export function createSceneState(
   width: number,
@@ -382,6 +400,16 @@ export function otterFrame(state: SceneState): number {
 }
 
 /** 해달 친구가 잡는 동작을 시작한 뒤 지난 시간 (초). 아직 시작 전이거나 동작이 끝났으면 null */
+/**
+ * 해달 친구가 이번 주기를 시작한 뒤 지난 시간 (초). 아직 처음 잡기 전이거나 해먹이 가득 찼으면 null.
+ * 3D 눈사람 친구는 잡은 뒤 팔을 내리는 동작까지 이어 가므로 주기 전체를 돌려준다
+ */
+export function friendPhase({ time, hammockFull }: SceneState): number | null {
+  const sinceFirst = time - SCENE.FRIEND_CATCH_OFFSET;
+  if (hammockFull || sinceFirst < 0) return null;
+  return sinceFirst % SCENE.FRIEND_CATCH_PERIOD;
+}
+
 function friendCatchElapsed(time: number): number | null {
   const sinceFirst = time - SCENE.FRIEND_CATCH_OFFSET;
   if (sinceFirst < 0) return null;

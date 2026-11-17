@@ -92,12 +92,14 @@ def make_materials():
 
 
 class Builder:
-    def __init__(self):
+    outline_name = "Outline"  # 테두리 재질 (Blender 미리보기용)
+
+    def __init__(self, collection=COLLECTION):
         self.scene = bpy.data.scenes.get(SCENE) or bpy.data.scenes.new(SCENE)
         bpy.context.window.scene = self.scene
-        col = bpy.data.collections.get(COLLECTION)
+        col = bpy.data.collections.get(collection)
         if col is None:
-            col = bpy.data.collections.new(COLLECTION)
+            col = bpy.data.collections.new(collection)
             self.scene.collection.children.link(col)
         for o in list(col.objects):
             bpy.data.objects.remove(o, do_unlink=True)
@@ -129,7 +131,7 @@ class Builder:
         if outline is None:
             outline = mats[0] not in NO_OUTLINE
         if outline:
-            obj.data.materials.append(self.mats["Outline"])
+            obj.data.materials.append(self.mats[self.outline_name])
             s = obj.modifiers.new("Outline", "SOLIDIFY")
             s.thickness = thick
             s.offset = 1.0
@@ -293,36 +295,38 @@ class Builder:
         self.curve("MouthStem", pts, "Line", head, 0.012)
         self.build_hat(head)
 
-    def build_hat(self, head):
-        """털모자: 골이 진 접은 단 + 세로 골이 있는 뜨개 모자 + 복슬복슬한 방울"""
+    def build_hat(self, head, mats=("Hat", "HatGroove"), cuff_z=2.38, s=1.0, prefix=""):
+        """털모자: 골이 진 접은 단 + 세로 골이 있는 뜨개 모자 + 복슬복슬한 방울.
+        cuff_z 는 접은 단의 높이, s 는 크기 배율 (눈사람 모자도 이걸로 만든다)"""
+        mats = list(mats)
         period = 2 * math.pi / RIBS
         thetas = [(k + o) * period for k in range(RIBS) for o in RIB_OFFSETS]
         n_off = len(RIB_OFFSETS)
         rib = lambda theta: math.cos(RIBS * theta)  # 1 = 볼록, -1 = 파인 줄 (각 골의 가운데)
 
         # 접은 단: 둥근 네모 단면
-        R, a, b, steps = 0.67, 0.105, 0.16, 12
+        R, a, b, steps = 0.67 * s, 0.105 * s, 0.16 * s, 12
         cuff, weight = [], []
         for k in range(steps + 1):
             psi = 2 * math.pi * k / steps
-            c, s = math.cos(psi), math.sin(psi)
-            cuff.append((R + a * math.copysign(abs(c) ** 0.6, c), b * math.copysign(abs(s) ** 0.6, s)))
+            c, sn = math.cos(psi), math.sin(psi)
+            cuff.append((R + a * math.copysign(abs(c) ** 0.6, c), b * math.copysign(abs(sn) ** 0.6, sn)))
             weight.append(max(c, 0.0))
         self.lathe(
-            "HatCuff", cuff, thetas, ["Hat", "HatGroove"], head, (0, 0.0, 2.38), sy=0.9,
+            prefix + "HatCuff", cuff, thetas, mats, head, (0, 0.0, cuff_z), sy=0.9,
             mod=lambda th, j: 1 + 0.035 * weight[j] * rib(th),
             face_mat=lambda i, j: 1 if i % n_off == 2 and (weight[j] > 0.2 or weight[j + 1] > 0.2) else 0,
         )
 
         # 모자 몸통: 반 타원체, 세로 골은 위로 갈수록 옅어진다
-        rings, rx, height = 9, 0.7, 0.56
+        rings, rx, height = 9, 0.7 * s, 0.56 * s
         dome, fade = [], []
         for k in range(rings + 1):
             phi = (math.pi / 2) * k / rings
             dome.append((max(rx * math.cos(phi), 0.001), height * math.sin(phi)))
             fade.append(math.cos(phi))
         self.lathe(
-            "HatDome", dome, thetas, ["Hat", "HatGroove"], head, (0, 0.01, 2.46), sy=0.9,
+            prefix + "HatDome", dome, thetas, mats, head, (0, 0.01 * s, cuff_z + 0.08 * s), sy=0.9,
             mod=lambda th, j: 1 + 0.03 * fade[j] * rib(th),
             face_mat=lambda i, j: 1 if i % n_off == 2 and (i // n_off) % 2 == 0 and j < rings - 2 else 0,
         )
@@ -332,8 +336,8 @@ class Builder:
         bmesh.ops.create_icosphere(bm, subdivisions=3, radius=1)
         for v in bm.verts:
             bump = 1 + 0.1 * noise.noise(v.co * 1.7)
-            v.co = v.co * 0.25 * bump
-        self.mesh("PomPom", bm, ["Hat"], head, (0.1, 0.03, 3.1))
+            v.co = v.co * 0.25 * s * bump
+        self.mesh(prefix + "PomPom", bm, mats[:1], head, (0.1 * s, 0.03 * s, cuff_z + 0.72 * s))
 
     # ---- 팔·손·낚싯대 ------------------------------------------------------
 
@@ -448,9 +452,9 @@ def build():
     return b
 
 
-def export_glb(path):
+def export_glb(path, collection=COLLECTION):
     """테두리 껍질은 빼고 내보낸다 (테두리는 three.js 가 그린다)"""
-    col = bpy.data.collections[COLLECTION]
+    col = bpy.data.collections[collection]
     outlines = [m for o in col.objects for m in o.modifiers if m.name == "Outline"]
     for m in outlines:
         m.show_viewport = False
