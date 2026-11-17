@@ -5,9 +5,11 @@ Blender 의 Python 콘솔(또는 MCP)에서 이 파일을 실행한 뒤 build() 
 
 노드 구조 (three.js 코드 otter-model.ts 가 이름으로 찾는다):
   OtterRoot
-    Tail, FootL, FootR              눈밭에 붙어 있는 부분
+    FootL, FootR                    눈밭에 붙어 있는 발
     Torso                           일어설 때 위로 올라가는 부분
       Body, Belly, Scarf...
+      Tail                          꼬리. 원점이 뿌리, 로컬 X 로 뻗는다 (일어서면 끝을 눈밭으로 내린다)
+      LegL, LegR                    엉덩이가 원점, 로컬 Z 로 뻗은 다리 (발 위치까지 늘여 맞춘다)
       HeadPivot                     머리 (EyesOpen / EyesHappy 를 바꿔 보인다)
       ArmL, ArmR                    어깨가 원점, 로컬 Z 방향으로 뻗은 팔 (손 위치까지 늘여 맞춘다)
       HandL, HandR                  손
@@ -44,6 +46,7 @@ FLAT = {"Eye": "#4A3226", "White": "#FFFFFF", "Line": "#7A4A33"}
 OUTLINE = "#9A6644"
 NO_OUTLINE = {"Belly", "Nose", "Pink", "Eye", "White", "Line"}
 
+TAIL_LENGTH = 0.9  # 꼬리 뿌리에서 끝까지 (otter-model.ts 의 TAIL_LENGTH 와 같다)
 RIBS = 24  # 모자 골 개수
 RIB_OFFSETS = (0.0, 0.25, 0.44, 0.56, 0.75)  # 골 하나 안의 각도 분할 (0.44~0.56 이 파인 줄)
 
@@ -216,14 +219,38 @@ class Builder:
         self.ell("Body", (0, 0, 0.78), (0.74, 0.64, 0.84), "Fur", torso, shape=pear, seg=32, rings=18)
         self.ell("Belly", (0, -0.36, 0.64), (0.46, 0.34, 0.52), "Belly", torso, shape=pear)
 
-        self.ell("Tail", (0.76, 0.18, 0.12), (0.48, 0.2, 0.12), "Fur", root, rot=(0, 0, math.radians(20)))
+        # 꼬리: 엉덩이 뒤에서 오른쪽 뒤로 뻗는다. 원점이 꼬리 뿌리(몸 안)이고 로컬 X 로 뻗어,
+        # 일어설 때 뿌리를 축으로 끝을 눈밭까지 내릴 수 있다 (몸에서 떨어져 보이지 않게)
+        bm = bmesh.new()
+        bmesh.ops.create_uvsphere(bm, u_segments=20, v_segments=14, radius=1)
+        for v in bm.verts:
+            t = (v.co.z + 1) / 2
+            radius = 0.2 + (0.075 - 0.2) * t**0.8
+            v.co = Vector((t * TAIL_LENGTH + v.co.z * 0.05, v.co.y * radius, v.co.x * radius * 0.62))
+        self.mesh("Tail", bm, ["Fur"], torso, (0.38, 0.2, 0.13), rot=(0, 0, math.radians(20)))
+
+        wide_toes = lambda co: (1 + 0.16 * max(-co.y, 0) - 0.12 * max(co.y, 0), 1, 1)
         for side, sx in (("L", -1), ("R", 1)):
-            foot = self.empty(f"Foot{side}", (0.4 * sx, -0.46, 0.16), root)
-            self.ell(f"FootMesh{side}", (0.4 * sx, -0.46, 0.16), (0.23, 0.31, 0.17), "Fur", foot)
-            for tx in (-0.06, 0.06):
-                fx = 0.4 * sx + tx
+            center = Vector((0.4 * sx, -0.46, 0.16))
+            foot = self.empty(f"Foot{side}", center, root)
+            self.ell(f"FootMesh{side}", center, (0.23, 0.31, 0.17), "Fur", foot, shape=wide_toes)
+            for tx in (-0.07, 0.07):
+                fx = center.x + tx
                 pts = [(fx, -0.75, 0.24), (fx, -0.785, 0.16), (fx, -0.765, 0.08)]
                 self.curve(f"Toe{side}{tx:+.2f}", pts, "Line", foot, 0.008)
+
+            # 다리: 엉덩이(몸 안)가 원점, 로컬 Z 로 발까지 뻗는다. 앉아 있을 때는 몸과 발에 가려 있고,
+            # 일어서면 코드가 발까지 늘여 맞춰 짧은 다리로 보인다
+            hip = Vector((0.3 * sx, -0.12, 0.32))
+            reach = center + Vector((0, 0, 0.02)) - hip
+            bm = bmesh.new()
+            bmesh.ops.create_uvsphere(bm, u_segments=16, v_segments=10, radius=1)
+            for v in bm.verts:
+                t = (v.co.z + 1) / 2
+                radius = 0.2 + (0.15 - 0.2) * t
+                v.co = Vector((v.co.x * radius, v.co.y * radius, t * reach.length + v.co.z * 0.05))
+            rot = Vector((0, 0, 1)).rotation_difference(reach.normalized()).to_euler()
+            self.mesh(f"Leg{side}", bm, ["Fur"], torso, hip, rot=rot)
 
         # 목도리
         scarf_profile, n = [], 14
