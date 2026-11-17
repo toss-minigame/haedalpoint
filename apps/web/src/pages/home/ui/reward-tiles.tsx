@@ -26,7 +26,7 @@ export function RewardTiles({ rewardedAd, rodTrial, hammockTrial, className }: P
   return (
     <nav aria-label="오늘의 보상" className={className}>
       {/* 네 칸을 같은 너비로 나눈다 (320px 화면에서도 한 줄에 들어간다) */}
-      <ul className="-mx-3 grid grid-cols-[repeat(4,minmax(4.25rem,1fr))] justify-items-center">
+      <ul className="-mx-3 grid grid-cols-[repeat(4,minmax(4.25rem,1fr))]">
         {status && (
           <>
             <li {...tutorialTarget('ad-rod')}>
@@ -48,10 +48,7 @@ export function RewardTiles({ rewardedAd, rodTrial, hammockTrial, className }: P
           </>
         )}
         {/* 튜토리얼이 퀴즈·룰렛을 함께 비춘다 */}
-        <li
-          className="col-span-2 grid w-full grid-cols-2 justify-items-center"
-          {...tutorialTarget('shortcuts')}
-        >
+        <li className="col-span-2 grid grid-cols-2" {...tutorialTarget('shortcuts')}>
           <QuizTile />
           <RouletteTile />
         </li>

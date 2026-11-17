@@ -70,13 +70,13 @@ export function todayBoostRows(
     },
     {
       key: 'hammock',
-      title: '해먹 넓히기',
+      title: '양동이 키우기',
       detail:
         status.hammockLevel > 0
-          ? `${status.hammockLevel}단계 · ${hammockName(status.hammockLevel)}${
+          ? `${hammockName(status.hammockLevel)}${
               hammockRodBonus > 0 ? ` · 낚싯대 +${hammockRodBonus}% 함께` : ''
             }`
-          : '광고를 보면 해먹이 넓어지고 낚싯대도 강화돼요',
+          : '광고를 보면 양동이가 커지고 낚싯대도 강화돼요',
       value: `용량 +${hammockBonus}%`,
       isActive: hammockBonus > 0,
     },
@@ -93,6 +93,6 @@ function friendDetail(otterFriendUntil: string | null, now: Date): string {
 function rodDetail(rodLevel: number, otherBonus: number, hammockBonus: number): string {
   if (rodLevel <= 0) return '출석하거나 광고를 보면 강화돼요';
   if (hammockBonus <= 0) return `오늘 ${rodLevel}단계 · 출석·퀴즈·광고로 강화`;
-  if (otherBonus <= 0) return `오늘 ${rodLevel}단계 · 해먹 넓히기 +${hammockBonus}%`;
-  return `출석·퀴즈·광고 +${otherBonus}% · 해먹 넓히기 +${hammockBonus}%`;
+  if (otherBonus <= 0) return `오늘 ${rodLevel}단계 · 양동이 키우기 +${hammockBonus}%`;
+  return `출석·퀴즈·광고 +${otherBonus}% · 양동이 키우기 +${hammockBonus}%`;
 }

@@ -42,10 +42,10 @@ import {
 } from './lib/hammock-actions.js';
 import { boostsAt, type HammockState, settleHammock } from './lib/settle-hammock.js';
 
-const NOTHING_TO_STORE = '해먹에 저장할 물고기가 없어요';
+const NOTHING_TO_STORE = '양동이에 저장할 물고기가 없어요';
 const AD_ROD_COOLING_DOWN = `낚싯대는 ${AD_ROD_POLICY.COOLDOWN_MINUTES}분마다 강화할 수 있어요`;
-const HAMMOCK_COOLING_DOWN = `해먹은 ${HAMMOCK_EXPAND_POLICY.COOLDOWN_MINUTES}분마다 넓힐 수 있어요`;
-const HAMMOCK_AT_MAX_LEVEL = '오늘은 해먹을 최대로 넓혔어요';
+const HAMMOCK_COOLING_DOWN = `양동이는 ${HAMMOCK_EXPAND_POLICY.COOLDOWN_MINUTES}분마다 키울 수 있어요`;
+const HAMMOCK_AT_MAX_LEVEL = '오늘은 양동이를 최대로 키웠어요';
 const NOTHING_TO_CATCH_BACK = '다시 잡아올 물고기가 없어요';
 const CATCH_BACK_LIMIT_REACHED = `넘친 물고기는 하루 ${CATCH_BACK_POLICY.DAILY_LIMIT}번까지 다시 잡아올 수 있어요`;
 /** 창고 화면에 보여줄 최근 이력 수 */

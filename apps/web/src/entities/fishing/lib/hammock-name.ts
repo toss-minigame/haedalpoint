@@ -1,12 +1,7 @@
-import { hammockTier } from './hammock-tier';
+// 화면에서 해먹은 "양동이"라고 부른다 (Figma "해달 얼음낚시"). 단계는 넓히기 전을 Lv.1 로 센다 (n = 1~9, fishing.policy.ts).
+// 코드·API 이름은 그대로 hammock 이다
 
-// 해먹 이름 (0단계 = 기본). 두 단계마다 해먹 종류가 바뀐다 (hammock-tier.ts). 단계 수·용량은 서버 정책값을 따른다.
-// 지금 정책(hammockMaxLevel 8)으로는 산호 해먹까지 쓰고, 진주 해먹은 단계가 늘어날 때를 위해 둔다
-const BASE_NAME = '해먹';
-const TIER_NAMES = ['그물 해먹', '나무 해먹', '대나무 해먹', '산호 해먹', '진주 해먹'];
-
-/** 단계에 맞는 해먹 이름. 이름이 없는 높은 단계면 가장 높은 이름을 쓴다 */
+/** 단계에 맞는 양동이 이름 (예: 0단계 → 양동이 Lv.1) */
 export function hammockName(level: number): string {
-  const tier = hammockTier(level, TIER_NAMES.length);
-  return tier === 0 ? BASE_NAME : (TIER_NAMES[tier - 1] ?? BASE_NAME);
+  return `양동이 Lv.${Math.floor(level) + 1}`;
 }

@@ -40,6 +40,17 @@ export function BucketIcon(props: IconProps) {
   );
 }
 
+/** 양동이 (홈 양동이 카드). 양동이 키우기 아이콘에서 화살표를 뺀 모양 */
+export function PailIcon(props: IconProps) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 30 30" fill="none" {...props}>
+      <path d="M5 3.5C11.667-.5 18.333-.5 25 3.5" stroke="#4E5968" strokeWidth={1.5} />
+      <path d="M4 10.5h22l-2.5 17h-17L4 10.5Z" fill="#6AA8E0" />
+      <path d="M4 10.5h22l-.4 3H4.4L4 10.5Z" fill="#4C8FD0" />
+    </svg>
+  );
+}
+
 /** 미끼 룰렛 (미끼 뽑기) */
 export function BaitWheelIcon(props: IconProps) {
   return (
