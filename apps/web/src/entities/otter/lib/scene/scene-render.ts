@@ -27,20 +27,20 @@ export type SceneSprites = {
   /** 해달 프레임 (0 = 기다리는 모습, 마지막 = 잡은 모습) */
   otter: readonly HTMLImageElement[];
   /** 해먹이 가득 찼을 때 해달 (물고기가 가득한 양동이를 든 모습) */
-  full: HTMLImageElement;
+  full: HTMLImageElement | null;
   fish: FishImages;
   background: HTMLImageElement;
   puddle: HTMLImageElement;
 };
 
 /**
- * 그림 대신 해달을 그리는 3D 모델 (otter-3d). 해먹이 가득 차면 낚싯대를 치우고 양동이를 든 모습으로 넘어간다.
+ * 해달(과 해달 친구인 눈사람)을 그리는 3D 모델 (otter-3d). 해먹이 가득 차면 낚싯대를 치우고 양동이를 든 모습으로 넘어간다.
  * draw 는 해달을 그리고 낚싯대 끝의 장면 좌표를 돌려준다 (줄이 여기서 시작한다). 낚싯대를 치웠으면 null.
  */
 export type OtterModelView = {
   draw: (ctx: CanvasRenderingContext2D, state: SceneState, friendVisible: boolean) => Point | null;
-  /** 해달 친구(3D 눈사람)도 이 모델이 그리는지. 눈사람을 못 불러왔으면 false 라 그림 친구를 그린다 */
-  drawsFriend: () => boolean;
+  /** 해달 친구(눈사람)를 불러와 그리고 있는지. 아니면 친구 몫 글자도 띄우지 않는다 */
+  hasFriend: () => boolean;
   /** 사용자가 끌어서 돌린 각도 (rad, 0 = 원래 방향). 다음 draw 부터 반영한다 */
   setUserYaw: (yaw: number) => void;
   dispose: () => void;
@@ -319,7 +319,7 @@ function drawFrame(
 function drawOtter(ctx: CanvasRenderingContext2D, state: SceneState, sprites: SceneSprites) {
   const layout = otterLayout(state);
   if (isShowingFull(state)) {
-    drawFrame(ctx, sprites.full, layout.full);
+    drawFrame(ctx, sprites.full ?? undefined, layout.full);
     return;
   }
   const frame = otterFrame(state);
@@ -350,15 +350,12 @@ export function drawScene(
   // 웅덩이는 눈밭에 있으므로 해달들보다 먼저 그린다
   drawPuddle(ctx, state, sprites?.puddle ?? null);
   drawSplash(ctx, state);
-  // 3D 해달이면 친구도 3D 눈사람으로 함께 그린다 (눈사람을 못 불러왔을 때만 그림 친구)
-  const friendIn3d = otterModel === 'pending' || (otterModel?.drawsFriend() ?? false);
+  // 3D 해달이면 친구도 3D 눈사람으로 함께 그린다. 3D 를 불러오는 중이거나 못 불러와도 그림 친구로 대신하지 않는다
+  const friendIn3d = otterModel !== null;
   if (sprites && !friendIn3d) drawOtterFriend(ctx, state, friend);
   // 3D 해달은 양동이를 든 모습까지 스스로 그린다. 낚싯대를 쥐고 있는 동안만 낚싯대 끝을 돌려준다
-  // 3D 모델을 불러오는 동안('pending')은 그림 해달이 잠깐 보였다 바뀌지 않게 해달과 줄을 그리지 않는다
-  if (otterModel === 'pending') {
-    drawFriendCatchLabel(ctx, state, friend, friendIn3d);
-    return;
-  }
+  // 3D 모델을 불러오는 동안('pending')은 해달과 줄을 그리지 않는다 (옛 그림 해달로 대신하지 않는다)
+  if (otterModel === 'pending') return;
   const modelTip = otterModel ? otterModel.draw(ctx, state, friend.visible) : null;
   if (sprites && !otterModel) drawOtter(ctx, state, sprites);
 
@@ -369,5 +366,6 @@ export function drawScene(
     drawHangingFish(ctx, line, sprites?.fish ?? null);
     if (sprites) drawCatchLabel(ctx, state, line, catchLabel);
   }
-  drawFriendCatchLabel(ctx, state, friend, friendIn3d);
+  // 눈사람을 아직 못 불러왔으면 친구가 보이지 않으므로 친구 몫 글자도 띄우지 않는다
+  if (!otterModel || otterModel.hasFriend()) drawFriendCatchLabel(ctx, state, friend, friendIn3d);
 }

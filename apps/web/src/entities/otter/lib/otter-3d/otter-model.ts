@@ -88,9 +88,8 @@ function createCamera(): OrthographicCamera {
   return camera;
 }
 
-function createScene(model: Object3D): Scene {
+function createScene(): Scene {
   const scene = new Scene();
-  scene.add(model);
   scene.add(new AmbientLight(0xffffff, AMBIENT));
   // 왼쪽 위 앞에서 비춘다 (Blender 시안과 같은 방향)
   const sun = new DirectionalLight(0xffffff, DIRECT);
@@ -204,14 +203,24 @@ export type OtterModelOptions = {
   reducedMotion: boolean;
   /** 해달 친구(눈사람) 모델 주소. 친구가 처음 올 때 불러온다 */
   friendUrl: string;
+  /** 친구가 이미 와 있으면 true. 해달 모델과 동시에 눈사람도 불러온다 */
+  preloadFriend: boolean;
   /** 늦게 불러온 모델이 준비돼 다시 그려야 할 때 부른다 */
   onUpdate: () => void;
 };
 
-/** 해달 친구(눈사람)를 필요할 때 불러와 장면에 놓는다 */
+/** 눈사람을 못 불러왔을 때 다시 시도하기까지 기다리는 시간 (ms). 다 써도 못 불러오면 친구 없이 둔다 */
+const FRIEND_RETRY_DELAYS_MS = [1000, 3000, 6000];
+
+/**
+ * 해달 친구(눈사람)를 불러와 장면에 놓는다.
+ * 불러오는 동안이나 끝내 못 불러오면 친구를 그리지 않는다 (옛 그림 친구로 대신하지 않는다)
+ */
 function createFriend(loader: GLTFLoader, scene: Scene, options: OtterModelOptions) {
   let snowman: Snowman | null = null;
   let status: 'idle' | 'loading' | 'ready' | 'failed' = 'idle';
+  let attempts = 0;
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
   let disposed = false;
 
   const load = () => {
@@ -222,12 +231,16 @@ function createFriend(loader: GLTFLoader, scene: Scene, options: OtterModelOptio
         snowman = loaded;
         scene.add(loaded.holder);
         status = 'ready';
+        options.onUpdate();
       })
       .catch(() => {
-        status = 'failed';
-      })
-      .finally(() => {
-        if (!disposed) options.onUpdate();
+        const delay = FRIEND_RETRY_DELAYS_MS[attempts];
+        attempts += 1;
+        if (disposed || delay === undefined) {
+          status = 'failed';
+          return;
+        }
+        retryTimer = setTimeout(load, delay);
       });
   };
 
@@ -256,10 +269,15 @@ function createFriend(loader: GLTFLoader, scene: Scene, options: OtterModelOptio
 
   return {
     place,
-    /** 눈사람을 못 불러왔으면 false (그림 해달 친구를 대신 그린다) */
-    drawsFriend: () => status !== 'failed',
+    /** 눈사람을 다 불러와 그릴 수 있는지 */
+    isReady: () => status === 'ready',
+    /** 친구가 와 있으면 해달 모델과 함께 미리 불러온다 */
+    preload: () => {
+      if (status === 'idle') load();
+    },
     dispose: () => {
       disposed = true;
+      if (retryTimer) clearTimeout(retryTimer);
     },
   };
 }
@@ -275,17 +293,19 @@ export async function createOtterModel(
     antialias: true,
     preserveDrawingBuffer: true,
   });
+  const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+  const scene = createScene();
+  const friend = createFriend(loader, scene, options);
   try {
-    const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+    if (options.preloadFriend) friend.preload();
     const gltf = await loader.loadAsync(url);
     const model = gltf.scene;
     stylize(model);
+    scene.add(model);
     const nodes: Nodes = findNodes(model, NODE_NAMES);
     const applyPose = createPoser(nodes);
     const trackFull = createFullTracker(options.reducedMotion);
     const camera = createCamera();
-    const scene = createScene(model);
-    const friend = createFriend(loader, scene, options);
     const tip = new Vector3();
     const drawSize = new Vector2();
     let userYaw = 0;
@@ -345,9 +365,12 @@ export async function createOtterModel(
       userYaw = yaw;
     };
 
-    return { draw, drawsFriend: friend.drawsFriend, setUserYaw, dispose };
+    return { draw, hasFriend: friend.isReady, setUserYaw, dispose };
   } catch (error) {
+    friend.dispose();
     renderer.dispose();
+    // 다시 시도할 때마다 WebGL 컨텍스트가 쌓이지 않게 바로 놓아 준다
+    renderer.forceContextLoss();
     throw error;
   }
 }

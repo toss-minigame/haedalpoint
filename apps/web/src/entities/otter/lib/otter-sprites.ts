@@ -53,7 +53,7 @@ export const OTTER_3D_MODEL = otter3dModel;
 
 /**
  * 해달 친구로 그리는 3D 눈사람 모델 (Blender 에서 만든 glb). 3D 해달과 함께 쓰고, 친구가 올 때만 내려받는다.
- * 3D 를 못 쓰면 아래 OTTER_FRIEND_FISHING_FRAMES 그림 친구를 그린다
+ * 3D 해달을 쓰는 동안에는 아래 OTTER_FRIEND_FISHING_FRAMES 그림 친구를 쓰지 않는다
  */
 export const SNOWMAN_3D_MODEL = snowman3dModel;
 

@@ -34,8 +34,9 @@ function sceneLabel(withOtterFriend: boolean, hammockFull: boolean): string {
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
 /**
- * 해달을 3D 모델로 그릴지. 기본은 3D 다 (WebGL 을 못 쓰거나 모델을 못 불러오면 그림 해달로 돌아간다).
- * 빌드 환경 변수 VITE_OTTER_3D=false 로 끄거나, 브라우저에서 주소에 ?otter2d 를 붙이면 그림 해달을 그린다
+ * 해달을 3D 모델로 그릴지. 기본은 3D 이고, 3D 일 때는 옛 그림 해달·그림 친구를 어떤 경우에도 그리지 않는다
+ * (모델을 못 불러오면 해달 없이 둔다). 빌드 환경 변수 VITE_OTTER_3D=false 로 끄거나, 브라우저에서 주소에
+ * ?otter2d 를 붙였을 때만 그림 해달을 그린다
  */
 function isOtter3dEnabled(): boolean {
   return (
