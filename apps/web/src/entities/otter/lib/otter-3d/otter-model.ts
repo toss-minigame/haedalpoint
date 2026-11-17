@@ -23,7 +23,7 @@ import { isShowingFull, otterLayout, type SceneState } from '../scene/scene-stat
 import { FULL_TRANSITION_SECONDS, type OtterPose, otterPose } from './otter-pose';
 
 /**
- * 3D 해달 시험판 (otter-3d.glb, design/otter-3d/build_otter.py 로 Blender 에서 만든 모델).
+ * 3D 해달 (otter-3d.glb, design/otter-3d/build_otter.py 로 Blender 에서 만든 모델).
  * 화면에 붙지 않은 WebGL 캔버스에 해달을 그린 뒤, 장면 캔버스에 그림처럼 붙인다.
  * 모델 단위: 발 아래 끝이 0, 해달 몸 가운데가 x = 0, 낚싯대는 왼쪽(-x)으로 뻗는다.
  */

@@ -15,6 +15,8 @@ import {
 
 const MAX_FRAME_DT = 0.05; // 탭 전환 등으로 프레임이 길게 끊겨도 한 번에 크게 점프하지 않게
 const MS_PER_SECOND = 1000;
+/** 3D 해달을 이만큼 기다려도 못 불러오면 우선 그림 해달을 보여 준다 (불러오면 그때 3D 로 바뀐다) */
+const MODEL_WAIT_MS = 2500;
 
 /** 3D 해달을 가로로 끌어 돌리기 */
 const DRAG = {
@@ -44,7 +46,7 @@ export type SceneEngineOptions = {
   /** '동작 줄이기' 설정 사용자: 애니메이션 없이 정지 장면만 그리고, 탭하면 잡은 모습만 잠깐 보인다 */
   reducedMotion: boolean;
   /**
-   * 3D 해달 모델(glb) 주소 (시험판). 주면 three.js 를 따로 불러와 해달을 3D 로 그린다.
+   * 3D 해달 모델(glb) 주소. 주면 three.js 를 따로 불러와 해달을 3D 로 그린다.
    * 불러오기 전이나 WebGL 을 못 쓰면 지금처럼 그림으로 그린다
    */
   otterModelUrl?: string | null;
@@ -123,6 +125,9 @@ export function createSceneEngine(
   let otterFriendVisible = false;
   let friendCatchLabel: string | null = null;
   let otterModel: OtterModelView | null = null;
+  // 3D 해달을 불러오는 중인지. 그동안은 해달을 그리지 않고, 너무 오래 걸리거나 실패하면 그림 해달을 그린다
+  let modelPending = Boolean(options.otterModelUrl);
+  let modelWaitTimer: ReturnType<typeof setTimeout> | null = null;
   let drag: Drag | null = null;
   let userYaw = 0;
   let dragged = false;
@@ -146,7 +151,7 @@ export function createSceneEngine(
       sprites,
       catchLabel,
       { visible: otterFriendVisible, frames: friendFrames, catchLabel: friendCatchLabel },
-      otterModel,
+      modelPending ? 'pending' : otterModel,
     );
 
   const resize = () => {
@@ -248,6 +253,13 @@ export function createSceneEngine(
   // 3D 해달은 three.js 가 커서 필요할 때만 따로 불러온다. 실패하면 그림 해달을 그대로 쓴다
   const modelUrl = options.otterModelUrl;
   if (modelUrl) {
+    const stopWaiting = () => {
+      if (modelWaitTimer) clearTimeout(modelWaitTimer);
+      modelWaitTimer = null;
+      modelPending = false;
+      if (!destroyed) render();
+    };
+    modelWaitTimer = setTimeout(stopWaiting, MODEL_WAIT_MS);
     import('../otter-3d/otter-model')
       .then(({ createOtterModel }) => createOtterModel(modelUrl, options.reducedMotion))
       .then((model) => {
@@ -257,9 +269,9 @@ export function createSceneEngine(
         }
         otterModel = model;
         model.setUserYaw(userYaw);
-        render();
+        stopWaiting();
       })
-      .catch(() => {});
+      .catch(stopWaiting);
   }
 
   resize();
@@ -292,6 +304,7 @@ export function createSceneEngine(
     canvas.removeEventListener('pointermove', handlePointerMove);
     canvas.removeEventListener('pointerup', handlePointerEnd);
     canvas.removeEventListener('pointercancel', handlePointerEnd);
+    if (modelWaitTimer) clearTimeout(modelWaitTimer);
     otterModel?.dispose();
     otterModel = null;
   };

@@ -33,7 +33,7 @@ export type SceneSprites = {
 };
 
 /**
- * 그림 대신 해달을 그리는 3D 모델 (otter-3d 시험판). 해먹이 가득 차면 낚싯대를 치우고 양동이를 든 모습으로 넘어간다.
+ * 그림 대신 해달을 그리는 3D 모델 (otter-3d). 해먹이 가득 차면 낚싯대를 치우고 양동이를 든 모습으로 넘어간다.
  * draw 는 해달을 그리고 낚싯대 끝의 장면 좌표를 돌려준다 (줄이 여기서 시작한다). 낚싯대를 치웠으면 null.
  */
 export type OtterModelView = {
@@ -322,7 +322,7 @@ export function drawScene(
   sprites: SceneSprites | null,
   catchLabel: string | null,
   friend: SceneFriend,
-  otterModel: OtterModelView | null = null,
+  otterModel: OtterModelView | 'pending' | null = null,
 ) {
   ctx.clearRect(0, 0, state.width, state.height);
   if (sprites) drawBackground(ctx, state, sprites.background);
@@ -335,6 +335,11 @@ export function drawScene(
   drawSplash(ctx, state);
   if (sprites) drawOtterFriend(ctx, state, friend);
   // 3D 해달은 양동이를 든 모습까지 스스로 그린다. 낚싯대를 쥐고 있는 동안만 낚싯대 끝을 돌려준다
+  // 3D 모델을 불러오는 동안('pending')은 그림 해달이 잠깐 보였다 바뀌지 않게 해달과 줄을 그리지 않는다
+  if (otterModel === 'pending') {
+    drawFriendCatchLabel(ctx, state, friend);
+    return;
+  }
   const modelTip = otterModel ? otterModel.draw(ctx, state) : null;
   if (sprites && !otterModel) drawOtter(ctx, state, sprites);
 
