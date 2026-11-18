@@ -23,7 +23,7 @@ function checkInLabel(reward: AttendanceReward): string {
     case 'TOSS_POINT':
       return `광고 보고 출석하고 ${reward.amount}원 받기`;
     case 'OTTER_FRIEND':
-      return '광고 보고 출석하고 해달 친구 부르기';
+      return '광고 보고 출석하고 눈사람 친구 부르기';
     case 'ENHANCE_BONUS':
       return '광고 보고 출석하고 낚싯대 강화하기';
   }

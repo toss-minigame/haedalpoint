@@ -2,6 +2,7 @@ import { HAMMOCK_EXPAND_POLICY, OTTER_FRIEND_POLICY } from '../../../common/glob
 import type { HammockState } from './settle-hammock.js';
 
 const HOUR_MS = 60 * 60 * 1000;
+const MINUTE_MS = 60 * 1000;
 
 /** 날짜가 오늘인 하루 보너스의 값. 다른 날이면 0 */
 function todayValue(value: number, date: string | null, today: string): number {
@@ -29,6 +30,33 @@ export function summonOtterFriend(state: HammockState, now: Date): HammockState 
   const leavesAt = now.getTime() + OTTER_FRIEND_POLICY.DURATION_HOURS * HOUR_MS;
   const current = state.otterFriendUntil?.getTime() ?? 0;
   return { ...state, otterFriendUntil: new Date(Math.max(current, leavesAt)) };
+}
+
+/** 해달 친구가 녹기 시작하는 시각 (떠나는 시각 − MELT_MINUTES). 친구가 온 적이 없으면 null */
+export function otterFriendMeltsAt(state: HammockState): Date | null {
+  if (!state.otterFriendUntil) return null;
+  return new Date(state.otterFriendUntil.getTime() - OTTER_FRIEND_POLICY.MELT_MINUTES * MINUTE_MS);
+}
+
+/** 해달 친구가 `now` 에 녹는 중인지: 아직 떠나지 않았고, 떠나기 MELT_MINUTES 전을 지났다 */
+export function isOtterFriendMelting(state: HammockState, now: Date): boolean {
+  const meltsAt = otterFriendMeltsAt(state);
+  return (
+    meltsAt !== null &&
+    state.otterFriendUntil !== null &&
+    now >= meltsAt &&
+    now < state.otterFriendUntil
+  );
+}
+
+/**
+ * 녹고 있는 해달 친구를 얼려 FREEZE_HOURS 더 머물게 한다.
+ * 녹는 중인지·이미 얼렸는지는 호출하는 쪽에서 확인한다 (isOtterFriendMelting, otter_friend_frozen).
+ */
+export function freezeOtterFriend(state: HammockState): HammockState {
+  if (!state.otterFriendUntil) return state;
+  const leavesAt = state.otterFriendUntil.getTime() + OTTER_FRIEND_POLICY.FREEZE_HOURS * HOUR_MS;
+  return { ...state, otterFriendUntil: new Date(leavesAt) };
 }
 
 /** 오늘 해먹을 levels 단계 넓힌다 (최대 단계에서 멈춤) */

@@ -1,5 +1,10 @@
 import type { AttendanceStatusResponse, AttendanceWeekStamp } from '@haedalpoint/shared';
-import { FIRST_WEEK, FIRST_WEEK_DAYS, rewardForDay } from './attendance-reward.policy.js';
+import {
+  FIRST_WEEK,
+  FIRST_WEEK_DAYS,
+  friendCycleDay,
+  rewardForDay,
+} from './attendance-reward.policy.js';
 
 export interface AttendanceLogSnapshot {
   checkedDate: string;
@@ -33,9 +38,11 @@ export function buildAttendanceStatus(input: AttendanceStatusInput): AttendanceS
     checkedToday: latestCheckedDate === today,
     attendanceDays,
     firstWeekCompleted: attendanceDays >= FIRST_WEEK_DAYS,
+    friendCycleDay: friendCycleDay(attendanceDays),
     // 오늘 출석했으면 다음 출석은 내일이고, 어느 쪽이든 다음 일차는 누적 일수 + 1 이다
     nextReward: rewardForDay(attendanceDays + 1),
     firstWeek: buildFirstWeek(firstWeekLogs),
+    repeatingWeek: FIRST_WEEK.map((day) => rewardForDay(FIRST_WEEK_DAYS + day)),
     pendingTossPoints,
   };
 }

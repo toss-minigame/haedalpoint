@@ -9,9 +9,11 @@ build_otter.py 를 먼저 실행한 같은 이름공간에서 실행한다 (Buil
     SnowBody, 단추, 목도리
     SnowArmL, SnowArmR            어깨가 원점인 나뭇가지 팔 (가로로 뻗은 모습이 기본)
     SnowHead                      머리 (모자, 볼, 코)
-      SnowEyesOpen / SnowEyesHappy / SnowBrows           눈 (바꿔 보인다)
+      SnowEyesOpen / SnowEyesHappy / SnowBrows / SnowBrowsSad   눈·눈썹 (바꿔 보인다)
       SnowMouthSmile / SnowMouthO / SnowMouthFrown / SnowMouthOpen   입 (바꿔 보인다)
     SnowFxHeart / SnowFxNotice / SnowFxSweat / SnowFxSparkle        머리 옆에 뜨는 표시
+  SnowPuddle                      녹을 때 발밑에 번지는 물웅덩이 (눈사람 자세를 따라 찌그러지지 않게 따로 둔다)
+  SnowIce                         얼릴 때 둘레에 솟는 얼음 조각 (SnowIce0~4)
 """
 
 SNOWMAN_COLLECTION = "Snowman"
@@ -28,6 +30,8 @@ SNOW_TOON = {
     "Heart": ("#F28B8B", "#E27272"),
     "Sweat": ("#C6DDF4", "#A9C9EA"),
     "Spark": ("#F8CC4C", "#EDB93A"),
+    "Puddle": ("#C4E2F5", "#AED3EC"),
+    "Ice": ("#DDF3FF", "#BCE3F8"),
 }
 SNOW_FLAT = {"Button": "#7A6A5E", "Cheek": "#F7D3CE"}
 SNOW_OUTLINE = "#8094B8"
@@ -109,6 +113,7 @@ class SnowmanBuilder(Builder):
         eyes_open = self.empty("SnowEyesOpen", HEAD_C, head)
         eyes_happy = self.empty("SnowEyesHappy", HEAD_C, head)
         brows = self.empty("SnowBrows", HEAD_C, head)
+        brows_sad = self.empty("SnowBrowsSad", HEAD_C, head)
         for side, sx in (("L", -1), ("R", 1)):
             ex, ez = 0.26 * sx, 1.6
             self.ell(f"SnowEye{side}", (ex, fy(ex, ez, -0.012), ez), (0.066, 0.035, 0.072), "Eye", eyes_open, seg=14, rings=7)
@@ -116,6 +121,9 @@ class SnowmanBuilder(Builder):
             self.curve(f"SnowEyeHappy{side}", arc, "Line", eyes_happy, 0.015)
             brow = [(ex + dx * sx, fy(ex + dx * sx, ez + dz, 0.012), ez + dz) for dx, dz in ((0.1, 0.15), (0.0, 0.13), (-0.09, 0.08))]
             self.curve(f"SnowBrow{side}", brow, "Line", brows, 0.014)
+            # 걱정하는 눈썹 (녹을 때): 안쪽이 올라간다
+            sad = [(ex + dx * sx, fy(ex + dx * sx, ez + dz, 0.012), ez + dz) for dx, dz in ((0.1, 0.09), (0.0, 0.14), (-0.09, 0.16))]
+            self.curve(f"SnowBrowSad{side}", sad, "Line", brows_sad, 0.014)
 
         # 입: 미소 / 놀란 입(o) / 삐죽 / 활짝
         mz = 1.34
@@ -168,6 +176,38 @@ class SnowmanBuilder(Builder):
         for i, (pos, r) in enumerate((((0.8, -0.3, 1.92), 0.13), ((0.6, -0.3, 2.28), 0.085), ((-0.84, -0.3, 1.62), 0.09))):
             self.star(f"SnowStar{i}", sparkle, Vector(pos), r)
 
+    def build_melt_parts(self):
+        """녹을 때의 물웅덩이와 얼릴 때의 얼음 조각. 코드가 크기를 바꿔 나타내고 숨긴다"""
+        # 물웅덩이: 가장자리가 울퉁불퉁한 납작한 판
+        thetas = [2 * math.pi * i / 40 for i in range(40)]
+        wavy = lambda th, j: 1 + 0.07 * math.cos(3 * th + 0.6) + 0.05 * math.cos(5 * th)
+        profile = [(0.001, 0.035), (0.92, 0.035), (1.05, 0.012), (1.08, 0.0)]
+        self.lathe("SnowPuddle", profile, thetas, ["Puddle"], None, (0, -0.05, 0), sy=0.8, mod=wavy, thick=0.012)
+
+        # 얼음 조각: 위아래가 뾰족한 육각 기둥. 눈사람 둘레에 비스듬히 솟는다
+        ice = self.empty("SnowIce", (0, 0, 0))
+        shards = [
+            ((-0.95, -0.25, 0.0), 0.62, 0.16, -22),
+            ((-0.62, -0.5, 0.0), 0.36, 0.11, -8),
+            ((0.98, -0.2, 0.0), 0.7, 0.17, 20),
+            ((0.6, -0.52, 0.0), 0.4, 0.12, 10),
+            ((0.1, -0.7, 0.0), 0.28, 0.1, -4),
+        ]
+        for i, (base, height, radius, lean) in enumerate(shards):
+            bm = bmesh.new()
+            ring_low = [bm.verts.new((radius * math.cos(k * math.pi / 3), radius * math.sin(k * math.pi / 3), height * 0.12)) for k in range(6)]
+            ring_high = [bm.verts.new((radius * math.cos(k * math.pi / 3), radius * math.sin(k * math.pi / 3), height * 0.7)) for k in range(6)]
+            bottom = bm.verts.new((0, 0, 0))
+            tip = bm.verts.new((0, 0, height))
+            for k in range(6):
+                n = (k + 1) % 6
+                bm.faces.new((ring_low[k], ring_low[n], ring_high[n], ring_high[k]))
+                bm.faces.new((ring_low[n], ring_low[k], bottom))
+                bm.faces.new((ring_high[k], ring_high[n], tip))
+            shard = self.mesh(f"SnowIce{i}", bm, ["Ice"], ice, base, rot=(0, math.radians(lean), 0), thick=0.012)
+            for poly in shard.data.polygons:
+                poly.use_smooth = False
+
     def star(self, name, parent, center, radius):
         """네 갈래 반짝이 (앞뒤로 살짝 도톰한 별)"""
         bm = bmesh.new()
@@ -205,5 +245,6 @@ def build_snowman():
     b.build_body()
     b.build_head()
     b.build_effects()
+    b.build_melt_parts()
     bpy.context.view_layer.update()
     return b

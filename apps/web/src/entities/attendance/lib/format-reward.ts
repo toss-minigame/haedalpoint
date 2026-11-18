@@ -11,7 +11,7 @@ export function formatReward(reward: AttendanceReward): string {
     case 'TOSS_POINT':
       return `토스 포인트 ${reward.amount}원`;
     case 'OTTER_FRIEND':
-      return '해달 친구';
+      return '눈사람 친구';
     case 'ENHANCE_BONUS':
       return reward.amount > 1 ? `낚싯대 ${reward.amount}단계 강화` : '낚싯대 강화';
   }
@@ -23,7 +23,7 @@ export function formatRewardShort(reward: AttendanceReward): string {
     case 'TOSS_POINT':
       return `${reward.amount}원`;
     case 'OTTER_FRIEND':
-      return '친구';
+      return '눈사람';
     case 'ENHANCE_BONUS':
       return '강화';
   }

@@ -10,6 +10,7 @@ describe('FishingController', () => {
     getWarehouse: jest.fn(),
     storeFish: jest.fn(),
     adCatchBack: jest.fn(),
+    adFreezeOtterFriend: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -26,6 +27,7 @@ describe('FishingController', () => {
     ['getWarehouse', 'getWarehouse'],
     ['storeFish', 'storeFish'],
     ['adCatchBack', 'adCatchBack'],
+    ['adFreezeOtterFriend', 'adFreezeOtterFriend'],
   ] as const)('%s delegates to service.%s with the user id', async (route, method) => {
     service[method].mockResolvedValue('result');
 

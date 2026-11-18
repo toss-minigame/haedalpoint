@@ -24,6 +24,7 @@ describe('buildAttendanceStatus', () => {
       checkedToday: false,
       attendanceDays: 0,
       firstWeekCompleted: false,
+      friendCycleDay: 0,
       nextReward: { type: 'TOSS_POINT', amount: 1 },
       pendingTossPoints: 0,
     });
@@ -79,7 +80,36 @@ describe('buildAttendanceStatus', () => {
     });
 
     expect(status.firstWeekCompleted).toBe(true);
+    expect(status.friendCycleDay).toBe(0);
     expect(status.firstWeek.every((stamp) => stamp.checked)).toBe(true);
     expect(status.nextReward).toEqual({ type: 'ENHANCE_BONUS', amount: 10 });
+  });
+
+  it('builds the next friend day by day and brings it again every 7 days', () => {
+    const status = buildAttendanceStatus({
+      today: TODAY,
+      attendanceDays: 13,
+      latestCheckedDate: TODAY,
+      firstWeekLogs: logs(7),
+      pendingTossPoints: 0,
+    });
+
+    expect(status.friendCycleDay).toBe(6);
+    expect(status.nextReward).toEqual({ type: 'OTTER_FRIEND', amount: 1 });
+  });
+
+  it('tells the rewards of every week after the first (six rod upgrades, then the friend)', () => {
+    const status = buildAttendanceStatus({
+      today: TODAY,
+      attendanceDays: 0,
+      latestCheckedDate: null,
+      firstWeekLogs: [],
+      pendingTossPoints: 0,
+    });
+
+    expect(status.repeatingWeek).toEqual([
+      ...Array.from({ length: 6 }, () => ({ type: 'ENHANCE_BONUS', amount: 10 })),
+      { type: 'OTTER_FRIEND', amount: 1 },
+    ]);
   });
 });

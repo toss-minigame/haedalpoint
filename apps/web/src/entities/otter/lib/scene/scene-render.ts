@@ -1,3 +1,4 @@
+import type { SnowmanView } from '../otter-3d/snowman-pose';
 import {
   CAUGHT_HEAD_X,
   catchLabelOpacity,
@@ -38,7 +39,7 @@ export type SceneSprites = {
  * draw 는 해달을 그리고 낚싯대 끝의 장면 좌표를 돌려준다 (줄이 여기서 시작한다). 낚싯대를 치웠으면 null.
  */
 export type OtterModelView = {
-  draw: (ctx: CanvasRenderingContext2D, state: SceneState, friendVisible: boolean) => Point | null;
+  draw: (ctx: CanvasRenderingContext2D, state: SceneState, friend: SnowmanView) => Point | null;
   /** 해달 친구(눈사람)를 불러와 그리고 있는지. 아니면 친구 몫 글자도 띄우지 않는다 */
   hasFriend: () => boolean;
   /** 사용자가 끌어서 돌린 각도 (rad, 0 = 원래 방향). 다음 draw 부터 반영한다 */
@@ -48,7 +49,14 @@ export type OtterModelView = {
 
 /** 함께 낚시하는 해달 친구. 그림을 못 불러왔으면 frames 가 null 이라 그리지 않는다 */
 export type SceneFriend = {
+  /** 친구가 와서 함께 낚시하는 중인지 */
   visible: boolean;
+  /** 녹은 정도 (0 = 멀쩡, 1 = 다 녹음). 떠나기 전 한 시간 동안 커진다 (3D 눈사람만) */
+  melt: number;
+  /** 친구가 없을 때 출석으로 만드는 중인 눈사람 단계 (0 = 없음 … 6 = 완성. 3D 눈사람만) */
+  buildStage: number;
+  /** 눈사람을 얼린 장면 시각 (초). 얼린 적이 없으면 null (3D 눈사람만) */
+  frozenAt: number | null;
   /** 친구 프레임 (해달 프레임과 같은 순서) */
   frames: readonly HTMLImageElement[] | null;
   /** 물고기를 잡을 때 머리 위에 띄울 글자 (친구 몫, 예: +3). null 이면 띄우지 않는다 */
@@ -257,7 +265,8 @@ function drawFriendCatchLabel(
   friendIn3d: boolean,
 ) {
   const opacity = friendCatchLabelOpacity(state.time);
-  if (!friend.visible || !friend.catchLabel || opacity === 0) return;
+  // 녹는 동안에는 잡는 시늉을 하지 않고 머리 위에 말풍선이 뜨므로, 친구 몫 글자를 띄우지 않는다
+  if (!friend.visible || friend.melt > 0 || !friend.catchLabel || opacity === 0) return;
   const head = friendIn3d ? snowmanHead(state) : friendSpriteHead(state, friend);
   if (!head) return;
   ctx.save();
@@ -332,6 +341,15 @@ function drawOtterFriend(ctx: CanvasRenderingContext2D, state: SceneState, frien
   drawFrame(ctx, friend.frames[frame], otterFriendLayout(state).frames[frame]);
 }
 
+function friendView(state: SceneState, friend: SceneFriend): SnowmanView {
+  return {
+    alive: friend.visible,
+    melt: friend.melt,
+    buildStage: friend.buildStage,
+    freezeElapsed: friend.frozenAt === null ? null : state.time - friend.frozenAt,
+  };
+}
+
 /** 장면 한 프레임을 그린다. 좌표는 CSS px 기준 (devicePixelRatio 변환은 호출 측에서 설정) */
 export function drawScene(
   ctx: CanvasRenderingContext2D,
@@ -356,7 +374,7 @@ export function drawScene(
   // 3D 해달은 양동이를 든 모습까지 스스로 그린다. 낚싯대를 쥐고 있는 동안만 낚싯대 끝을 돌려준다
   // 3D 모델을 불러오는 동안('pending')은 해달과 줄을 그리지 않는다 (옛 그림 해달로 대신하지 않는다)
   if (otterModel === 'pending') return;
-  const modelTip = otterModel ? otterModel.draw(ctx, state, friend.visible) : null;
+  const modelTip = otterModel ? otterModel.draw(ctx, state, friendView(state, friend)) : null;
   if (sprites && !otterModel) drawOtter(ctx, state, sprites);
 
   // 줄은 낚싯대 끝(그림 속, 또는 3D 모델)에서 시작한다. 해먹이 가득 차 양동이를 든 동안은 낚싯대가 없다

@@ -22,7 +22,7 @@ type Props = {
 
 // 오늘의 강화: 홈 오른쪽 위 칩. 누르면 아래에서 지금 적용 중인 강화 목록이 올라온다.
 // 해달 낚시 카드와 같은 현황(fishingQueries.me)을 함께 쓰고, 현황이 없으면 그리지 않는다.
-// 해달 친구만 자정이 아니라 온 지 24시간 뒤(otterFriendUntil)에 떠난다.
+// 눈사람 친구만 자정이 아니라 온 지 24시간 뒤(otterFriendUntil. 얼리면 더 늦다)에 떠난다.
 export function TodayBoost({ className }: Props) {
   const { data: status, dataUpdatedAt } = useQuery(fishingQueries.me());
   // 미끼 이름은 낚시 현황에 없어서, 오늘 미끼를 단 경우에만 룰렛 정보를 받는다
@@ -63,7 +63,8 @@ export function TodayBoost({ className }: Props) {
             오늘의 강화 <span className="text-primary tabular-nums">{speedBonus}</span>
           </SheetTitle>
           <SheetDescription className="text-[15px] break-keep">
-            낚싯대·미끼·해먹은 오늘 자정까지, 해달 친구는 온 때부터 24시간 함께해요.
+            낚싯대·미끼·양동이는 오늘 자정까지, 눈사람 친구는 온 때부터 24시간, 얼리면{' '}
+            {status.otterFriendFreezeHours}시간 더 함께해요.
           </SheetDescription>
         </SheetHeader>
         <ul className="flex flex-col px-6">

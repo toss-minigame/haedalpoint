@@ -53,8 +53,8 @@ export function todayBoostRows(
     },
     {
       key: 'friend',
-      title: '해달 친구',
-      detail: friendDetail(status.otterFriendUntil, now),
+      title: '눈사람 친구',
+      detail: friendDetail(status, now),
       value: `+${friendBonus}%`,
       isActive: friendBonus > 0,
     },
@@ -83,10 +83,16 @@ export function todayBoostRows(
   ];
 }
 
-/** 해달 친구 줄 설명: 함께 낚시 중이면 떠나는 시각 (온 지 24시간 뒤) */
-function friendDetail(otterFriendUntil: string | null, now: Date): string {
-  if (otterFriendUntil === null) return '출석 7일째에 함께 낚시하러 와요';
-  return `${formatFullAt(new Date(otterFriendUntil), now)}까지 함께 낚시해요`;
+/**
+ * 눈사람 친구 줄 설명: 함께 낚시 중이면 떠나는 시각 (온 지 24시간 뒤, 얼리면 더 늦다).
+ * 떠나기 한 시간 전부터는 녹는 중이라고 알린다
+ */
+function friendDetail(status: FishingStatus, now: Date): string {
+  const { otterFriendUntil, otterFriendMeltsAt } = status;
+  if (otterFriendUntil === null) return '출석 7일마다 함께 낚시하러 와요';
+  const leavesAt = formatFullAt(new Date(otterFriendUntil), now);
+  const isMelting = otterFriendMeltsAt !== null && now.getTime() >= Date.parse(otterFriendMeltsAt);
+  return isMelting ? `곧 녹아요 · ${leavesAt}까지` : `${leavesAt}까지 함께 낚시해요`;
 }
 
 /** 낚싯대 강화 줄 설명: 출석·퀴즈·광고 몫과 해먹 넓히기 몫을 나눠 보여준다 (둘을 더하면 낚싯대 값) */

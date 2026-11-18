@@ -59,6 +59,16 @@ export function useAdEnhanceRod() {
   });
 }
 
+/** 광고 시청 완료 → 녹고 있는 눈사람 친구를 얼려 더 머물게 한다 (올 때마다 한 번) */
+export function useAdFreezeFriend() {
+  return useFishingAdBoost({
+    mutationFn: fishingApi.adFreezeFriend,
+    successMessage: ({ otterFriendFreezeHours }) =>
+      `꽁꽁 얼었어요! ${otterFriendFreezeHours}시간 더 함께 낚시해요`,
+    failureMessage: '눈사람 친구를 얼리지 못했어요. 잠시 후 다시 시도해 주세요.',
+  });
+}
+
 /** 광고 시청 완료 → 오늘 자정까지 해먹 한 단계 넓히기 */
 export function useAdExpandHammock() {
   return useFishingAdBoost({

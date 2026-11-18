@@ -33,6 +33,12 @@ export class FishingController {
     return this.fishingService.adExpandHammock(userId);
   }
 
+  // 현황의 otterFriendFreezable 이 true 일 때(친구가 녹는 중), 보상형 광고를 끝까지 본 뒤에만 호출한다
+  @Post('ad-freeze-friend')
+  adFreezeOtterFriend(@CurrentUserId() userId: string) {
+    return this.fishingService.adFreezeOtterFriend(userId);
+  }
+
   // 저장 응답의 catchBackAvailable 이 true 일 때, 보상형 광고를 끝까지 본 뒤에만 호출한다
   @Post('ad-catch-back')
   adCatchBack(@CurrentUserId() userId: string) {
