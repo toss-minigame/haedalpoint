@@ -37,6 +37,8 @@ import {
   enhanceRod,
   expandHammock,
   fillHammock,
+  freezeOtterFriend,
+  isOtterFriendMelting,
   summonOtterFriend,
   takeAllFish,
 } from './lib/hammock-actions.js';
@@ -47,6 +49,8 @@ const AD_ROD_COOLING_DOWN = `낚싯대는 ${AD_ROD_POLICY.COOLDOWN_MINUTES}분�
 const HAMMOCK_COOLING_DOWN = `양동이는 ${HAMMOCK_EXPAND_POLICY.COOLDOWN_MINUTES}분마다 키울 수 있어요`;
 const HAMMOCK_AT_MAX_LEVEL = '오늘은 양동이를 최대로 키웠어요';
 const NOTHING_TO_CATCH_BACK = '다시 잡아올 물고기가 없어요';
+const FRIEND_NOT_MELTING = '지금은 눈사람 친구를 얼릴 수 없어요';
+const FRIEND_ALREADY_FROZEN = '눈사람 친구는 올 때마다 한 번만 얼릴 수 있어요';
 const CATCH_BACK_LIMIT_REACHED = `넘친 물고기는 하루 ${CATCH_BACK_POLICY.DAILY_LIMIT}번까지 다시 잡아올 수 있어요`;
 /** 창고 화면에 보여줄 최근 이력 수 */
 const RECENT_LEDGER_LIMIT = 30;
@@ -251,6 +255,32 @@ export class FishingService {
   }
 
   /**
+   * '광고 보고 눈사람 친구 얼리기' (docs/design/snowman-friend.md). `userEarnedReward` 뒤에만 호출한다.
+   * 친구가 녹는 중(떠나기 OTTER_FRIEND_POLICY.MELT_MINUTES 전 이후)이고 이번에 온 뒤 아직 얼리지 않았을 때만
+   * 떠나는 시각을 FREEZE_HOURS 늘린다. 아니면 409. 행 잠금으로 연타에도 한 번만 반영된다.
+   */
+  async adFreezeOtterFriend(userId: string): Promise<FishingAdBoostResponse> {
+    await this.usersService.findById(userId);
+    return this.dataSource.transaction(async (manager) => {
+      const now = new Date();
+      const { row, next } = await this.changeHammock(
+        manager,
+        userId,
+        now,
+        (settled, _today, current) => {
+          if (!isOtterFriendMelting(settled, settled.settledAt)) {
+            throw new ConflictException(FRIEND_NOT_MELTING);
+          }
+          if (current.otterFriendFrozen) throw new ConflictException(FRIEND_ALREADY_FROZEN);
+          return freezeOtterFriend(settled);
+        },
+        { otterFriendFrozen: true },
+      );
+      return buildFishingStatus(next, { ...row, otterFriendFrozen: true }, now);
+    });
+  }
+
+  /**
    * `now` 가 속한 날 낚싯대를 강화한다. 호출하는 쪽(퀴즈·출석)의 트랜잭션 안에서 실행한다.
    * 호출하는 쪽이 보상 기록에 쓴 시각을 그대로 넘겨야 자정 직전 요청도 같은 날에 적용된다.
    */
@@ -294,11 +324,16 @@ export class FishingService {
 
   /**
    * `now` 부터 24시간(OTTER_FRIEND_POLICY.DURATION_HOURS) 해달 친구가 함께 낚시한다 (한 번에 한 명).
-   * 이미 와 있으면 더 늦게 떠나는 쪽으로 맞춘다. 호출하는 쪽(출석·튜토리얼)의 트랜잭션 안에서 실행한다.
+   * 이미 와 있으면 더 늦게 떠나는 쪽으로 맞춘다. 새로 온 친구는 다시 한 번 얼릴 수 있다.
+   * 호출하는 쪽(출석·튜토리얼)의 트랜잭션 안에서 실행한다.
    */
   async summonOtterFriend(userId: string, manager: EntityManager, now: Date): Promise<void> {
-    await this.changeHammock(manager, userId, now, (settled) =>
-      summonOtterFriend(settled, settled.settledAt),
+    await this.changeHammock(
+      manager,
+      userId,
+      now,
+      (settled) => summonOtterFriend(settled, settled.settledAt),
+      { otterFriendFrozen: false },
     );
   }
 

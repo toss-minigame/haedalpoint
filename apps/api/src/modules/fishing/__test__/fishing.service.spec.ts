@@ -1,7 +1,12 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { DataSource, type EntityManager } from 'typeorm';
-import { AD_ROD_POLICY, HAMMOCK_EXPAND_POLICY, ROD_POLICY } from '../../../common/globals/index.js';
+import {
+  AD_ROD_POLICY,
+  HAMMOCK_EXPAND_POLICY,
+  OTTER_FRIEND_POLICY,
+  ROD_POLICY,
+} from '../../../common/globals/index.js';
 import { UsersService } from '../../users/users.service.js';
 import { FishingRepository } from '../fishing.repository.js';
 import { FishingService } from '../fishing.service.js';
@@ -32,6 +37,7 @@ function row(overrides: Record<string, unknown> = {}) {
     rodLevel: 0,
     rodLevelDate: null,
     otterFriendUntil: null,
+    otterFriendFrozen: false,
     hammockLevel: 0,
     hammockLevelDate: null,
     baitBonusPercent: 0,
@@ -408,6 +414,80 @@ describe('FishingService', () => {
           otterFriendUntil: new Date(NOW.getTime() + 24 * HOUR_MS),
         }),
       );
+    });
+
+    it('lets the newly arrived friend be frozen once again', async () => {
+      repo.lockOrCreate.mockResolvedValue(row({ otterFriendFrozen: true }));
+
+      await service.summonOtterFriend(USER_ID, manager, NOW);
+
+      expect(repo.updateState).toHaveBeenCalledWith(
+        manager,
+        'state-1',
+        expect.objectContaining({ otterFriendFrozen: false }),
+      );
+    });
+  });
+
+  describe('adFreezeOtterFriend', () => {
+    const leavesIn = (minutes: number) => new Date(NOW.getTime() + minutes * MINUTE_MS);
+    const FREEZE_MS = OTTER_FRIEND_POLICY.FREEZE_HOURS * HOUR_MS;
+
+    it('settles, keeps the melting friend FREEZE_HOURS longer and marks it frozen', async () => {
+      repo.lockOrCreate.mockResolvedValue(row({ otterFriendUntil: leavesIn(30) }));
+
+      const status = await service.adFreezeOtterFriend(USER_ID);
+
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(repo.updateState).toHaveBeenCalledWith(
+        manager,
+        'state-1',
+        expect.objectContaining({
+          settledAt: NOW,
+          otterFriendUntil: new Date(leavesIn(30).getTime() + FREEZE_MS),
+          otterFriendFrozen: true,
+        }),
+      );
+      expect(status).toMatchObject({
+        otterFriendActive: true,
+        otterFriendUntil: new Date(leavesIn(30).getTime() + FREEZE_MS).toISOString(),
+        otterFriendFrozen: true,
+        otterFriendFreezable: false,
+      });
+    });
+
+    it('rejects when the friend is not melting yet', async () => {
+      repo.lockOrCreate.mockResolvedValue(
+        row({ otterFriendUntil: leavesIn(OTTER_FRIEND_POLICY.MELT_MINUTES + 1) }),
+      );
+
+      await expect(service.adFreezeOtterFriend(USER_ID)).rejects.toBeInstanceOf(ConflictException);
+      expect(repo.updateState).not.toHaveBeenCalled();
+    });
+
+    it('rejects when the friend has already left or never came', async () => {
+      repo.lockOrCreate.mockResolvedValue(row({ otterFriendUntil: leavesIn(-1) }));
+      await expect(service.adFreezeOtterFriend(USER_ID)).rejects.toBeInstanceOf(ConflictException);
+
+      repo.lockOrCreate.mockResolvedValue(row());
+      await expect(service.adFreezeOtterFriend(USER_ID)).rejects.toBeInstanceOf(ConflictException);
+      expect(repo.updateState).not.toHaveBeenCalled();
+    });
+
+    it('rejects a second freeze in the same visit', async () => {
+      repo.lockOrCreate.mockResolvedValue(
+        row({ otterFriendUntil: leavesIn(30), otterFriendFrozen: true }),
+      );
+
+      await expect(service.adFreezeOtterFriend(USER_ID)).rejects.toBeInstanceOf(ConflictException);
+      expect(repo.updateState).not.toHaveBeenCalled();
+    });
+
+    it('rejects unknown users', async () => {
+      usersService.findById.mockRejectedValue(new NotFoundException());
+
+      await expect(service.adFreezeOtterFriend(USER_ID)).rejects.toBeInstanceOf(NotFoundException);
+      expect(dataSource.transaction).not.toHaveBeenCalled();
     });
   });
 

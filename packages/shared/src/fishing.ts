@@ -24,8 +24,16 @@ export interface FishingStatusResponse {
   otterFriendActive: boolean;
   /** 지금 함께 낚시하는 해달 친구 수 (0 또는 1, 출석 7일차·튜토리얼 완료) */
   otterFriendCount: number;
-  /** 해달 친구가 떠나는 시각 (ISO 8601, 온 지 24시간). 친구가 없으면 null */
+  /** 해달 친구가 떠나는 시각 (ISO 8601, 온 지 24시간. 얼리면 더 늦어진다). 친구가 없으면 null */
   otterFriendUntil: string | null;
+  /** 해달 친구가 녹기 시작하는 시각 (ISO 8601, 떠나기 1시간 전). 친구가 없으면 null */
+  otterFriendMeltsAt: string | null;
+  /** 이번에 온 친구를 이미 얼렸는지 (광고 보고 연장, 올 때마다 한 번) */
+  otterFriendFrozen: boolean;
+  /** 지금 광고를 보고 얼릴 수 있는지 (녹는 중이고 아직 얼리지 않음). 시각이 지나면 otterFriendMeltsAt 으로 다시 판단한다 */
+  otterFriendFreezable: boolean;
+  /** 얼리면 더 머무는 시간 (시간) */
+  otterFriendFreezeHours: number;
   /** 오늘 광고로 넓힌 해먹 단계 (0이면 기본 해먹) */
   hammockLevel: number;
   hammockMaxLevel: number;
@@ -49,7 +57,7 @@ export interface FishingStatusResponse {
   warehouseFish: number;
 }
 
-// POST /api/fishing/ad-enhance-rod, POST /api/fishing/ad-expand-hammock
+// POST /api/fishing/ad-enhance-rod, POST /api/fishing/ad-expand-hammock, POST /api/fishing/ad-freeze-friend
 // 보상형 광고를 끝까지 본 뒤(`userEarnedReward`)에만 호출한다. 응답은 바뀐 뒤의 현황이다.
 export type FishingAdBoostResponse = FishingStatusResponse;
 

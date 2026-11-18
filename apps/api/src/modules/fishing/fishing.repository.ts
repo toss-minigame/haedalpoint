@@ -12,6 +12,7 @@ export type FishingStateChanges = Partial<
     | 'rodLevel'
     | 'rodLevelDate'
     | 'otterFriendUntil'
+    | 'otterFriendFrozen'
     | 'hammockLevel'
     | 'hammockLevelDate'
     | 'baitBonusPercent'

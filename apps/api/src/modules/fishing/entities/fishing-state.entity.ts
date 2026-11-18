@@ -43,6 +43,10 @@ export class FishingState extends BaseEntity {
   @Column({ type: 'timestamptz', name: 'otter_friend_until', nullable: true })
   otterFriendUntil: Date | null;
 
+  // 이번에 온 해달 친구를 이미 얼렸는지 (광고 보고 6시간 연장, 올 때마다 한 번). 친구가 새로 오면 false 로 되돌린다
+  @Column({ type: 'boolean', name: 'otter_friend_frozen', default: false })
+  otterFriendFrozen: boolean;
+
   // 광고로 넓힌 해먹 단계와 그 단계가 유효한 KST 날짜
   @Column({ type: 'smallint', name: 'hammock_level', default: 0 })
   hammockLevel: number;
