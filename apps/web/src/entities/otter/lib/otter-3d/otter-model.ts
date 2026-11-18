@@ -255,7 +255,7 @@ const FRIEND_RETRY_DELAYS_MS = [1000, 3000, 6000];
 
 /**
  * 해달 친구(눈사람)를 불러와 장면에 놓는다.
- * 불러오는 동안이나 끝내 못 불러오면 친구를 그리지 않는다 (옛 그림 친구로 대신하지 않는다)
+ * 불러오는 동안이나 끝내 못 불러오면 친구를 그리지 않는다
  */
 function createFriend(loader: GLTFLoader, scene: Scene, options: OtterModelOptions) {
   let snowman: Snowman | null = null;

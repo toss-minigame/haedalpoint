@@ -9,9 +9,9 @@
 //   던짐   물고기가 사라지고 낚싯대를 내리면 바늘이 다시 웅덩이로 들어간다
 // 단계는 잡기 시작한 시각(catch.startedAt)부터 지난 시간으로만 정해진다.
 //
-// 낚싯대는 해달 그림(otter-fishing-*.png)에 함께 그려져 있고, 줄은 프레임마다 그림 속 낚싯대 끝(tip)에서 시작한다.
-// 해달 친구가 오면 웅덩이 왼쪽에 앉는다 (낚싯대 없이 같은 동작만 한다).
-// 해먹이 가득 차면 더 잡지 않고, 하던 동작을 마친 뒤 물고기가 가득한 양동이를 든 모습(otter-hammock-full.png)으로 바뀐다.
+// 해달과 친구(눈사람)는 3D 모델로 그린다 (otter-3d). 줄은 3D 해달의 낚싯대 끝에서 시작한다.
+// 친구가 오면 웅덩이 왼쪽에 선다 (낚싯대 없이 같은 박자로 동작만 한다).
+// 해먹이 가득 차면 더 잡지 않고, 하던 동작을 마친 뒤 물고기가 가득한 양동이를 든 모습으로 바뀐다.
 
 import { createSnowfall, type Snowfall, stepSnowfall } from './snow/snowfall';
 
@@ -81,10 +81,10 @@ export const SCENE = {
   FISH_SWING: 0.18, // rad, 매달린 물고기가 좌우로 흔들리는 각도
   FISH_SWING_SPEED: 5, // rad/s
   FISH_EMERGE: 0.25, // 챔질 중 물고기가 물 밖으로 나타나는 데 걸리는 비율 (챔질 시간 대비)
-  // 해달 친구 (FRIEND_SCENE_FRAMES 기준). 웅덩이 왼쪽 뒤 눈밭에 앉는다 (낚싯대 끝·줄을 가리지 않게 작게, 뒤에)
+  // 해달 친구(눈사람). 웅덩이 왼쪽 뒤 눈밭에 선다 (낚싯대 끝·줄을 가리지 않게 작게, 뒤에)
   FRIEND_SCALE_RATIO: 0.65, // 해달 대비 친구 크기 (멀리 앉아 작게 보인다)
   FRIEND_X_RATIO: 0.12, // 장면 너비 대비 친구 몸 가운데 가로 위치 (좁으면 왼쪽 끝에 닿지 않게 오른쪽으로 민다)
-  FRIEND_EDGE_MARGIN: 4, // px, 친구 그림 왼쪽 끝과 장면 왼쪽 끝 사이
+  FRIEND_EDGE_MARGIN: 4, // px, 친구 왼쪽 끝과 장면 왼쪽 끝 사이
   FRIEND_GROUND_Y_RATIO: 0.771, // 장면 높이 대비 친구 발 아래 끝 높이 (해달보다 뒤)
   FRIEND_CATCH_PERIOD: 6, // s, 친구가 물고기를 잡는 간격
   FRIEND_CATCH_OFFSET: 1.5, // s, 처음 잡는 시각
@@ -109,11 +109,12 @@ export const HOLD_SECONDS = SCENE.HOLD_DURATION;
 export type Point = { x: number; y: number };
 
 /**
- * 장면에 그리는 해달 그림의 원본 크기와 기준점 (원본 px).
- * 프레임마다 이미지 크기·자세가 달라, 몸 가운데(centerX)와 발 아래 끝을 맞춰 같은 자리에 그린다.
- * 모든 이미지는 사방에 SPRITE_PADDING 만큼 투명 여백이 있다.
+ * 해달이 차지하는 자리의 기준 틀 (px). 예전 해달 그림의 크기에서 온 숫자로, 그림은 지웠지만
+ * 웅덩이 자리(holeLayout)와 해달이 낚시하는 영역(fishingArea)을 이 틀로 정해 두었으므로 그대로 쓴다.
+ * 틀마다 크기가 달라, 몸 가운데(centerX)와 발 아래 끝을 맞춰 같은 자리에 둔다.
+ * 모든 틀은 사방에 SPRITE_PADDING 만큼 여백이 있다.
  */
-export type SceneSpriteFrame = {
+type SceneSpriteFrame = {
   width: number;
   height: number;
   /** 몸 가운데 가로 위치 */
@@ -122,48 +123,20 @@ export type SceneSpriteFrame = {
 
 const SPRITE_PADDING = 20;
 
-/** 해달 프레임 (otter-sprites.ts 의 OTTER_FISHING_FRAMES 와 같은 순서). tip 은 그림 속 낚싯대 끝 */
-export const OTTER_SCENE_FRAMES = [
-  { width: 545, height: 509, centerX: 372, tip: { x: 22, y: 306 } }, // otter-fishing-idle.png
-  { width: 554, height: 519, centerX: 372, tip: { x: 22, y: 247 } }, // otter-fishing-notice.png
-  { width: 573, height: 493, centerX: 402, tip: { x: 22, y: 223 } }, // otter-fishing-pull.png
-  { width: 529, height: 516, centerX: 354, tip: { x: 22, y: 41 } }, // otter-fishing-lift.png
-  { width: 540, height: 514, centerX: 363, tip: { x: 22, y: 45 } }, // otter-fishing-caught.png
+/** 해달 틀: 대기 → 입질 알아챔 → 당김 → 들어 올림 → 잡음 순서. tip 은 틀 안 낚싯대 끝 */
+const OTTER_SCENE_FRAMES = [
+  { width: 545, height: 509, centerX: 372, tip: { x: 22, y: 306 } },
+  { width: 554, height: 519, centerX: 372, tip: { x: 22, y: 247 } },
+  { width: 573, height: 493, centerX: 402, tip: { x: 22, y: 223 } },
+  { width: 529, height: 516, centerX: 354, tip: { x: 22, y: 41 } },
+  { width: 540, height: 514, centerX: 363, tip: { x: 22, y: 45 } },
 ] as const satisfies readonly (SceneSpriteFrame & { tip: Point })[];
 
-/** 해달 키 (otter-fishing-idle.png 의 모자 꼭대기 ~ 발 아래 끝, 원본 px). 크기를 정하는 기준 */
+/** 해달 키 (대기 틀의 모자 꼭대기 ~ 발 아래 끝). 크기를 정하는 기준 */
 const OTTER_BODY_HEIGHT = 468;
 
-/**
- * 해달 친구 프레임 (OTTER_FRIEND_FISHING_FRAMES 와 같은 순서, 낚싯대 없는 표정 그림).
- * otter-love → otter-surprised → otter-awkward → otter-excited → otter-happy
- */
-export const FRIEND_SCENE_FRAMES = [
-  { width: 398, height: 508, centerX: 159 },
-  { width: 442, height: 531, centerX: 212 },
-  { width: 403, height: 528, centerX: 168 },
-  { width: 411, height: 513, centerX: 183 },
-  { width: 455, height: 507, centerX: 212 },
-] as const satisfies readonly SceneSpriteFrame[];
-
-/** 친구 키 (otter-idle.png 기준 표정 그림의 모자 꼭대기 ~ 발 아래 끝, 원본 px) */
-const FRIEND_BODY_HEIGHT = 491;
-
-/** 해먹이 가득 찼을 때 그림 (otter-hammock-full.png, 선 모습). 몸 가운데·발 아래 끝을 낚시 해달과 같은 자리에 맞춘다 */
-export const OTTER_FULL_FRAME = {
-  width: 515,
-  height: 622,
-  centerX: 254,
-} as const satisfies SceneSpriteFrame;
-
-/** 가득 찬 그림은 머리가 낚시 그림보다 약 8% 크게 그려져 있어, 머리 크기가 같아지게 줄여 그린다 */
-const FULL_FRAME_SCALE = 0.93;
-
-/** 프레임 번호: 대기 → 알아챔(입질) → 당김(챔질 앞·뒤 절반) → 잡음 */
-const FRAME = { IDLE: 0, NOTICE: 1, PULL: 2, LIFT: 3, CAUGHT: 4 } as const;
-
-/** otter-happy.png 안 머리 가운데 가로 위치. 친구가 잡은 양 글자를 머리 위 가운데에 띄운다 */
-export const CAUGHT_HEAD_X = 235;
+/** 낚싯대를 드리우고 기다리는 틀의 번호 */
+const IDLE_FRAME = 0;
 
 /** 해달이 스스로 물고기를 잡는 간격 (초). 잡을 때 띄우는 양을 계산할 때 쓴다 */
 export const CATCH_INTERVAL_SECONDS = SCENE.AUTO_CATCH_INTERVAL;
@@ -196,7 +169,7 @@ export function horizonY(height: number): number {
 }
 
 /**
- * 해달이 낚시하는 영역: 모든 낚시 프레임의 해달·낚싯대(들어 올린 모습 포함)와 물웅덩이를 감싸는 사각형.
+ * 해달이 낚시하는 영역: 모든 해달 틀(낚싯대를 들어 올린 모습 포함)과 물웅덩이를 감싸는 사각형.
  * 좌우 여백을 같게 맞춰 화면 가운데에 둔다 (해달 오른쪽 눈밭의 양동이는 넣지 않는다).
  * 튜토리얼이 장면 전체가 아니라 해달이 물고기를 잡는 곳만 비출 때 쓴다
  */
@@ -228,7 +201,7 @@ export function fishingArea(size: SceneSize): Rect {
 export function holeLayout(size: SceneSize) {
   const unit = sizeUnit(size);
   const radiusX = unit * SCENE.HOLE_RADIUS_RATIO;
-  const idleTip = otterTip(otterLayout(size), FRAME.IDLE);
+  const idleTip = otterTip(otterLayout(size), IDLE_FRAME);
   return {
     x: idleTip.x + unit * SCENE.HOLE_TIP_OFFSET_RATIO,
     y: size.height * SCENE.HOLE_Y_RATIO,
@@ -252,7 +225,7 @@ function spriteRect(
   };
 }
 
-/** 눈밭에 앉은 해달의 프레임별 그리기 영역 */
+/** 눈밭에 앉은 해달의 자리와 크기, 틀별 영역 */
 export function otterLayout(size: SceneSize) {
   const scale = (sizeUnit(size) * SCENE.OTTER_BODY_RATIO) / OTTER_BODY_HEIGHT;
   const centerX = size.width * SCENE.OTTER_X_RATIO;
@@ -264,24 +237,6 @@ export function otterLayout(size: SceneSize) {
     /** 해달 키 (모자 꼭대기 ~ 발 아래 끝, px) */
     bodyHeight: sizeUnit(size) * SCENE.OTTER_BODY_RATIO,
     frames: OTTER_SCENE_FRAMES.map((frame) => spriteRect(frame, centerX, bottomY, scale)),
-    full: spriteRect(OTTER_FULL_FRAME, centerX, bottomY, scale * FULL_FRAME_SCALE),
-  };
-}
-
-/** 해달 친구의 프레임별 그리기 영역. 웅덩이 왼쪽에 앉는다 */
-export function otterFriendLayout(size: SceneSize) {
-  const scale =
-    (sizeUnit(size) * SCENE.OTTER_BODY_RATIO * SCENE.FRIEND_SCALE_RATIO) / FRIEND_BODY_HEIGHT;
-  // 어느 프레임이든 그림 왼쪽 끝(여백 제외)이 장면 안에 들어오게 한다
-  const leftReach = Math.max(...FRIEND_SCENE_FRAMES.map((frame) => frame.centerX - SPRITE_PADDING));
-  const centerX = Math.max(
-    size.width * SCENE.FRIEND_X_RATIO,
-    leftReach * scale + SCENE.FRIEND_EDGE_MARGIN,
-  );
-  const bottomY = size.height * SCENE.FRIEND_GROUND_Y_RATIO;
-  return {
-    scale,
-    frames: FRIEND_SCENE_FRAMES.map((frame) => spriteRect(frame, centerX, bottomY, scale)),
   };
 }
 
@@ -289,7 +244,7 @@ export function otterFriendLayout(size: SceneSize) {
 const SNOWMAN_HALF_WIDTH_RATIO = 0.45;
 
 /**
- * 3D 눈사람 친구가 서는 자리 (해달 친구 그림과 같은 자리·같은 키). 웅덩이 왼쪽 뒤 눈밭에 선다.
+ * 3D 눈사람 친구가 서는 자리와 키. 웅덩이 왼쪽 뒤 눈밭에 선다.
  * 팔을 들어도 장면 왼쪽 끝에 잘리지 않게 한다
  */
 export function snowmanLayout(size: SceneSize) {
@@ -414,22 +369,6 @@ export function catchElapsed({ catch: current, time }: SceneState): number | nul
   return current ? time - current.startedAt : null;
 }
 
-/** 잡는 동작을 시작한 지 elapsed 초 뒤의 프레임 (해달·친구 같이 쓴다) */
-function framesAt(elapsed: number | null): number {
-  if (elapsed === null || elapsed >= CAST_START) return FRAME.IDLE;
-  if (elapsed < REEL_START) return FRAME.NOTICE;
-  if (elapsed < HOLD_START) {
-    return elapsed < REEL_START + SCENE.REEL_DURATION / 2 ? FRAME.PULL : FRAME.LIFT;
-  }
-  return FRAME.CAUGHT;
-}
-
-/** 지금 그릴 해달 프레임 */
-export function otterFrame(state: SceneState): number {
-  return framesAt(catchElapsed(state));
-}
-
-/** 해달 친구가 잡는 동작을 시작한 뒤 지난 시간 (초). 아직 시작 전이거나 동작이 끝났으면 null */
 /**
  * 해달 친구가 이번 주기를 시작한 뒤 지난 시간 (초). 아직 처음 잡기 전이거나 해먹이 가득 찼으면 null.
  * 3D 눈사람 친구는 잡은 뒤 팔을 내리는 동작까지 이어 가므로 주기 전체를 돌려준다
@@ -440,20 +379,12 @@ export function friendPhase({ time, hammockFull }: SceneState): number | null {
   return sinceFirst % SCENE.FRIEND_CATCH_PERIOD;
 }
 
+/** 해달 친구가 잡는 동작을 시작한 뒤 지난 시간 (초). 아직 시작 전이거나 동작이 끝났으면 null */
 function friendCatchElapsed(time: number): number | null {
   const sinceFirst = time - SCENE.FRIEND_CATCH_OFFSET;
   if (sinceFirst < 0) return null;
   const phase = sinceFirst % SCENE.FRIEND_CATCH_PERIOD;
   return phase < CAST_START ? phase : null;
-}
-
-/**
- * 지금 그릴 해달 친구 프레임. 장면 시각만으로 정해지는 반복 연출이라 상태를 따로 두지 않는다.
- * 시각 0 에서는 기다리는 모습이다 (동작 줄이기 모드는 시각이 흐르지 않아 계속 기다린다).
- */
-export function friendFrame({ time, hammockFull }: SceneState): number {
-  // 해먹이 가득 차면 친구도 잡지 않고 기다린다
-  return hammockFull ? FRAME.IDLE : framesAt(friendCatchElapsed(time));
 }
 
 /** elapsed 가 [start, end) 안에서 나타났다 사라지는 페이드 (0~1) */
@@ -473,17 +404,12 @@ export function catchLabelOpacity(state: SceneState): number {
   return windowOpacity(catchElapsed(state), HOLD_START, CAST_START);
 }
 
-/** 프레임 그림 속 낚싯대 끝의 장면 좌표 */
+/** 틀 안 낚싯대 끝의 장면 좌표 */
 function otterTip(otter: ReturnType<typeof otterLayout>, frame: number): Point {
   const rect = otter.frames[frame];
   const tip = OTTER_SCENE_FRAMES[frame]?.tip;
   if (!rect || !tip) return { x: 0, y: 0 };
   return { x: rect.x + tip.x * otter.scale, y: rect.y + tip.y * otter.scale };
-}
-
-/** 지금 프레임의 낚싯대 끝 */
-export function rodTip(state: SceneState): Point {
-  return otterTip(otterLayout(state), otterFrame(state));
 }
 
 /** 줄이 웅덩이 수면에 들어가는 자리. 입질 때는 물고기가 바늘을 물어 툭툭 당겨진다 */
@@ -517,13 +443,9 @@ export type FishingLine = {
   fish: { kind: FishKind; size: number; center: Point; swing: number; opacity: number } | null;
 };
 
-/**
- * 줄·바늘·매달린 물고기의 지금 모습.
- * tipOverride 를 주면 그림 속 낚싯대 끝 대신 그 자리에서 줄이 시작한다 (3D 해달의 낚싯대 끝).
- */
-export function fishingLine(state: SceneState, tipOverride?: Point): FishingLine {
+/** 줄·바늘·매달린 물고기의 지금 모습. 줄은 tip (3D 해달의 낚싯대 끝)에서 시작한다 */
+export function fishingLine(state: SceneState, tip: Point): FishingLine {
   const elapsed = catchElapsed(state);
-  const tip = tipOverride ?? rodTip(state);
   const hole = holeLayout(state);
   const unit = sizeUnit(state);
   const out = hookOut(elapsed);
