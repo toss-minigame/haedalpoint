@@ -353,7 +353,8 @@ export async function createOtterModel(
     canvas: document.createElement('canvas'),
     alpha: true,
     antialias: true,
-    preserveDrawingBuffer: true,
+    // 그린 직후 같은 프레임 안에서 장면 캔버스로 복사하므로, 그린 내용을 다음 프레임까지 붙들어 둘 필요가 없다
+    preserveDrawingBuffer: false,
   });
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const scene = createScene();

@@ -1,3 +1,4 @@
+import { isFrameDue } from './frame-pacing';
 import { drawScene, type FishImages, type OtterModelView, type SceneSprites } from './scene-render';
 import {
   createSceneState,
@@ -15,6 +16,11 @@ import {
 
 const MAX_FRAME_DT = 0.05; // 탭 전환 등으로 프레임이 길게 끊겨도 한 번에 크게 점프하지 않게
 const MS_PER_SECOND = 1000;
+/**
+ * 캔버스를 그리는 최대 배율. 3배 화면(최신 아이폰 등)에서 그대로 그리면 픽셀 수가 2배보다 2.25배 많아
+ * 매 프레임 배경을 다시 칠하는 비용이 그만큼 든다. 3D 해달도 같은 배율까지만 그린다 (otter-model.ts)
+ */
+const MAX_PIXEL_RATIO = 2;
 /** 3D 해달을 못 불러왔을 때 다시 시도하기까지 기다리는 시간 (ms). 다 써도 못 불러오면 해달 없이 둔다 */
 const MODEL_RETRY_DELAYS_MS = [1000, 2000, 4000, 8000];
 
@@ -94,7 +100,8 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 
 /**
  * 캔버스에 해달 낚시 장면을 그리고 애니메이션을 돌린다.
- * - 부모 크기를 따라가며 devicePixelRatio 만큼 선명하게 그린다
+ * - 부모 크기를 따라가며 devicePixelRatio 만큼(최대 MAX_PIXEL_RATIO 배) 선명하게 그린다
+ * - 초당 SCENE_FPS 번 그린다 (frame-pacing.ts)
  * - 화면이 보이지 않으면(탭 전환·앱 백그라운드) 멈춘다
  * - destroy() 로 루프·옵저버·리스너를 모두 정리한다
  */
@@ -176,7 +183,7 @@ export function createSceneEngine(
     );
 
   const resize = () => {
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO);
     const width = canvas.clientWidth;
     const height = canvas.clientHeight;
     canvas.width = Math.round(width * dpr);
@@ -187,6 +194,9 @@ export function createSceneEngine(
   };
 
   const tick = (timestamp: number) => {
+    frameId = requestAnimationFrame(tick);
+    // 초당 SCENE_FPS 번만 그린다. 해달을 끌어 돌리는 동안은 손을 바로 따라가게 매 프레임 그린다
+    if (!isFrameDue(lastTimestamp, timestamp, drag?.moved ?? false)) return;
     const dt =
       lastTimestamp === null
         ? 0
@@ -195,7 +205,6 @@ export function createSceneEngine(
     state = stepScene(state, dt, random, true);
     returnYaw(dt);
     render();
-    frameId = requestAnimationFrame(tick);
   };
 
   const start = () => {
