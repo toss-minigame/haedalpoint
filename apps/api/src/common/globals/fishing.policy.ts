@@ -26,7 +26,9 @@ export const ROD_POLICY = {
   SPEED_BONUS_PERCENT_PER_LEVEL: 1,
 } as const;
 
-// 해달 친구: 출석 7일차에 와서 온 시각부터 24시간 함께 낚시한다 (한 번에 한 명)
+// 해달 친구(화면에서는 눈사람 친구, docs/design/snowman-friend.md): 출석 7일마다·튜토리얼 완료에 와서
+// 온 시각부터 24시간 함께 낚시한다 (한 번에 한 명). 떠나기 MELT_MINUTES 전부터 녹고, 그동안 광고를 보면
+// 한 번 얼려 FREEZE_HOURS 더 머문다
 export const OTTER_FRIEND_POLICY = {
   /** 해달 친구가 함께 낚시하는 시간 (시간) */
   DURATION_HOURS: 24,
@@ -34,6 +36,10 @@ export const OTTER_FRIEND_POLICY = {
   SPEED_BONUS_PERCENT: 50,
   /** 해달 친구가 늘려 주는 해먹 용량 (기본 용량 대비 %). 속도만 크게 올리고 용량은 조금만 늘려, 자주 비우는 사람이 더 받게 한다 */
   CAPACITY_BONUS_PERCENT: 10,
+  /** 떠나기 이만큼 전부터 녹는다 (분). 녹는 동안에만 얼릴 수 있다 */
+  MELT_MINUTES: 60,
+  /** 광고를 보고 얼리면 더 머무는 시간 (시간). 친구가 올 때마다 한 번 */
+  FREEZE_HOURS: 6,
 } as const;
 
 // 홈 '광고 보고 낚싯대 강화': 쿨타임마다 한 번 (하루 최대 단계 없음)

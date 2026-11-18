@@ -1,5 +1,9 @@
 import type { FishingStatusResponse } from '@haedalpoint/shared';
-import { AD_ROD_POLICY, HAMMOCK_EXPAND_POLICY } from '../../../common/globals/index.js';
+import {
+  AD_ROD_POLICY,
+  HAMMOCK_EXPAND_POLICY,
+  OTTER_FRIEND_POLICY,
+} from '../../../common/globals/index.js';
 import { nextKstMidnight } from '../../../common/utils/kst-date.js';
 import type { FishingState } from '../entities/fishing-state.entity.js';
 import type { FishingStateChanges } from '../fishing.repository.js';
@@ -11,6 +15,7 @@ import {
   rodSpeedBonusPercent,
   speedPercent,
 } from './fishing-rate.js';
+import { isOtterFriendMelting, otterFriendMeltsAt } from './hammock-actions.js';
 import { boostsAt, type HammockState, predictHammockFullAt } from './settle-hammock.js';
 
 type FishingStateRow = Pick<
@@ -30,7 +35,7 @@ type FishingStateRow = Pick<
 /** 현황 응답에 필요한, 해먹 계산 밖의 값 */
 export type FishingAccount = Pick<
   FishingState,
-  'warehouseMilliFish' | 'adRodEnhancedAt' | 'adHammockExpandedAt'
+  'warehouseMilliFish' | 'adRodEnhancedAt' | 'adHammockExpandedAt' | 'otterFriendFrozen'
 >;
 
 const MINUTE_MS = 60 * 1000;
@@ -92,6 +97,8 @@ export function buildFishingStatus(
   const boosts = boostsAt(hammock, now);
   const percent = speedPercent(boosts);
   const fullAt = predictHammockFullAt(hammock);
+  const friendHere = boosts.otterFriends > 0;
+  const friendMeltsAt = friendHere ? otterFriendMeltsAt(hammock) : null;
 
   return {
     serverTime: now.toISOString(),
@@ -103,12 +110,14 @@ export function buildFishingStatus(
     rodLevel: boosts.rodLevel,
     rodMaxLevel: null,
     rodSpeedBonusPercent: rodSpeedBonusPercent(boosts.rodLevel),
-    otterFriendActive: boosts.otterFriends > 0,
+    otterFriendActive: friendHere,
     otterFriendCount: boosts.otterFriends,
     otterFriendUntil:
-      boosts.otterFriends > 0 && hammock.otterFriendUntil
-        ? hammock.otterFriendUntil.toISOString()
-        : null,
+      friendHere && hammock.otterFriendUntil ? hammock.otterFriendUntil.toISOString() : null,
+    otterFriendMeltsAt: friendMeltsAt ? friendMeltsAt.toISOString() : null,
+    otterFriendFrozen: friendHere && account.otterFriendFrozen,
+    otterFriendFreezable: !account.otterFriendFrozen && isOtterFriendMelting(hammock, now),
+    otterFriendFreezeHours: OTTER_FRIEND_POLICY.FREEZE_HOURS,
     hammockLevel: boosts.hammockLevel,
     hammockMaxLevel: HAMMOCK_EXPAND_POLICY.MAX_LEVEL,
     hammockLevelBonusPercent: hammockLevelBonusPercent(boosts.hammockLevel),

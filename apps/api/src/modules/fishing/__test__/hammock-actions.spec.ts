@@ -4,6 +4,9 @@ import {
   enhanceRod,
   expandHammock,
   fillHammock,
+  freezeOtterFriend,
+  isOtterFriendMelting,
+  otterFriendMeltsAt,
   summonOtterFriend,
   takeAllFish,
 } from '../lib/hammock-actions.js';
@@ -164,5 +167,49 @@ describe('applyBait', () => {
     applyBait(before, 2, TODAY);
 
     expect(before).toMatchObject({ baitBonusPercent: 0, baitDate: null });
+  });
+});
+
+describe('melting and freezing the otter friend', () => {
+  const MINUTE_MS = 60 * 1000;
+  const HOUR_MS = 60 * MINUTE_MS;
+  const NOW = new Date('2026-11-02T03:00:00Z');
+  const leavesIn = (minutes: number) => new Date(NOW.getTime() + minutes * MINUTE_MS);
+
+  it('starts melting MELT_MINUTES before leaving', () => {
+    const s = state({ otterFriendUntil: leavesIn(90) });
+
+    expect(otterFriendMeltsAt(s)).toEqual(leavesIn(90 - OTTER_FRIEND_POLICY.MELT_MINUTES));
+    expect(isOtterFriendMelting(s, NOW)).toBe(false);
+  });
+
+  it('is melting from MELT_MINUTES before leaving until it leaves', () => {
+    expect(
+      isOtterFriendMelting(
+        state({ otterFriendUntil: leavesIn(OTTER_FRIEND_POLICY.MELT_MINUTES) }),
+        NOW,
+      ),
+    ).toBe(true);
+    expect(isOtterFriendMelting(state({ otterFriendUntil: leavesIn(1) }), NOW)).toBe(true);
+  });
+
+  it('is not melting once it has left or when it never came', () => {
+    expect(isOtterFriendMelting(state({ otterFriendUntil: NOW }), NOW)).toBe(false);
+    expect(isOtterFriendMelting(state(), NOW)).toBe(false);
+    expect(otterFriendMeltsAt(state())).toBeNull();
+  });
+
+  it('stays FREEZE_HOURS longer when frozen', () => {
+    const frozen = freezeOtterFriend(state({ otterFriendUntil: leavesIn(20) }));
+
+    expect(frozen.otterFriendUntil).toEqual(
+      new Date(leavesIn(20).getTime() + OTTER_FRIEND_POLICY.FREEZE_HOURS * HOUR_MS),
+    );
+  });
+
+  it('leaves a state without a friend as it is', () => {
+    const s = state();
+
+    expect(freezeOtterFriend(s)).toBe(s);
   });
 });

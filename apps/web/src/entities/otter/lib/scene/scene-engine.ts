@@ -15,8 +15,8 @@ import {
 
 const MAX_FRAME_DT = 0.05; // 탭 전환 등으로 프레임이 길게 끊겨도 한 번에 크게 점프하지 않게
 const MS_PER_SECOND = 1000;
-/** 3D 해달을 이만큼 기다려도 못 불러오면 우선 그림 해달을 보여 준다 (불러오면 그때 3D 로 바뀐다) */
-const MODEL_WAIT_MS = 2500;
+/** 3D 해달을 못 불러왔을 때 다시 시도하기까지 기다리는 시간 (ms). 다 써도 못 불러오면 해달 없이 둔다 */
+const MODEL_RETRY_DELAYS_MS = [1000, 2000, 4000, 8000];
 
 /** 3D 해달을 가로로 끌어 돌리기 */
 const DRAG = {
@@ -47,9 +47,11 @@ export type SceneEngineOptions = {
   reducedMotion: boolean;
   /**
    * 3D 해달 모델(glb) 주소. 주면 three.js 를 따로 불러와 해달을 3D 로 그린다.
-   * 불러오기 전이나 WebGL 을 못 쓰면 지금처럼 그림으로 그린다
+   * 주면 그림 해달·그림 친구는 쓰지 않는다 (불러오기 전이나 못 불러오면 해달 없이 둔다)
    */
   otterModelUrl?: string | null;
+  /** 해달 친구로 그릴 3D 눈사람 모델(glb) 주소. 3D 해달과 함께 쓴다 */
+  friendModelUrl?: string | null;
 };
 
 export type SceneEngine = {
@@ -62,6 +64,12 @@ export type SceneEngine = {
   setHammockFull: (full: boolean) => void;
   /** 해달 친구가 물고기를 잡을 때 띄울 글자 (친구 몫). null 이면 띄우지 않는다 */
   setFriendCatchLabel: (label: string | null) => void;
+  /** 친구(눈사람)가 녹은 정도 (0 = 멀쩡, 1 = 다 녹음) */
+  setFriendMelt: (melt: number) => void;
+  /** 친구가 없을 때 보여 줄, 출석으로 만드는 중인 눈사람 단계 (0 = 없음 … 6 = 완성) */
+  setFriendBuildStage: (stage: number) => void;
+  /** 눈사람을 얼리는 연출을 한 번 보여 준다 (얼음 조각이 솟고 만세한다) */
+  playFriendFreeze: () => void;
   /**
    * 방금 누른 동작이 3D 해달을 끌어 돌린 것이면 true (한 번 읽으면 지운다).
    * 끌기를 마친 뒤 이어지는 click 을 탭(물고기 잡기)으로 처리하지 않을 때 쓴다
@@ -102,6 +110,9 @@ export function createSceneEngine(
       setOtterFriendVisible: () => {},
       setHammockFull: () => {},
       setFriendCatchLabel: () => {},
+      setFriendMelt: () => {},
+      setFriendBuildStage: () => {},
+      playFriendFreeze: () => {},
       consumeDrag: () => false,
       destroy: () => {},
     };
@@ -124,10 +135,13 @@ export function createSceneEngine(
   let friendFrames: readonly HTMLImageElement[] | null = null;
   let otterFriendVisible = false;
   let friendCatchLabel: string | null = null;
+  let friendMelt = 0;
+  let friendBuildStage = 0;
+  let friendFrozenAt: number | null = null;
   let otterModel: OtterModelView | null = null;
-  // 3D 해달을 불러오는 중인지. 그동안은 해달을 그리지 않고, 너무 오래 걸리거나 실패하면 그림 해달을 그린다
+  // 3D 해달을 아직 못 불러왔는지. 그동안은 해달·친구를 그리지 않는다 (끝내 못 불러와도 옛 그림으로 대신하지 않는다)
   let modelPending = Boolean(options.otterModelUrl);
-  let modelWaitTimer: ReturnType<typeof setTimeout> | null = null;
+  let modelRetryTimer: ReturnType<typeof setTimeout> | null = null;
   let drag: Drag | null = null;
   let userYaw = 0;
   let dragged = false;
@@ -150,7 +164,14 @@ export function createSceneEngine(
       state,
       sprites,
       catchLabel,
-      { visible: otterFriendVisible, frames: friendFrames, catchLabel: friendCatchLabel },
+      {
+        visible: otterFriendVisible,
+        frames: friendFrames,
+        catchLabel: friendCatchLabel,
+        melt: friendMelt,
+        buildStage: friendBuildStage,
+        frozenAt: friendFrozenAt,
+      },
       modelPending ? 'pending' : otterModel,
     );
 
@@ -228,9 +249,11 @@ export function createSceneEngine(
   canvas.addEventListener('pointerup', handlePointerEnd);
   canvas.addEventListener('pointercancel', handlePointerEnd);
 
+  // 3D 해달을 쓰면 그림 해달·그림 친구는 내려받지 않는다
+  const usesOtterImages = !options.otterModelUrl;
   Promise.all([
-    Promise.all(options.sprites.otter.map(loadImage)),
-    loadImage(options.sprites.full),
+    Promise.all((usesOtterImages ? options.sprites.otter : []).map(loadImage)),
+    usesOtterImages ? loadImage(options.sprites.full) : null,
     loadFishImages(options.sprites.fish),
     loadImage(options.sprites.background),
     loadImage(options.sprites.puddle),
@@ -243,25 +266,31 @@ export function createSceneEngine(
     .catch(() => {});
 
   // 해달 친구 그림은 따로 불러와, 못 불러와도 장면의 나머지는 그대로 그린다
-  Promise.all(options.sprites.friend.map(loadImage))
-    .then((frames) => {
-      friendFrames = frames;
-      render();
-    })
-    .catch(() => {});
+  if (usesOtterImages) {
+    Promise.all(options.sprites.friend.map(loadImage))
+      .then((frames) => {
+        friendFrames = frames;
+        render();
+      })
+      .catch(() => {});
+  }
 
-  // 3D 해달은 three.js 가 커서 필요할 때만 따로 불러온다. 실패하면 그림 해달을 그대로 쓴다
+  // 3D 해달은 three.js 가 커서 따로 불러온다. 못 불러오면 몇 번 다시 시도하고, 그동안은 해달을 그리지 않는다
+  // (옛 그림 해달로 대신하지 않는다)
   const modelUrl = options.otterModelUrl;
-  if (modelUrl) {
-    const stopWaiting = () => {
-      if (modelWaitTimer) clearTimeout(modelWaitTimer);
-      modelWaitTimer = null;
-      modelPending = false;
-      if (!destroyed) render();
-    };
-    modelWaitTimer = setTimeout(stopWaiting, MODEL_WAIT_MS);
+  const loadModel = (attempt: number) => {
+    if (!modelUrl || destroyed) return;
     import('../otter-3d/otter-model')
-      .then(({ createOtterModel }) => createOtterModel(modelUrl, options.reducedMotion))
+      .then(({ createOtterModel }) =>
+        createOtterModel(modelUrl, {
+          reducedMotion: options.reducedMotion,
+          friendUrl: options.friendModelUrl ?? '',
+          preloadFriend: otterFriendVisible || friendBuildStage > 0,
+          onUpdate: () => {
+            if (!destroyed) render();
+          },
+        }),
+      )
       .then((model) => {
         if (destroyed) {
           model.dispose();
@@ -269,10 +298,16 @@ export function createSceneEngine(
         }
         otterModel = model;
         model.setUserYaw(userYaw);
-        stopWaiting();
+        modelPending = false;
+        render();
       })
-      .catch(stopWaiting);
-  }
+      .catch(() => {
+        const delay = MODEL_RETRY_DELAYS_MS[attempt];
+        if (destroyed || delay === undefined) return;
+        modelRetryTimer = setTimeout(() => loadModel(attempt + 1), delay);
+      });
+  };
+  loadModel(0);
 
   resize();
   if (!document.hidden) start();
@@ -304,7 +339,7 @@ export function createSceneEngine(
     canvas.removeEventListener('pointermove', handlePointerMove);
     canvas.removeEventListener('pointerup', handlePointerEnd);
     canvas.removeEventListener('pointercancel', handlePointerEnd);
-    if (modelWaitTimer) clearTimeout(modelWaitTimer);
+    if (modelRetryTimer) clearTimeout(modelRetryTimer);
     otterModel?.dispose();
     otterModel = null;
   };
@@ -321,6 +356,23 @@ export function createSceneEngine(
 
   const setFriendCatchLabel = (label: string | null) => {
     friendCatchLabel = label;
+  };
+
+  // 동작 줄이기 모드는 매 프레임 다시 그리지 않으므로, 눈사람 상태가 바뀌면 바로 그린다
+  const setFriendMelt = (melt: number) => {
+    friendMelt = melt;
+    if (!destroyed && options.reducedMotion) render();
+  };
+
+  const setFriendBuildStage = (stage: number) => {
+    friendBuildStage = stage;
+    if (!destroyed && options.reducedMotion) render();
+  };
+
+  const playFriendFreeze = () => {
+    // 동작 줄이기 모드는 장면 시각이 흐르지 않아 연출을 끝낼 수 없으므로 보여 주지 않는다
+    if (destroyed || options.reducedMotion) return;
+    friendFrozenAt = state.time;
   };
 
   const setHammockFull = (full: boolean) => {
@@ -341,6 +393,9 @@ export function createSceneEngine(
     setOtterFriendVisible,
     setHammockFull,
     setFriendCatchLabel,
+    setFriendMelt,
+    setFriendBuildStage,
+    playFriendFreeze,
     consumeDrag,
     destroy,
   };

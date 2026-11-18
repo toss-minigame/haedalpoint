@@ -20,7 +20,13 @@ const FRIEND_LEAVES = new Date('2026-11-03T01:00:00Z');
 const MINUTE_MS = 60 * 1000;
 
 function account(overrides: Partial<FishingAccount> = {}): FishingAccount {
-  return { warehouseMilliFish: 0, adRodEnhancedAt: null, adHammockExpandedAt: null, ...overrides };
+  return {
+    warehouseMilliFish: 0,
+    adRodEnhancedAt: null,
+    adHammockExpandedAt: null,
+    otterFriendFrozen: false,
+    ...overrides,
+  };
 }
 
 function hammock(overrides: Partial<HammockState> = {}): HammockState {
@@ -199,5 +205,52 @@ describe('buildFishingStatus bait', () => {
     );
 
     expect(status).toMatchObject({ baitSpeedBonusPercent: 0, speedPercent: 100 });
+  });
+});
+
+describe('buildFishingStatus melting otter friend', () => {
+  const HOUR_MS = 60 * MINUTE_MS;
+  const leavesIn = (minutes: number) => new Date(NOW.getTime() + minutes * MINUTE_MS);
+
+  it('tells when the friend starts melting (MELT_MINUTES before leaving)', () => {
+    const status = buildFishingStatus(hammock({ otterFriendUntil: leavesIn(180) }), account(), NOW);
+
+    expect(status).toMatchObject({
+      otterFriendMeltsAt: leavesIn(180 - OTTER_FRIEND_POLICY.MELT_MINUTES).toISOString(),
+      otterFriendFreezable: false,
+      otterFriendFrozen: false,
+      otterFriendFreezeHours: OTTER_FRIEND_POLICY.FREEZE_HOURS,
+    });
+  });
+
+  it('can be frozen while melting', () => {
+    const status = buildFishingStatus(hammock({ otterFriendUntil: leavesIn(30) }), account(), NOW);
+
+    expect(status.otterFriendFreezable).toBe(true);
+  });
+
+  it('cannot be frozen twice in one visit', () => {
+    const status = buildFishingStatus(
+      hammock({ otterFriendUntil: leavesIn(30) }),
+      account({ otterFriendFrozen: true }),
+      NOW,
+    );
+
+    expect(status).toMatchObject({ otterFriendFreezable: false, otterFriendFrozen: true });
+  });
+
+  it('has nothing to freeze once the friend has left', () => {
+    const status = buildFishingStatus(
+      hammock({ otterFriendUntil: new Date(NOW.getTime() - HOUR_MS) }),
+      account({ otterFriendFrozen: true }),
+      NOW,
+    );
+
+    expect(status).toMatchObject({
+      otterFriendActive: false,
+      otterFriendMeltsAt: null,
+      otterFriendFreezable: false,
+      otterFriendFrozen: false,
+    });
   });
 });

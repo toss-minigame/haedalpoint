@@ -95,6 +95,26 @@ export function GiftIcon(props: IconProps) {
   );
 }
 
+/** 눈사람 친구 (출석 칸). 3D 눈사람(build_snowman.py)과 같은 노란 털모자·파란 목도리·당근 코 */
+export function SnowmanIcon(props: IconProps) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 30 30" fill="none" {...props}>
+      <circle cx={15} cy={21.5} r={7} fill="#fff" stroke="#C5D3E2" strokeWidth={1.2} />
+      <circle cx={15} cy={11.5} r={5.2} fill="#fff" stroke="#C5D3E2" strokeWidth={1.2} />
+      <path d="M9.9 9.2a5.1 5.1 0 0 1 10.2 0Z" fill="#F2C14E" />
+      <rect x={9.4} y={8.4} width={11.2} height={2.2} rx={1.1} fill="#E0A93A" />
+      <circle cx={15} cy={3.6} r={1.5} fill="#F2C14E" />
+      <circle cx={13.1} cy={12.2} r={0.75} fill="#333D4B" />
+      <circle cx={16.9} cy={12.2} r={0.75} fill="#333D4B" />
+      <path d="M14.6 13.4h1.3l2.9 1-4.2.5Z" fill="#F4A340" />
+      <path d="M10.2 16.2c3.2 1.3 6.4 1.3 9.6 0v1.9c-3.2 1.3-6.4 1.3-9.6 0Z" fill="#4F70AE" />
+      <path d="M17.2 17.6l1.1 4 1.9-.5-1-3.9Z" fill="#3F5C96" />
+      <circle cx={15} cy={21.2} r={0.8} fill="#333D4B" />
+      <circle cx={15} cy={24.2} r={0.8} fill="#333D4B" />
+    </svg>
+  );
+}
+
 /** 출석체크 카드 머리 (달력 + 체크) */
 export function AttendanceIcon(props: IconProps) {
   return (

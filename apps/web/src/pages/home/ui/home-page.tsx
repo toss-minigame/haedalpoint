@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
+import { attendanceQueries } from '@/entities/attendance';
 import {
   type FishingStatus,
   fishingQueries,
   formatFish,
   otterFriendFishPerHour,
   useHammockFull,
+  useOtterFriendPhase,
 } from '@/entities/fishing';
 import {
   CATCH_INTERVAL_SECONDS,
@@ -12,6 +14,7 @@ import {
   OtterScene,
 } from '@/entities/otter';
 import { CheckInSection } from '@/features/check-in';
+import { FriendFreezeBubble } from '@/features/fishing-ad-boosts';
 import { TodayBoost } from '@/features/today-boost';
 import {
   ContentGuideOverlay,
@@ -34,13 +37,17 @@ type CatchLabels = { otter: string | null; friend: string | null };
 const NO_CATCH_LABELS: CatchLabels = { otter: null, friend: null };
 
 /**
- * 해달·해달 친구가 한 번 잡을 때 늘어나는 양 (예: 기본 속도 초당 1마리 · 3초마다 잡으면 +3). 해먹이 가득 찼으면 늘지 않으므로 띄우지 않는다.
+ * 해달·눈사람 친구가 한 번 잡을 때 늘어나는 양 (예: 기본 속도 초당 1마리 · 3초마다 잡으면 +3). 해먹이 가득 찼으면 늘지 않으므로 띄우지 않는다.
  * 친구가 있으면 친구 몫(친구 속도 보너스)은 친구가 들어 올릴 때 따로 띄우고 해달 몫에서는 뺀다.
  * 그래서 두 글자를 시간당으로 더하면 실제로 쌓이는 양과 거의 같다 (화면은 정수로 내림해 보여준다).
  */
-function catchLabelsOf(status: FishingStatus | undefined, hammockFull: boolean): CatchLabels {
+function catchLabelsOf(
+  status: FishingStatus | undefined,
+  hammockFull: boolean,
+  isFriendHere: boolean,
+): CatchLabels {
   if (!status || hammockFull) return NO_CATCH_LABELS;
-  const friendFishPerHour = status.otterFriendActive ? otterFriendFishPerHour(status) : 0;
+  const friendFishPerHour = isFriendHere ? otterFriendFishPerHour(status) : 0;
   const perCatch = (fishPerHour: number, seconds: number) =>
     `+${formatFish((fishPerHour * seconds) / SECONDS_PER_HOUR)}`;
   return {
@@ -56,10 +63,20 @@ export function HomePage() {
   const { data: fishingStatus, dataUpdatedAt } = useQuery(fishingQueries.me());
   // 가득 차는 시각이 되면 다시 조회하지 않아도 낚시를 멈추고 양동이를 든 모습으로 바뀐다
   const hammockFull = useHammockFull(fishingStatus, dataUpdatedAt);
-  const catchLabels = catchLabelsOf(fishingStatus, hammockFull);
+  // 친구(눈사람)는 다시 조회하지 않아도 시간이 되면 녹기 시작하고 떠난다
+  const friend = useOtterFriendPhase(fishingStatus, dataUpdatedAt);
+  const { data: attendance } = useQuery(attendanceQueries.me());
+  const catchLabels = catchLabelsOf(fishingStatus, hammockFull, friend.isHere);
   const tutorial = useWelcomeTutorial();
   // 홈 튜토리얼이 끝난 뒤 출석·낚싯대·양동이를 처음 누르면 한 번 안내한다
   const guides = useContentGuides(tutorial === null);
+  // 친구가 없을 때는 출석으로 만드는 중인 눈사람을 보여 준다 (7일마다 완성돼 친구가 된다)
+  const friendBuildStage = friend.isHere ? 0 : (attendance?.friendCycleDay ?? 0);
+  // 녹는 동안에만 얼려 달라는 말풍선을 띄운다. 튜토리얼 안내 중에는 가리지 않게 숨긴다
+  const friendBubble =
+    fishingStatus && friend.isFreezable && !tutorial ? (
+      <FriendFreezeBubble status={fishingStatus} ad={rewardedAd} />
+    ) : null;
 
   return (
     <main className="flex min-h-dvh flex-col bg-home-sky-top">
@@ -70,10 +87,14 @@ export function HomePage() {
         <OtterScene
           className="absolute inset-0 h-full"
           catchLabel={catchLabels.otter}
-          withOtterFriend={fishingStatus?.otterFriendActive ?? false}
+          withOtterFriend={friend.isHere}
           friendCatchLabel={catchLabels.friend}
           hammockFull={hammockFull}
           fishingAreaProps={tutorialTarget('otter')}
+          friendMelt={friend.melt}
+          friendFrozen={fishingStatus?.otterFriendFrozen ?? false}
+          friendBuildStage={friendBuildStage}
+          friendBubble={friendBubble}
         />
         {/* 빈 곳을 누르면 아래 장면으로 전달돼 해달이 물고기를 잡는다 */}
         <div className="pointer-events-none relative mx-auto flex w-full max-w-xl flex-col gap-3 px-4 pt-3">

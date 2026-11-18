@@ -14,7 +14,7 @@ import { NO_BOOSTS, speedPercent, tossPointsPerDay } from '../lib/fishing-rate.j
 
 // 월 지급 상한을 코드로 강제하지 않는 대신, 정책값이 예산을 넘으면 이 테스트가 실패한다 (ADR-0007).
 // 최악의 한 달: 31일 내내 하루에 받을 수 있는 강화를 자정 직후 모두 받은 상태로 하루 종일 낚시,
-// 해달 친구(출석 7일차·튜토리얼 완료 각 24시간)와 하루씩 함께, 해먹을 한 번도 넘치지 않게 비움, 매일 가장 높은 룰렛 미끼를 적용,
+// 해달 친구(출석 7일마다·튜토리얼 완료, 올 때마다 24시간 + 얼려서 6시간)와 함께, 해먹을 한 번도 넘치지 않게 비움, 매일 가장 높은 룰렛 미끼를 적용,
 // 넘친 물고기 다시 잡아오기를 매일 최대로, 출석 토스 포인트(1~6일차)와 튜토리얼 보상(체험 강화·첫 선물)을 모두 받음.
 // 해먹 용량은 이 최악값에 영향이 없다.
 const MAX_BAIT_BONUS_PERCENT = Math.max(...BAIT_TIERS.map((tier) => tier.speedBonusPercent));
@@ -38,8 +38,18 @@ const LONGEST_MONTH_DAYS = 31;
 /** 튜토리얼 체험으로 하루에 더 오르는 낚싯대 단계. 해먹 넓히기 체험은 하루 최대 해먹 단계 안에서 센다 */
 const TUTORIAL_ROD_LEVELS =
   TUTORIAL_REWARD_POLICY.ROD_LEVELS + TUTORIAL_REWARD_POLICY.QUIZ_ROD_LEVELS;
-/** 해달 친구는 출석 7일차와 튜토리얼 완료에 한 번씩 와서 24시간 머문다 (한 번에 한 명, 하루치씩) */
-const MAX_OTTER_FRIEND_DAYS = 2 * (OTTER_FRIEND_POLICY.DURATION_HOURS / 24);
+/**
+ * 해달 친구가 한 달에 오는 최대 횟수. 매일 출석하면 가장 긴 달(31일) 안에 7의 배수 일차가 최대 5번 있다.
+ * 튜토리얼 친구는 첫 달에만 오고 그 달은 7의 배수 일차가 4번(7·14·21·28)이라, 합쳐도 5번이다
+ */
+const MAX_OTTER_FRIEND_VISITS = Math.ceil(
+  LONGEST_MONTH_DAYS / ATTENDANCE_POLICY.OTTER_FRIEND_CYCLE_DAYS,
+);
+/** 올 때마다 24시간 머물고, 광고를 보고 한 번 얼리면 6시간 더 머문다 (한 번에 한 명) */
+const MAX_OTTER_FRIEND_DAYS =
+  (MAX_OTTER_FRIEND_VISITS *
+    (OTTER_FRIEND_POLICY.DURATION_HOURS + OTTER_FRIEND_POLICY.FREEZE_HOURS)) /
+  24;
 
 /** 넘친 물고기 다시 잡아오기는 속도와 무관하게 하루 횟수 × 1회 상한만큼 더 줄 수 있다 */
 function worstCaseMonthlyCatchBackTossPoints(): number {
@@ -85,8 +95,9 @@ describe('fishing budget', () => {
     expect(worstCaseMonthlyCatchBackTossPoints()).toBe(31);
   });
 
-  it('counts the otter friend for two days (attendance day 7 and the tutorial, 24 hours each)', () => {
-    expect(MAX_OTTER_FRIEND_DAYS).toBe(2);
+  it('counts the otter friend 5 times a month, 24 hours plus a 6-hour freeze each (6.25 days)', () => {
+    expect(MAX_OTTER_FRIEND_VISITS).toBe(5);
+    expect(MAX_OTTER_FRIEND_DAYS).toBe(6.25);
   });
 
   it('adds the six attendance toss points', () => {

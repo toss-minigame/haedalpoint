@@ -12,6 +12,7 @@ import otterHappy from '@/shared/assets/otter/otter-happy.png';
 import otterIdle from '@/shared/assets/otter/otter-idle.png';
 import otterLove from '@/shared/assets/otter/otter-love.png';
 import otterSurprised from '@/shared/assets/otter/otter-surprised.png';
+import snowman3dModel from '@/shared/assets/otter/snowman-3d.glb?url';
 import fishBluefish from '@/shared/assets/scene/fish-bluefish.png';
 import fishGoldfish from '@/shared/assets/scene/fish-goldfish.png';
 import puddle from '@/shared/assets/waterSurface/puddle.png';
@@ -49,6 +50,12 @@ export const OTTER_FISHING_FRAMES = [
  * 주소만 들고 있고, 3D 를 켤 때만 내려받는다
  */
 export const OTTER_3D_MODEL = otter3dModel;
+
+/**
+ * 해달 친구로 그리는 3D 눈사람 모델 (Blender 에서 만든 glb). 3D 해달과 함께 쓰고, 친구가 올 때만 내려받는다.
+ * 3D 해달을 쓰는 동안에는 아래 OTTER_FRIEND_FISHING_FRAMES 그림 친구를 쓰지 않는다
+ */
+export const SNOWMAN_3D_MODEL = snowman3dModel;
 
 /** 해먹이 가득 찼을 때 해달: 물고기가 가득한 양동이를 들고 선 모습 (투명 배경, 사방 20px 여백) */
 export const OTTER_FULL_SPRITE = otterHammockFull;

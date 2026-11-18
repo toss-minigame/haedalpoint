@@ -32,7 +32,7 @@ function rewardSentence({ reward, tossPointGrant }: CheckInResponse): ResultMess
       return { text: `${points}을 지급하고 있어요`, isFailure: false };
     }
     case 'OTTER_FRIEND':
-      return { text: '해달 친구가 24시간 함께 낚시해요', isFailure: false };
+      return { text: '눈사람 친구가 24시간 함께 낚시해요', isFailure: false };
     case 'ENHANCE_BONUS':
       return {
         text: `오늘 자정까지 낚싯대를 ${reward.amount}단계 강화했어요`,

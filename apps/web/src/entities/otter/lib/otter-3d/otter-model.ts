@@ -1,16 +1,9 @@
 import {
   AmbientLight,
-  BackSide,
-  DataTexture,
   DirectionalLight,
-  type Material,
-  Mesh,
-  MeshBasicMaterial,
-  MeshToonMaterial,
-  NearestFilter,
   type Object3D,
   OrthographicCamera,
-  RedFormat,
+  Quaternion,
   Scene,
   Vector2,
   Vector3,
@@ -19,12 +12,15 @@ import {
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { OtterModelView } from '../scene/scene-render';
-import { isShowingFull, otterLayout, type SceneState } from '../scene/scene-state';
+import { isShowingFull, otterLayout, type SceneState, snowmanLayout } from '../scene/scene-state';
 import { FULL_TRANSITION_SECONDS, type OtterPose, otterPose } from './otter-pose';
+import { loadSnowman, SNOWMAN_HEIGHT, type Snowman } from './snowman-model';
+import { type SnowmanView, snowmanPose } from './snowman-pose';
+import { findNodes, stylize } from './toon';
 
 /**
  * 3D 해달 (otter-3d.glb, design/otter-3d/build_otter.py 로 Blender 에서 만든 모델).
- * 화면에 붙지 않은 WebGL 캔버스에 해달을 그린 뒤, 장면 캔버스에 그림처럼 붙인다.
+ * 화면에 붙지 않은 WebGL 캔버스에 해달(과 해달 친구인 눈사람)을 그린 뒤, 장면 캔버스에 그림처럼 붙인다.
  * 모델 단위: 발 아래 끝이 0, 해달 몸 가운데가 x = 0, 낚싯대는 왼쪽(-x)으로 뻗는다.
  */
 
@@ -34,12 +30,17 @@ const MODEL_HEIGHT = 3.37;
  * WebGL 캔버스가 담는 모델 범위. 낚싯대를 들어 올려도, 일어서며 뛰어올라도, 끌어서 돌려
  * 낚싯대가 오른쪽을 향해도 잘리지 않게 여유를 두고 좌우를 같은 폭으로 둔다
  */
-const VIEW = { LEFT: -2.8, RIGHT: 2.8, TOP: 4.1, BOTTOM: -0.15 } as const;
+const VIEW = { LEFT: -2.8, RIGHT: 2.8, TOP: 4.5, BOTTOM: -0.15 } as const;
 /** 해달이 낚싯대 쪽(왼쪽)으로 살짝 몸을 돌려 앉는다 (3D 느낌이 나도록) */
 const BASE_YAW = -0.22;
 const MAX_PIXEL_RATIO = 2;
-/** 일어섰을 때 몸이 올라가는 높이와, 발이 몸 아래로 들어가는 거리 */
-const STAND = { RISE: 0.34, FEET_BACK: 0.22, FEET_IN: 0.05 } as const;
+/**
+ * 일어섰을 때: 몸이 올라가는 높이(그만큼 짧은 다리가 드러난다), 발이 몸 아래로 들어가는 거리,
+ * 발을 벌리는 거리, 발끝을 바깥으로 돌리는 각도 (rad)
+ */
+const STAND = { RISE: 0.48, FEET_BACK: 0.2, FEET_OUT: 0.03, FEET_YAW: 0.32 } as const;
+/** 꼬리 뿌리에서 끝까지 (build_otter.py 의 TAIL_LENGTH 와 같다). 일어서면 끝이 눈밭에 닿게 내린다 */
+const TAIL_LENGTH = 0.9;
 /** 낚싯대가 이보다 작아지면(치우는 중) 줄을 그리지 않는다 */
 const ROD_LINE_MIN_SCALE = 0.95;
 const HIDDEN_SCALE = 0.01;
@@ -50,41 +51,13 @@ const HIDDEN_SCALE = 0.01;
  * 가득 차면 오른손으로 뛰어올라 손을 따라다닌다
  */
 const BUCKET_GROUND = { x: 1.88, y: 0.92, z: 0.3 } as const;
+/** 눈사람 친구는 해달보다 뒤(카메라에서 먼 쪽)에 두어, 낚싯대가 앞을 지나가게 한다 */
+const FRIEND_DEPTH = -2;
+/** 눈사람 둘레에 두는 여유 (모델 단위). 머리 옆 표시와 든 팔, 녹아서 퍼진 몸·물웅덩이가 잘리지 않게 */
+const FRIEND_MARGIN = 0.7;
+/** 녹은 정도가 0 ↔ 1 로 바뀌는 데 걸리는 시간 (초). 얼리면 이 시간 동안 원래 모습으로 돌아온다 */
+const MELT_FOLLOW_SECONDS = 0.9;
 
-/** 재질 이름(Blender) → 색. 만화처럼 밝은 면·어두운 면 두 단계로 칠한다 */
-const TOON_COLORS: Record<string, string> = {
-  Fur: '#EDC9A0',
-  Belly: '#FBE7CF',
-  Hat: '#4F7FC2',
-  HatGroove: '#3F6CB0',
-  Scarf: '#DE4B4E',
-  Nose: '#86553E',
-  Pink: '#E98C86',
-  Rod: '#F5C88A',
-  Reel: '#F3EBDD',
-  Bucket: '#4A80C8',
-  Goldfish: '#F7B64A',
-  Bluefish: '#8CC4EE',
-};
-/** 명암 없이 단색으로 칠하는 재질 (눈·선) */
-const FLAT_COLORS: Record<string, string> = {
-  Eye: '#4A3226',
-  White: '#FFFFFF',
-  Line: '#7A4A33',
-};
-/** 테두리를 두르는 재질과 테두리 두께 (모델 단위) */
-const OUTLINE_WIDTH: Record<string, number> = {
-  Fur: 0.03,
-  Hat: 0.03,
-  HatGroove: 0.03,
-  Scarf: 0.03,
-  Rod: 0.02,
-  Reel: 0.02,
-  Bucket: 0.028,
-  Goldfish: 0.016,
-  Bluefish: 0.016,
-};
-const OUTLINE_COLOR = '#9A6644';
 /** 어두운 면 밝기 = AMBIENT, 밝은 면 = AMBIENT + DIRECT (three.js 조명은 π 를 곱해야 원래 색이 된다) */
 const AMBIENT = Math.PI * 0.8;
 const DIRECT = Math.PI * 0.2;
@@ -102,6 +75,9 @@ const NODE_NAMES = {
   fishPile: 'FishPile',
   footL: 'FootL',
   footR: 'FootR',
+  legL: 'LegL',
+  legR: 'LegR',
+  tail: 'Tail',
   armL: 'ArmL',
   armR: 'ArmR',
   handL: 'HandL',
@@ -115,57 +91,6 @@ const NODE_NAMES = {
 type NodeKey = keyof typeof NODE_NAMES;
 type Nodes = Record<NodeKey, Object3D>;
 
-function toonGradient(): DataTexture {
-  const texture = new DataTexture(new Uint8Array([0, 255]), 2, 1, RedFormat);
-  texture.minFilter = NearestFilter;
-  texture.magFilter = NearestFilter;
-  texture.generateMipmaps = false;
-  texture.needsUpdate = true;
-  return texture;
-}
-
-/** 법선 방향으로 부풀린 뒷면만 그려 테두리를 만든다 (inverted hull) */
-function outlineMaterial(width: number): MeshBasicMaterial {
-  const material = new MeshBasicMaterial({ color: OUTLINE_COLOR, side: BackSide });
-  material.onBeforeCompile = (shader) => {
-    shader.vertexShader = shader.vertexShader.replace(
-      '#include <begin_vertex>',
-      `vec3 transformed = position + normal * ${width.toFixed(4)};`,
-    );
-  };
-  // 두께가 다른 테두리가 같은 셰이더를 나눠 쓰지 않게 한다
-  material.customProgramCacheKey = () => `otter-outline-${width}`;
-  return material;
-}
-
-/** glTF 재질을 만화풍 재질로 바꾸고, 필요한 부품에 테두리 메시를 붙인다 */
-function stylize(root: Object3D) {
-  const gradient = toonGradient();
-  const meshes: Mesh[] = [];
-  root.traverse((object) => {
-    if (object instanceof Mesh) meshes.push(object);
-  });
-  for (const mesh of meshes) {
-    const name = (mesh.material as Material).name;
-    const toon = TOON_COLORS[name];
-    const flat = FLAT_COLORS[name] ?? '#000000';
-    mesh.material = toon
-      ? new MeshToonMaterial({ color: toon, gradientMap: gradient })
-      : new MeshBasicMaterial({ color: flat });
-    const width = OUTLINE_WIDTH[name];
-    if (width) mesh.add(new Mesh(mesh.geometry, outlineMaterial(width)));
-  }
-}
-
-function findNodes(root: Object3D): Nodes {
-  const entries = (Object.keys(NODE_NAMES) as NodeKey[]).map((key) => {
-    const node = root.getObjectByName(NODE_NAMES[key]);
-    if (!node) throw new Error(`3D 해달 모델에 ${NODE_NAMES[key]} 노드가 없어요`);
-    return [key, node] as const;
-  });
-  return Object.fromEntries(entries) as Nodes;
-}
-
 /** 모델 단위 범위를 그대로 비추는 정사영 카메라 (원근 없이 그림처럼 보인다) */
 function createCamera(): OrthographicCamera {
   const camera = new OrthographicCamera(VIEW.LEFT, VIEW.RIGHT, VIEW.TOP, VIEW.BOTTOM, 0.1, 50);
@@ -174,9 +99,8 @@ function createCamera(): OrthographicCamera {
   return camera;
 }
 
-function createScene(model: Object3D): Scene {
+function createScene(): Scene {
   const scene = new Scene();
-  scene.add(model);
   scene.add(new AmbientLight(0xffffff, AMBIENT));
   // 왼쪽 위 앞에서 비춘다 (Blender 시안과 같은 방향)
   const sun = new DirectionalLight(0xffffff, DIRECT);
@@ -186,6 +110,8 @@ function createScene(model: Object3D): Scene {
 }
 
 const UP = new Vector3(0, 1, 0);
+/** 꼬리를 위아래로 꺾는 축 (꼬리의 로컬 z) */
+const FORWARD = new Vector3(0, 0, 1);
 
 /**
  * 모델에 자세를 입히는 함수를 만든다.
@@ -198,6 +124,12 @@ function createPoser(nodes: Nodes) {
     rod: nodes.rod.rotation.clone(),
     footL: nodes.footL.position.clone(),
     footR: nodes.footR.position.clone(),
+    footYawL: nodes.footL.rotation.y,
+    footYawR: nodes.footR.rotation.y,
+    tail: nodes.tail.quaternion.clone(),
+    // 다리 길이 = 엉덩이에서 앉았을 때의 발까지 (모델을 만든 그대로의 자세)
+    legLengthL: nodes.footL.position.distanceTo(nodes.legL.position),
+    legLengthR: nodes.footR.position.distanceTo(nodes.legR.position),
     // 팔 길이 = 어깨에서 낚싯대를 쥔 손까지 (모델을 만든 그대로의 자세)
     armLengthL: nodes.handL.position.distanceTo(nodes.armL.position),
     armLengthR: nodes.handR.position.distanceTo(nodes.armR.position),
@@ -210,6 +142,23 @@ function createPoser(nodes: Nodes) {
   const grip = new Vector3();
   const hold = new Vector3();
   const reach = new Vector3();
+  const droop = new Quaternion();
+
+  /** 한쪽 끝이 원점인 팔·다리를 target(몸 기준)까지 돌려 늘인다 */
+  const stretchTo = (limb: Object3D, target: Vector3, restLength: number) => {
+    reach.subVectors(target, limb.position);
+    const length = reach.length();
+    limb.quaternion.setFromUnitVectors(UP, reach.normalize());
+    limb.scale.set(1, length / restLength, 1);
+  };
+
+  /** 다리를 엉덩이에서 발까지 잇는다 (발은 눈밭에, 엉덩이는 몸과 함께 올라간다) */
+  const placeLeg = (leg: Object3D, foot: Object3D, restLength: number) => {
+    // 발은 몸(torso) 밖에 있으므로, 이번 프레임에 옮긴 몸의 위치를 먼저 반영해 둔다
+    nodes.torso.updateWorldMatrix(true, false);
+    nodes.torso.worldToLocal(foot.getWorldPosition(hold));
+    stretchTo(leg, hold, restLength);
+  };
 
   /** 손을 낚싯대 쥔 자리와 양동이 든 자리 사이에 두고, 팔을 어깨에서 손까지 잇는다 */
   const placeArm = (
@@ -223,10 +172,7 @@ function createPoser(nodes: Nodes) {
     nodes.torso.worldToLocal(gripNode.getWorldPosition(grip));
     nodes.torso.worldToLocal(holdNode.getWorldPosition(hold));
     hand.position.lerpVectors(grip, hold, blend);
-    reach.subVectors(hand.position, arm.position);
-    const length = reach.length();
-    arm.quaternion.setFromUnitVectors(UP, reach.normalize());
-    arm.scale.set(1, length / restLength, 1);
+    stretchTo(arm, hand.position, restLength);
   };
 
   return (pose: OtterPose, yaw: number) => {
@@ -235,17 +181,25 @@ function createPoser(nodes: Nodes) {
     const side = 1 / Math.sqrt(pose.squash);
     root.scale.set(side, pose.squash, side);
     torso.position.y = rest.torsoY + STAND.RISE * pose.stand + pose.hop;
-    // 발은 눈밭에 둔 채 몸 아래로 들어간다 (모델의 앞쪽이 +z)
+    // 발은 눈밭에 둔 채 몸 아래로 들어가고, 살짝 벌려 발끝을 바깥으로 돌린다 (모델의 앞쪽이 +z)
     footL.position.set(
-      rest.footL.x + STAND.FEET_IN * pose.stand,
+      rest.footL.x - STAND.FEET_OUT * pose.stand,
       rest.footL.y + pose.hop,
       rest.footL.z - STAND.FEET_BACK * pose.stand,
     );
     footR.position.set(
-      rest.footR.x - STAND.FEET_IN * pose.stand,
+      rest.footR.x + STAND.FEET_OUT * pose.stand,
       rest.footR.y + pose.hop,
       rest.footR.z - STAND.FEET_BACK * pose.stand,
     );
+    footL.rotation.y = rest.footYawL - STAND.FEET_YAW * pose.stand;
+    footR.rotation.y = rest.footYawR + STAND.FEET_YAW * pose.stand;
+    placeLeg(nodes.legL, footL, rest.legLengthL);
+    placeLeg(nodes.legR, footR, rest.legLengthR);
+    // 꼬리는 몸에 붙어 함께 올라간다. 뿌리가 올라간 만큼 끝을 내려 눈밭에 닿게 한다
+    const lifted = STAND.RISE * pose.stand;
+    droop.setFromAxisAngle(FORWARD, -Math.asin(Math.min(lifted / TAIL_LENGTH, 1)));
+    nodes.tail.quaternion.copy(rest.tail).multiply(droop);
     head.rotation.set(rest.head.x + pose.headNod, rest.head.y, rest.head.z + pose.headRoll);
     nodes.eyesOpen.visible = !pose.happy;
     nodes.eyesHappy.visible = pose.happy;
@@ -285,10 +239,115 @@ function createFullTracker(reducedMotion: boolean) {
   };
 }
 
+export type OtterModelOptions = {
+  /** '동작 줄이기' 설정 사용자: 넘어가는 연출 없이 바로 바뀐다 */
+  reducedMotion: boolean;
+  /** 해달 친구(눈사람) 모델 주소. 친구가 처음 올 때 불러온다 */
+  friendUrl: string;
+  /** 눈사람이 이미 보여야 하면(친구가 와 있거나 만드는 중) true. 해달 모델과 동시에 눈사람도 불러온다 */
+  preloadFriend: boolean;
+  /** 늦게 불러온 모델이 준비돼 다시 그려야 할 때 부른다 */
+  onUpdate: () => void;
+};
+
+/** 눈사람을 못 불러왔을 때 다시 시도하기까지 기다리는 시간 (ms). 다 써도 못 불러오면 친구 없이 둔다 */
+const FRIEND_RETRY_DELAYS_MS = [1000, 3000, 6000];
+
+/**
+ * 해달 친구(눈사람)를 불러와 장면에 놓는다.
+ * 불러오는 동안이나 끝내 못 불러오면 친구를 그리지 않는다 (옛 그림 친구로 대신하지 않는다)
+ */
+function createFriend(loader: GLTFLoader, scene: Scene, options: OtterModelOptions) {
+  let snowman: Snowman | null = null;
+  let status: 'idle' | 'loading' | 'ready' | 'failed' = 'idle';
+  let attempts = 0;
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
+  let disposed = false;
+
+  const load = () => {
+    status = 'loading';
+    loadSnowman(loader, options.friendUrl)
+      .then((loaded) => {
+        if (disposed) return;
+        snowman = loaded;
+        scene.add(loaded.holder);
+        status = 'ready';
+        options.onUpdate();
+      })
+      .catch(() => {
+        const delay = FRIEND_RETRY_DELAYS_MS[attempts];
+        attempts += 1;
+        if (disposed || delay === undefined) {
+          status = 'failed';
+          return;
+        }
+        retryTimer = setTimeout(load, delay);
+      });
+  };
+
+  let meltShown = 0;
+  let lastTime: number | null = null;
+
+  /** 녹은 정도가 갑자기 바뀌어도(얼린 직후 등) 눈사람은 천천히 따라가게 한다 */
+  const followMelt = (target: number, time: number) => {
+    if (options.reducedMotion || lastTime === null) {
+      meltShown = target;
+    } else {
+      const step = Math.max(time - lastTime, 0) / MELT_FOLLOW_SECONDS;
+      meltShown =
+        target > meltShown
+          ? Math.min(meltShown + step, target)
+          : Math.max(meltShown - step, target);
+    }
+    lastTime = time;
+    return meltShown;
+  };
+
+  /**
+   * 눈사람을 제자리에 놓고 자세를 입힌다. 해달 기준 모델 단위로 눈사람이 차지하는 범위를 돌려준다
+   * (보이지 않으면 null). unit 은 px / 모델 단위
+   */
+  const place = (state: SceneState, view: SnowmanView, unit: number) => {
+    // 친구로 와 있거나, 출석으로 만드는 중이면 보인다
+    const visible = view.alive || view.buildStage > 0;
+    if (visible && status === 'idle') load();
+    if (!snowman) return null;
+    snowman.holder.visible = visible;
+    if (!visible) return null;
+    const melt = followMelt(view.alive ? view.melt : 0, state.time);
+    const otter = otterLayout(state);
+    const layout = snowmanLayout(state);
+    const x = (layout.centerX - otter.centerX) / unit;
+    const y = (otter.bottomY - layout.bottomY) / unit;
+    const height = layout.height / unit;
+    snowman.holder.position.set(x, y, FRIEND_DEPTH);
+    snowman.holder.scale.setScalar(height / SNOWMAN_HEIGHT);
+    snowman.applyPose(snowmanPose(state, { ...view, melt }));
+    return {
+      left: x - layout.halfWidth / unit - FRIEND_MARGIN,
+      top: y + height + FRIEND_MARGIN,
+    };
+  };
+
+  return {
+    place,
+    /** 눈사람을 다 불러와 그릴 수 있는지 */
+    isReady: () => status === 'ready',
+    /** 친구가 와 있으면 해달 모델과 함께 미리 불러온다 */
+    preload: () => {
+      if (status === 'idle') load();
+    },
+    dispose: () => {
+      disposed = true;
+      if (retryTimer) clearTimeout(retryTimer);
+    },
+  };
+}
+
 /** WebGL 캔버스를 만들어 3D 해달을 불러온다. WebGL 을 못 쓰거나 모델을 못 불러오면 실패한다 */
 export async function createOtterModel(
   url: string,
-  reducedMotion: boolean,
+  options: OtterModelOptions,
 ): Promise<OtterModelView> {
   const renderer = new WebGLRenderer({
     canvas: document.createElement('canvas'),
@@ -296,16 +355,19 @@ export async function createOtterModel(
     antialias: true,
     preserveDrawingBuffer: true,
   });
+  const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+  const scene = createScene();
+  const friend = createFriend(loader, scene, options);
   try {
-    const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+    if (options.preloadFriend) friend.preload();
     const gltf = await loader.loadAsync(url);
     const model = gltf.scene;
     stylize(model);
-    const nodes = findNodes(model);
+    scene.add(model);
+    const nodes: Nodes = findNodes(model, NODE_NAMES);
     const applyPose = createPoser(nodes);
-    const trackFull = createFullTracker(reducedMotion);
+    const trackFull = createFullTracker(options.reducedMotion);
     const camera = createCamera();
-    const scene = createScene(model);
     const tip = new Vector3();
     const drawSize = new Vector2();
     let userYaw = 0;
@@ -319,14 +381,26 @@ export async function createOtterModel(
       }
     };
 
-    const draw = (ctx: CanvasRenderingContext2D, state: SceneState) => {
+    /** 카메라가 비추는 범위를 맞춘다 (눈사람 친구가 있으면 왼쪽·위로 넓힌다) */
+    const frame = (left: number, top: number) => {
+      if (camera.left === left && camera.top === top) return;
+      camera.left = left;
+      camera.top = top;
+      camera.updateProjectionMatrix();
+    };
+
+    const draw = (ctx: CanvasRenderingContext2D, state: SceneState, friendView: SnowmanView) => {
       const layout = otterLayout(state);
       const unit = layout.bodyHeight / MODEL_HEIGHT; // px / 모델 단위
+      const friendBounds = friend.place(state, friendView, unit);
+      const left = Math.min(VIEW.LEFT, friendBounds?.left ?? VIEW.LEFT);
+      const top = Math.max(VIEW.TOP, friendBounds?.top ?? VIEW.TOP);
+      frame(left, top);
       const rect = {
-        x: layout.centerX + VIEW.LEFT * unit,
-        y: layout.bottomY - VIEW.TOP * unit,
-        width: (VIEW.RIGHT - VIEW.LEFT) * unit,
-        height: (VIEW.TOP - VIEW.BOTTOM) * unit,
+        x: layout.centerX + left * unit,
+        y: layout.bottomY - top * unit,
+        width: (VIEW.RIGHT - left) * unit,
+        height: (top - VIEW.BOTTOM) * unit,
       };
       const pose = otterPose(state, trackFull(state));
       applyPose(pose, BASE_YAW + userYaw);
@@ -344,6 +418,7 @@ export async function createOtterModel(
     };
 
     const dispose = () => {
+      friend.dispose();
       renderer.dispose();
       renderer.forceContextLoss();
     };
@@ -352,9 +427,12 @@ export async function createOtterModel(
       userYaw = yaw;
     };
 
-    return { draw, setUserYaw, dispose };
+    return { draw, hasFriend: friend.isReady, setUserYaw, dispose };
   } catch (error) {
+    friend.dispose();
     renderer.dispose();
+    // 다시 시도할 때마다 WebGL 컨텍스트가 쌓이지 않게 바로 놓아 준다
+    renderer.forceContextLoss();
     throw error;
   }
 }

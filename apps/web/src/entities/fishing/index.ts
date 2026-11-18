@@ -7,6 +7,7 @@ export { hammockName } from './lib/hammock-name';
 export { otterFriendFishPerHour, otterFriendSpeedBonusPercent } from './lib/otter-friend-share';
 export { projectHammockFish } from './lib/project-hammock';
 export { useHammockFull } from './lib/use-hammock-full';
+export { type OtterFriendPhase, useOtterFriendPhase } from './lib/use-otter-friend-phase';
 export { useProjectedHammock } from './lib/use-projected-hammock';
 export type {
   FishingAdBoostResponse,

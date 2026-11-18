@@ -47,7 +47,7 @@ export const CONTENT_GUIDES: Record<ContentGuideId, ContentGuide> = {
   },
   'check-in': {
     target: 'check-in',
-    message: '광고를 보고 출석하면 6일 동안 토스 포인트를 받아요\n7일째엔 해달 친구가 와요',
+    message: '광고를 보고 출석하면 6일 동안 토스 포인트를 받아요\n7일마다 눈사람 친구가 와요',
     continueLabel: '확인',
   },
 };
