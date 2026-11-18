@@ -33,9 +33,13 @@ function slicePath(index: number, count: number): string {
 
 // 이달의 제철 생선 칸이 그려진 원판과 위쪽 바늘.
 // 칸 i 의 가운데가 위쪽(0deg)에서 시계 방향으로 i * (360 / 칸 수) 만큼 떨어져 있다.
+// 생선 이름은 원판이 도는 만큼 같은 속도로 거꾸로 돌려, 돌 때도 멈춘 뒤에도 늘 똑바로 서 있게 한다.
 export function RouletteWheel({ fishes, rotation, instant, onSpinEnd }: Props) {
   const step = 360 / fishes.length;
   const names = fishes.map((fish) => fish.name).join(', ');
+  const transition = instant
+    ? 'none'
+    : `transform ${SPIN_DURATION_MS}ms cubic-bezier(0.15, 0.6, 0.15, 1)`;
 
   return (
     <div className="relative mx-auto w-full max-w-[280px]">
@@ -51,14 +55,12 @@ export function RouletteWheel({ fishes, rotation, instant, onSpinEnd }: Props) {
         role="img"
         aria-label={`룰렛 칸: ${names}`}
         className="block w-full"
-        style={{
-          transform: `rotate(${rotation}deg)`,
-          transition: instant
-            ? 'none'
-            : `transform ${SPIN_DURATION_MS}ms cubic-bezier(0.15, 0.6, 0.15, 1)`,
-        }}
+        style={{ transform: `rotate(${rotation}deg)`, transition }}
         onTransitionEnd={(event) => {
-          if (event.propertyName === 'transform') onSpinEnd?.();
+          // 생선 이름도 함께 돌아 이벤트가 올라오므로, 원판 자신의 회전이 끝났을 때만 받는다
+          if (event.target === event.currentTarget && event.propertyName === 'transform') {
+            onSpinEnd?.();
+          }
         }}
       >
         <circle cx={CENTER} cy={CENTER} r={RADIUS + 2} fill="var(--foreground)" opacity={0.08} />
@@ -75,7 +77,12 @@ export function RouletteWheel({ fishes, rotation, instant, onSpinEnd }: Props) {
               <text
                 x={labelX}
                 y={labelY}
-                transform={`rotate(${index * step} ${labelX} ${labelY})`}
+                style={{
+                  // 원판 회전을 되돌려 화면에서 늘 똑바로 보이게 한다 (원판과 같은 시간·곡선으로 돌아 도는 중에도 서 있다)
+                  transform: `rotate(${-rotation}deg)`,
+                  transformOrigin: `${labelX}px ${labelY}px`,
+                  transition,
+                }}
                 textAnchor="middle"
                 dominantBaseline="middle"
                 className="fill-foreground text-[18px] font-bold"
