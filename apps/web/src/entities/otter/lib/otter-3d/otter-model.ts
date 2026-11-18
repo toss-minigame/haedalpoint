@@ -15,7 +15,7 @@ import type { OtterModelView } from '../scene/scene-render';
 import { isShowingFull, otterLayout, type SceneState, snowmanLayout } from '../scene/scene-state';
 import { FULL_TRANSITION_SECONDS, type OtterPose, otterPose } from './otter-pose';
 import { loadSnowman, SNOWMAN_HEIGHT, type Snowman } from './snowman-model';
-import { snowmanPose } from './snowman-pose';
+import { type SnowmanView, snowmanPose } from './snowman-pose';
 import { findNodes, stylize } from './toon';
 
 /**
@@ -53,8 +53,10 @@ const HIDDEN_SCALE = 0.01;
 const BUCKET_GROUND = { x: 1.88, y: 0.92, z: 0.3 } as const;
 /** 눈사람 친구는 해달보다 뒤(카메라에서 먼 쪽)에 두어, 낚싯대가 앞을 지나가게 한다 */
 const FRIEND_DEPTH = -2;
-/** 눈사람 둘레에 두는 여유 (모델 단위). 머리 옆 표시와 든 팔이 잘리지 않게 */
-const FRIEND_MARGIN = 0.5;
+/** 눈사람 둘레에 두는 여유 (모델 단위). 머리 옆 표시와 든 팔, 녹아서 퍼진 몸·물웅덩이가 잘리지 않게 */
+const FRIEND_MARGIN = 0.7;
+/** 녹은 정도가 0 ↔ 1 로 바뀌는 데 걸리는 시간 (초). 얼리면 이 시간 동안 원래 모습으로 돌아온다 */
+const MELT_FOLLOW_SECONDS = 0.9;
 
 /** 어두운 면 밝기 = AMBIENT, 밝은 면 = AMBIENT + DIRECT (three.js 조명은 π 를 곱해야 원래 색이 된다) */
 const AMBIENT = Math.PI * 0.8;
@@ -242,7 +244,7 @@ export type OtterModelOptions = {
   reducedMotion: boolean;
   /** 해달 친구(눈사람) 모델 주소. 친구가 처음 올 때 불러온다 */
   friendUrl: string;
-  /** 친구가 이미 와 있으면 true. 해달 모델과 동시에 눈사람도 불러온다 */
+  /** 눈사람이 이미 보여야 하면(친구가 와 있거나 만드는 중) true. 해달 모델과 동시에 눈사람도 불러온다 */
   preloadFriend: boolean;
   /** 늦게 불러온 모델이 준비돼 다시 그려야 할 때 부른다 */
   onUpdate: () => void;
@@ -283,15 +285,36 @@ function createFriend(loader: GLTFLoader, scene: Scene, options: OtterModelOptio
       });
   };
 
+  let meltShown = 0;
+  let lastTime: number | null = null;
+
+  /** 녹은 정도가 갑자기 바뀌어도(얼린 직후 등) 눈사람은 천천히 따라가게 한다 */
+  const followMelt = (target: number, time: number) => {
+    if (options.reducedMotion || lastTime === null) {
+      meltShown = target;
+    } else {
+      const step = Math.max(time - lastTime, 0) / MELT_FOLLOW_SECONDS;
+      meltShown =
+        target > meltShown
+          ? Math.min(meltShown + step, target)
+          : Math.max(meltShown - step, target);
+    }
+    lastTime = time;
+    return meltShown;
+  };
+
   /**
    * 눈사람을 제자리에 놓고 자세를 입힌다. 해달 기준 모델 단위로 눈사람이 차지하는 범위를 돌려준다
    * (보이지 않으면 null). unit 은 px / 모델 단위
    */
-  const place = (state: SceneState, visible: boolean, unit: number) => {
+  const place = (state: SceneState, view: SnowmanView, unit: number) => {
+    // 친구로 와 있거나, 출석으로 만드는 중이면 보인다
+    const visible = view.alive || view.buildStage > 0;
     if (visible && status === 'idle') load();
     if (!snowman) return null;
     snowman.holder.visible = visible;
     if (!visible) return null;
+    const melt = followMelt(view.alive ? view.melt : 0, state.time);
     const otter = otterLayout(state);
     const layout = snowmanLayout(state);
     const x = (layout.centerX - otter.centerX) / unit;
@@ -299,7 +322,7 @@ function createFriend(loader: GLTFLoader, scene: Scene, options: OtterModelOptio
     const height = layout.height / unit;
     snowman.holder.position.set(x, y, FRIEND_DEPTH);
     snowman.holder.scale.setScalar(height / SNOWMAN_HEIGHT);
-    snowman.applyPose(snowmanPose(state));
+    snowman.applyPose(snowmanPose(state, { ...view, melt }));
     return {
       left: x - layout.halfWidth / unit - FRIEND_MARGIN,
       top: y + height + FRIEND_MARGIN,
@@ -366,10 +389,10 @@ export async function createOtterModel(
       camera.updateProjectionMatrix();
     };
 
-    const draw = (ctx: CanvasRenderingContext2D, state: SceneState, friendVisible: boolean) => {
+    const draw = (ctx: CanvasRenderingContext2D, state: SceneState, friendView: SnowmanView) => {
       const layout = otterLayout(state);
       const unit = layout.bodyHeight / MODEL_HEIGHT; // px / 모델 단위
-      const friendBounds = friend.place(state, friendVisible, unit);
+      const friendBounds = friend.place(state, friendView, unit);
       const left = Math.min(VIEW.LEFT, friendBounds?.left ?? VIEW.LEFT);
       const top = Math.max(VIEW.TOP, friendBounds?.top ?? VIEW.TOP);
       frame(left, top);

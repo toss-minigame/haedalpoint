@@ -40,6 +40,8 @@ const TOON_COLORS: Record<string, string> = {
   Heart: '#F28B8B',
   Sweat: '#C6DDF4',
   Spark: '#F8CC4C',
+  Puddle: '#C4E2F5',
+  Ice: '#DDF3FF',
 };
 
 /** 명암 없이 단색으로 칠하는 재질 (눈·선·볼) */
@@ -75,6 +77,8 @@ const OUTLINES: Record<string, { width: number; color: string }> = {
   Heart: { width: 0.016, color: '#D96A6A' },
   Sweat: { width: 0.014, color: '#7FA6D9' },
   Spark: { width: 0.014, color: '#E0A82E' },
+  Puddle: { width: 0.014, color: '#9CC8E6' },
+  Ice: { width: 0.016, color: '#8CC4E8' },
 };
 
 function toonGradient(): DataTexture {

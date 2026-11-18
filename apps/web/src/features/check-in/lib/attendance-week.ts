@@ -9,17 +9,23 @@ export function nextAttendanceDay(status: AttendanceStatus): number | null {
 
 /**
  * 오늘 출석해서 받은 보상. 오늘 아직 출석하지 않았으면 null.
- * 첫 주(1~7일차)는 서버가 준 그날 칸의 보상, 그 뒤로는 날마다 같은 보상(낚싯대 강화)이라 다음 출석 보상과 같다.
+ * 첫 주(1~7일차)는 서버가 준 그날 칸의 보상, 그 뒤로는 7일 묶음마다 되풀이되는 보상
+ * (앞의 6일은 낚싯대 강화, 7번째 날은 눈사람 친구)에서 그날 것을 고른다.
  */
 export function todayReward(status: AttendanceStatus): AttendanceReward | null {
   if (!status.checkedToday) return null;
   const firstWeekStamp = status.firstWeek.find((stamp) => stamp.day === status.attendanceDays);
-  return firstWeekStamp?.reward ?? status.nextReward;
+  return firstWeekStamp?.reward ?? repeatingReward(status, status.attendanceDays);
+}
+
+/** 첫 주가 지난 `day` 일차의 보상. 서버가 준 되풀이 보상에 없으면 다음 출석 보상으로 대신한다 */
+function repeatingReward(status: AttendanceStatus, day: number): AttendanceReward {
+  return status.repeatingWeek[(day - 1) % DAYS_PER_WEEK] ?? status.nextReward;
 }
 
 /**
  * 지금 보여줄 7일 묶음 (1~7일차, 8~14일차 …). 첫 주는 서버가 준 칸(그날 보상 포함)을 그대로 쓰고,
- * 그 뒤 묶음은 누적 출석 일수로 체크하고 보상은 다음 출석 보상(낚싯대 강화)으로 채운다.
+ * 그 뒤 묶음은 누적 출석 일수로 체크하고 보상은 되풀이 보상(6일 낚싯대 강화 + 7번째 날 눈사람 친구)으로 채운다.
  * 오늘 출석했으면 오늘이 든 묶음, 아니면 다음에 출석할 날이 든 묶음을 보여준다.
  */
 export function attendanceWeek(status: AttendanceStatus): AttendanceStamp[] {
@@ -30,6 +36,6 @@ export function attendanceWeek(status: AttendanceStatus): AttendanceStamp[] {
   const firstDay = weekIndex * DAYS_PER_WEEK + 1;
   return Array.from({ length: DAYS_PER_WEEK }, (_, offset) => {
     const day = firstDay + offset;
-    return { day, checked: day <= status.attendanceDays, reward: status.nextReward };
+    return { day, checked: day <= status.attendanceDays, reward: repeatingReward(status, day) };
   });
 }

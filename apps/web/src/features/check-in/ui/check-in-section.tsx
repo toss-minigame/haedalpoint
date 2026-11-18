@@ -29,7 +29,7 @@ function receivedSummary(reward: AttendanceReward): string {
     case 'TOSS_POINT':
       return '토스포인트 지급 완료';
     case 'OTTER_FRIEND':
-      return '해달 친구가 왔어요';
+      return '눈사람 친구가 왔어요';
     case 'ENHANCE_BONUS':
       return '낚싯대 강화 완료';
   }

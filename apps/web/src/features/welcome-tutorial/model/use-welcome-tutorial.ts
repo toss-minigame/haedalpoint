@@ -56,9 +56,9 @@ function startIndex(tutorial: TutorialStatusResponse, fishing: FishingStatus): n
 }
 
 function friendMessage(status: FishingStatus): string {
-  if (!status.otterFriendUntil) return '제 친구가 왔어요! 하루 동안 함께 낚시해요';
+  if (!status.otterFriendUntil) return '눈사람 친구가 왔어요! 하루 동안 함께 낚시해요';
   const until = formatFullAt(new Date(status.otterFriendUntil), new Date());
-  return `제 친구가 왔어요! ${until}까지 함께 낚시해요`;
+  return `눈사람 친구가 왔어요! ${until}까지 함께 낚시해요`;
 }
 
 /** 첫 방문 튜토리얼 진행. 홈이 들고 있다가 버튼·말풍선에 나눠 준다. 띄우지 않을 때는 null */

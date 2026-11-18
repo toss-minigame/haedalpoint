@@ -70,7 +70,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
   {
     id: 'check-in',
     target: 'check-in',
-    message: '광고를 보고 출석하면 6일 동안 토스 포인트를 받아요. 7일째엔 해달 친구가 와요',
+    message: '광고를 보고 출석하면 6일 동안 토스 포인트를 받아요. 7일마다 눈사람 친구가 와요',
     doneMessage: '출석했어요! 출석 보상을 받았어요',
     action: { type: 'check-in' },
   },

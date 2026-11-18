@@ -64,6 +64,12 @@ export type SceneEngine = {
   setHammockFull: (full: boolean) => void;
   /** 해달 친구가 물고기를 잡을 때 띄울 글자 (친구 몫). null 이면 띄우지 않는다 */
   setFriendCatchLabel: (label: string | null) => void;
+  /** 친구(눈사람)가 녹은 정도 (0 = 멀쩡, 1 = 다 녹음) */
+  setFriendMelt: (melt: number) => void;
+  /** 친구가 없을 때 보여 줄, 출석으로 만드는 중인 눈사람 단계 (0 = 없음 … 6 = 완성) */
+  setFriendBuildStage: (stage: number) => void;
+  /** 눈사람을 얼리는 연출을 한 번 보여 준다 (얼음 조각이 솟고 만세한다) */
+  playFriendFreeze: () => void;
   /**
    * 방금 누른 동작이 3D 해달을 끌어 돌린 것이면 true (한 번 읽으면 지운다).
    * 끌기를 마친 뒤 이어지는 click 을 탭(물고기 잡기)으로 처리하지 않을 때 쓴다
@@ -104,6 +110,9 @@ export function createSceneEngine(
       setOtterFriendVisible: () => {},
       setHammockFull: () => {},
       setFriendCatchLabel: () => {},
+      setFriendMelt: () => {},
+      setFriendBuildStage: () => {},
+      playFriendFreeze: () => {},
       consumeDrag: () => false,
       destroy: () => {},
     };
@@ -126,6 +135,9 @@ export function createSceneEngine(
   let friendFrames: readonly HTMLImageElement[] | null = null;
   let otterFriendVisible = false;
   let friendCatchLabel: string | null = null;
+  let friendMelt = 0;
+  let friendBuildStage = 0;
+  let friendFrozenAt: number | null = null;
   let otterModel: OtterModelView | null = null;
   // 3D 해달을 아직 못 불러왔는지. 그동안은 해달·친구를 그리지 않는다 (끝내 못 불러와도 옛 그림으로 대신하지 않는다)
   let modelPending = Boolean(options.otterModelUrl);
@@ -152,7 +164,14 @@ export function createSceneEngine(
       state,
       sprites,
       catchLabel,
-      { visible: otterFriendVisible, frames: friendFrames, catchLabel: friendCatchLabel },
+      {
+        visible: otterFriendVisible,
+        frames: friendFrames,
+        catchLabel: friendCatchLabel,
+        melt: friendMelt,
+        buildStage: friendBuildStage,
+        frozenAt: friendFrozenAt,
+      },
       modelPending ? 'pending' : otterModel,
     );
 
@@ -266,7 +285,7 @@ export function createSceneEngine(
         createOtterModel(modelUrl, {
           reducedMotion: options.reducedMotion,
           friendUrl: options.friendModelUrl ?? '',
-          preloadFriend: otterFriendVisible,
+          preloadFriend: otterFriendVisible || friendBuildStage > 0,
           onUpdate: () => {
             if (!destroyed) render();
           },
@@ -339,6 +358,23 @@ export function createSceneEngine(
     friendCatchLabel = label;
   };
 
+  // 동작 줄이기 모드는 매 프레임 다시 그리지 않으므로, 눈사람 상태가 바뀌면 바로 그린다
+  const setFriendMelt = (melt: number) => {
+    friendMelt = melt;
+    if (!destroyed && options.reducedMotion) render();
+  };
+
+  const setFriendBuildStage = (stage: number) => {
+    friendBuildStage = stage;
+    if (!destroyed && options.reducedMotion) render();
+  };
+
+  const playFriendFreeze = () => {
+    // 동작 줄이기 모드는 장면 시각이 흐르지 않아 연출을 끝낼 수 없으므로 보여 주지 않는다
+    if (destroyed || options.reducedMotion) return;
+    friendFrozenAt = state.time;
+  };
+
   const setHammockFull = (full: boolean) => {
     state = withHammockFull(state, full);
     // 동작 줄이기 모드는 매 프레임 다시 그리지 않으므로 바로 그린다
@@ -357,6 +393,9 @@ export function createSceneEngine(
     setOtterFriendVisible,
     setHammockFull,
     setFriendCatchLabel,
+    setFriendMelt,
+    setFriendBuildStage,
+    playFriendFreeze,
     consumeDrag,
     destroy,
   };
