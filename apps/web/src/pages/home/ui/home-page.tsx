@@ -14,7 +14,9 @@ import {
 import { CheckInSection } from '@/features/check-in';
 import { TodayBoost } from '@/features/today-boost';
 import {
+  ContentGuideOverlay,
   tutorialTarget,
+  useContentGuides,
   useWelcomeTutorial,
   WelcomeTutorialOverlay,
 } from '@/features/welcome-tutorial';
@@ -56,6 +58,8 @@ export function HomePage() {
   const hammockFull = useHammockFull(fishingStatus, dataUpdatedAt);
   const catchLabels = catchLabelsOf(fishingStatus, hammockFull);
   const tutorial = useWelcomeTutorial();
+  // 홈 튜토리얼이 끝난 뒤 출석·낚싯대·양동이를 처음 누르면 한 번 안내한다
+  const guides = useContentGuides(tutorial === null);
 
   return (
     <main className="flex min-h-dvh flex-col bg-home-sky-top">
@@ -75,23 +79,20 @@ export function HomePage() {
         <div className="pointer-events-none relative mx-auto flex w-full max-w-xl flex-col gap-3 px-4 pt-3">
           <div className="flex items-center justify-between gap-2">
             <WarehouseChip className="pointer-events-auto" />
-            <TodayBoost className="pointer-events-auto ml-auto" />
+            <div className="pointer-events-auto ml-auto" {...tutorialTarget('today-boost')}>
+              <TodayBoost />
+            </div>
           </div>
-          <RewardTiles
-            className="pointer-events-auto"
-            rewardedAd={rewardedAd}
-            rodTrial={tutorial?.trialFor('ROD')}
-            hammockTrial={tutorial?.trialFor('HAMMOCK')}
-          />
+          <RewardTiles className="pointer-events-auto" rewardedAd={rewardedAd} guides={guides} />
         </div>
       </div>
       {/* 아래: 양동이 카드 + 출석체크. 위로 끌면 카드가 통째로 올라와 출석 현황이 보인다.
-          튜토리얼 출석 단계에서는 펼쳐 둔다 */}
+          출석 첫 안내 동안에는 펼쳐 둔다 */}
       <HomeDrawer
-        forceOpen={tutorial?.step.target === 'check-in'}
-        peek={<HammockPanel rewardedAd={rewardedAd} onTutorialStored={tutorial?.onStored} />}
+        forceOpen={guides.current?.id === 'check-in'}
+        peek={<HammockPanel rewardedAd={rewardedAd} />}
         renderMore={({ isOpen, toggle, moreRef }) => (
-          <div {...tutorialTarget('check-in')}>
+          <div {...tutorialTarget('check-in')} {...guides.guard('check-in')}>
             <CheckInSection
               ad={rewardedAd}
               isExpanded={isOpen}
@@ -102,6 +103,7 @@ export function HomePage() {
         )}
       />
       {tutorial && <WelcomeTutorialOverlay tutorial={tutorial} />}
+      <ContentGuideOverlay guides={guides} />
     </main>
   );
 }

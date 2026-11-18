@@ -18,10 +18,9 @@ type ContentProps = {
   status: FishingStatus;
   receivedAt: number;
   rewardedAd: RewardedAd;
-  onTutorialStored?: (storedFish: number) => void;
 };
 
-function HammockContent({ status, receivedAt, rewardedAd, onTutorialStored }: ContentProps) {
+function HammockContent({ status, receivedAt, rewardedAd }: ContentProps) {
   const fish = useProjectedHammock(status, receivedAt);
   // 다시 잡아오기 창에 함께 보여줄, 방금 저장한 양. null 이면 창이 닫혀 있다
   const [catchBackStoredFish, setCatchBackStoredFish] = useState<number | null>(null);
@@ -42,7 +41,6 @@ function HammockContent({ status, receivedAt, rewardedAd, onTutorialStored }: Co
           canStore={fish >= MIN_STORE_FISH}
           ad={rewardedAd}
           onCatchBackAvailable={openCatchBack}
-          onStored={onTutorialStored}
         />
       </div>
       <CatchBackDialog
@@ -56,13 +54,11 @@ function HammockContent({ status, receivedAt, rewardedAd, onTutorialStored }: Co
 
 type Props = {
   rewardedAd: RewardedAd;
-  /** 튜토리얼 마지막 저장 단계에서만 준다 */
-  onTutorialStored?: (storedFish: number) => void;
   className?: string;
 };
 
 // 홈 아래 양동이 카드: 진행 막대와 가득 차기까지 남은 시간, 창고 저장 버튼
-export function HammockPanel({ rewardedAd, onTutorialStored, className }: Props) {
+export function HammockPanel({ rewardedAd, className }: Props) {
   const { data: status, dataUpdatedAt, isPending, isError, error } = useQuery(fishingQueries.me());
 
   return (
@@ -75,12 +71,7 @@ export function HammockPanel({ rewardedAd, onTutorialStored, className }: Props)
         {/* 주기적 재조회가 실패해도 이전 값이 있으면 그대로 보여준다 */}
         {isError && !status && <p className="text-[15px] text-destructive">{error.message}</p>}
         {status && (
-          <HammockContent
-            status={status}
-            receivedAt={dataUpdatedAt}
-            rewardedAd={rewardedAd}
-            onTutorialStored={onTutorialStored}
-          />
+          <HammockContent status={status} receivedAt={dataUpdatedAt} rewardedAd={rewardedAd} />
         )}
       </div>
     </section>
