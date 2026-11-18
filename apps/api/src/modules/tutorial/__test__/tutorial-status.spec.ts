@@ -61,14 +61,18 @@ describe('isClosed', () => {
 });
 
 describe('canClaim', () => {
-  it('allows the home rewards only while the tutorial is open', () => {
-    expect(canClaim(row(), 'ROD')).toBe(true);
+  it('allows the first gift only while the tutorial is open', () => {
+    expect(canClaim(row(), 'GIFT')).toBe(true);
     expect(canClaim(row({ completedAt: AT }), 'GIFT')).toBe(false);
-    expect(canClaim(row({ skippedAt: AT }), 'HAMMOCK')).toBe(false);
+    expect(canClaim(row({ skippedAt: AT }), 'GIFT')).toBe(false);
   });
 
-  it('allows the practice quiz after completion but not after a skip', () => {
-    expect(canClaim(row({ completedAt: AT }), 'QUIZ')).toBe(true);
-    expect(canClaim(row({ skippedAt: AT }), 'QUIZ')).toBe(false);
-  });
+  it.each(['ROD', 'HAMMOCK', 'QUIZ'] as const)(
+    'allows the %s trial after completion but not after a skip',
+    (kind) => {
+      expect(canClaim(row(), kind)).toBe(true);
+      expect(canClaim(row({ completedAt: AT }), kind)).toBe(true);
+      expect(canClaim(row({ skippedAt: AT }), kind)).toBe(false);
+    },
+  );
 });

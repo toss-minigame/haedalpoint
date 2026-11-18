@@ -40,7 +40,7 @@ export class TutorialService {
     return buildTutorialStatus(await this.tutorialRepository.findByUserId(userId));
   }
 
-  /** 체험 보상(낚싯대·해먹·퀴즈)과 첫 선물. 연습 퀴즈는 홈 튜토리얼을 마친 뒤에도 받는다. 응답은 받은 뒤의 낚시 현황 */
+  /** 체험 보상(낚싯대·양동이·퀴즈)과 첫 선물. 체험은 홈 튜토리얼을 마친 뒤 그 콘텐츠를 처음 누를 때 받는다. 응답은 받은 뒤의 낚시 현황 */
   async claimReward(userId: string, kind: TutorialRewardKind): Promise<TutorialRewardResponse> {
     await this.usersService.findById(userId);
     await this.dataSource.transaction(async (manager) => {
