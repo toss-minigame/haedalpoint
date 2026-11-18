@@ -1,5 +1,6 @@
 import { CheckIcon } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
+import { SnowmanIcon } from '@/shared/ui/reward-icons';
 import { formatReward, formatRewardShort } from '../lib/format-reward';
 import type { AttendanceReward } from '../model/types';
 
@@ -16,7 +17,7 @@ type Props = {
 const DAYS = 7;
 
 // 7일 묶음 출석 현황 (Figma attendance-card). 윗줄 "N일차", 아랫줄 동그라미:
-// 출석한 날은 연한 띠 위에 체크, 아직인 날은 그날 보상(1원·친구·강화)을 보여준다. 앞에서부터 차례로 채워진다
+// 출석한 날은 연한 띠 위에 체크, 아직인 날은 그날 보상(1원·강화 글자, 친구는 눈사람 그림)을 보여준다. 앞에서부터 차례로 채워진다
 export function AttendanceStamps({ stamps, nextDay }: Props) {
   const checkedDays = stamps.filter((stamp) => stamp.checked).length;
 
@@ -59,6 +60,8 @@ export function AttendanceStamps({ stamps, nextDay }: Props) {
             >
               {checked ? (
                 <CheckIcon className="size-4" strokeWidth={3} />
+              ) : isOtterDay ? (
+                <SnowmanIcon className="size-7" />
               ) : (
                 formatRewardShort(reward)
               )}
