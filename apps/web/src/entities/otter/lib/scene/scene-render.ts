@@ -1,20 +1,13 @@
 import type { SnowmanView } from '../otter-3d/snowman-pose';
 import {
-  CAUGHT_HEAD_X,
   catchLabelOpacity,
   type FishingLine,
   type FishKind,
   fishingLine,
   friendCatchLabelOpacity,
-  friendFrame,
   holeLayout,
   horizonY,
-  isShowingFull,
-  otterFrame,
-  otterFriendLayout,
-  otterLayout,
   type Point,
-  type Rect,
   SCENE,
   type SceneState,
   snowmanLayout,
@@ -24,11 +17,8 @@ import { drawSnowfall } from './snow/snow-render';
 
 export type FishImages = Record<FishKind, HTMLImageElement>;
 
+/** 장면에 그리는 그림 (해달·눈사람은 3D 모델로 그리므로 여기에 없다) */
 export type SceneSprites = {
-  /** 해달 프레임 (0 = 기다리는 모습, 마지막 = 잡은 모습) */
-  otter: readonly HTMLImageElement[];
-  /** 해먹이 가득 찼을 때 해달 (물고기가 가득한 양동이를 든 모습) */
-  full: HTMLImageElement | null;
   fish: FishImages;
   background: HTMLImageElement;
   puddle: HTMLImageElement;
@@ -47,18 +37,16 @@ export type OtterModelView = {
   dispose: () => void;
 };
 
-/** 함께 낚시하는 해달 친구. 그림을 못 불러왔으면 frames 가 null 이라 그리지 않는다 */
+/** 함께 낚시하는 해달 친구 (3D 눈사람) */
 export type SceneFriend = {
   /** 친구가 와서 함께 낚시하는 중인지 */
   visible: boolean;
-  /** 녹은 정도 (0 = 멀쩡, 1 = 다 녹음). 떠나기 전 한 시간 동안 커진다 (3D 눈사람만) */
+  /** 녹은 정도 (0 = 멀쩡, 1 = 다 녹음). 떠나기 전 한 시간 동안 커진다 */
   melt: number;
-  /** 친구가 없을 때 출석으로 만드는 중인 눈사람 단계 (0 = 없음 … 6 = 완성. 3D 눈사람만) */
+  /** 친구가 없을 때 출석으로 만드는 중인 눈사람 단계 (0 = 없음 … 6 = 완성) */
   buildStage: number;
-  /** 눈사람을 얼린 장면 시각 (초). 얼린 적이 없으면 null (3D 눈사람만) */
+  /** 눈사람을 얼린 장면 시각 (초). 얼린 적이 없으면 null */
   frozenAt: number | null;
-  /** 친구 프레임 (해달 프레임과 같은 순서) */
-  frames: readonly HTMLImageElement[] | null;
   /** 물고기를 잡을 때 머리 위에 띄울 글자 (친구 몫, 예: +3). null 이면 띄우지 않는다 */
   catchLabel: string | null;
 };
@@ -262,13 +250,11 @@ function drawFriendCatchLabel(
   ctx: CanvasRenderingContext2D,
   state: SceneState,
   friend: SceneFriend,
-  friendIn3d: boolean,
 ) {
   const opacity = friendCatchLabelOpacity(state.time);
   // 녹는 동안에는 잡는 시늉을 하지 않고 머리 위에 말풍선이 뜨므로, 친구 몫 글자를 띄우지 않는다
   if (!friend.visible || friend.melt > 0 || !friend.catchLabel || opacity === 0) return;
-  const head = friendIn3d ? snowmanHead(state) : friendSpriteHead(state, friend);
-  if (!head) return;
+  const head = snowmanHead(state);
   ctx.save();
   ctx.font = CATCH_LABEL_FONT;
   const halfWidth = ctx.measureText(friend.catchLabel).width / 2;
@@ -276,14 +262,6 @@ function drawFriendCatchLabel(
   // 친구는 화면 왼쪽 끝에 있으므로 글자가 왼쪽으로 잘리지 않게 한다
   const centerX = Math.max(head.x, halfWidth + CATCH_LABEL_EDGE_MARGIN);
   drawLabel(ctx, friend.catchLabel, centerX, head.y - SCENE.FRIEND_LABEL_GAP, 'center', opacity);
-}
-
-/** 그림 해달 친구의 머리 위 가운데 (잡은 모습 기준). 그림을 못 불러왔으면 null */
-function friendSpriteHead(state: SceneState, friend: SceneFriend): Point | null {
-  if (!friend.frames) return null;
-  const { frames, scale } = otterFriendLayout(state);
-  const rect = frames.at(-1);
-  return rect ? { x: rect.x + CAUGHT_HEAD_X * scale, y: rect.y } : null;
 }
 
 /** 3D 눈사람 친구의 머리 위 가운데 */
@@ -316,31 +294,6 @@ function drawSplash(ctx: CanvasRenderingContext2D, state: SceneState) {
   }
 }
 
-function drawFrame(
-  ctx: CanvasRenderingContext2D,
-  image: HTMLImageElement | undefined,
-  rect: Rect | undefined,
-) {
-  if (image && rect) ctx.drawImage(image, rect.x, rect.y, rect.width, rect.height);
-}
-
-/** 해달. 잡는 동작은 프레임을 바꿔 가며 보인다 (몸 가운데와 발 아래 끝을 맞춰 그린다) */
-function drawOtter(ctx: CanvasRenderingContext2D, state: SceneState, sprites: SceneSprites) {
-  const layout = otterLayout(state);
-  if (isShowingFull(state)) {
-    drawFrame(ctx, sprites.full ?? undefined, layout.full);
-    return;
-  }
-  const frame = otterFrame(state);
-  drawFrame(ctx, sprites.otter[frame], layout.frames[frame]);
-}
-
-function drawOtterFriend(ctx: CanvasRenderingContext2D, state: SceneState, friend: SceneFriend) {
-  if (!friend.visible || !friend.frames) return;
-  const frame = friendFrame(state);
-  drawFrame(ctx, friend.frames[frame], otterFriendLayout(state).frames[frame]);
-}
-
 function friendView(state: SceneState, friend: SceneFriend): SnowmanView {
   return {
     alive: friend.visible,
@@ -350,14 +303,17 @@ function friendView(state: SceneState, friend: SceneFriend): SnowmanView {
   };
 }
 
-/** 장면 한 프레임을 그린다. 좌표는 CSS px 기준 (devicePixelRatio 변환은 호출 측에서 설정) */
+/**
+ * 장면 한 프레임을 그린다. 좌표는 CSS px 기준 (devicePixelRatio 변환은 호출 측에서 설정).
+ * otterModel 이 null 이면 3D 모델을 아직 못 불러온 것이라 해달·눈사람과 줄을 그리지 않는다
+ */
 export function drawScene(
   ctx: CanvasRenderingContext2D,
   state: SceneState,
   sprites: SceneSprites | null,
   catchLabel: string | null,
   friend: SceneFriend,
-  otterModel: OtterModelView | 'pending' | null = null,
+  otterModel: OtterModelView | null,
 ) {
   ctx.clearRect(0, 0, state.width, state.height);
   if (sprites) drawBackground(ctx, state, sprites.background);
@@ -368,22 +324,17 @@ export function drawScene(
   // 웅덩이는 눈밭에 있으므로 해달들보다 먼저 그린다
   drawPuddle(ctx, state, sprites?.puddle ?? null);
   drawSplash(ctx, state);
-  // 3D 해달이면 친구도 3D 눈사람으로 함께 그린다. 3D 를 불러오는 중이거나 못 불러와도 그림 친구로 대신하지 않는다
-  const friendIn3d = otterModel !== null;
-  if (sprites && !friendIn3d) drawOtterFriend(ctx, state, friend);
-  // 3D 해달은 양동이를 든 모습까지 스스로 그린다. 낚싯대를 쥐고 있는 동안만 낚싯대 끝을 돌려준다
-  // 3D 모델을 불러오는 동안('pending')은 해달과 줄을 그리지 않는다 (옛 그림 해달로 대신하지 않는다)
-  if (otterModel === 'pending') return;
-  const modelTip = otterModel ? otterModel.draw(ctx, state, friendView(state, friend)) : null;
-  if (sprites && !otterModel) drawOtter(ctx, state, sprites);
+  if (!otterModel) return;
+  // 3D 해달은 눈사람 친구와 양동이를 든 모습까지 스스로 그린다. 낚싯대를 쥐고 있는 동안만 낚싯대 끝을 돌려준다
+  const tip = otterModel.draw(ctx, state, friendView(state, friend));
 
-  // 줄은 낚싯대 끝(그림 속, 또는 3D 모델)에서 시작한다. 해먹이 가득 차 양동이를 든 동안은 낚싯대가 없다
-  if (otterModel ? modelTip !== null : !isShowingFull(state)) {
-    const line = fishingLine(state, modelTip ?? undefined);
+  // 줄은 낚싯대 끝에서 시작한다. 해먹이 가득 차 양동이를 든 동안은 낚싯대가 없다
+  if (tip) {
+    const line = fishingLine(state, tip);
     drawLine(ctx, line);
     drawHangingFish(ctx, line, sprites?.fish ?? null);
     if (sprites) drawCatchLabel(ctx, state, line, catchLabel);
   }
   // 눈사람을 아직 못 불러왔으면 친구가 보이지 않으므로 친구 몫 글자도 띄우지 않는다
-  if (!otterModel || otterModel.hasFriend()) drawFriendCatchLabel(ctx, state, friend, friendIn3d);
+  if (otterModel.hasFriend()) drawFriendCatchLabel(ctx, state, friend);
 }

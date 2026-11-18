@@ -3,9 +3,6 @@ import { cn } from '@/shared/lib/utils';
 import {
   FISH_SPRITES,
   OTTER_3D_MODEL,
-  OTTER_FISHING_FRAMES,
-  OTTER_FRIEND_FISHING_FRAMES,
-  OTTER_FULL_SPRITE,
   PUDDLE_SPRITE,
   SNOW_BACKGROUND_SPRITE,
   SNOWMAN_3D_MODEL,
@@ -80,18 +77,6 @@ function bubblePlacement(size: SceneSize) {
   return { left, top: bottomY - height - BUBBLE.GAP, tailLeft: centerX - left - BUBBLE.TAIL / 2 };
 }
 
-/**
- * 해달을 3D 모델로 그릴지. 기본은 3D 이고, 3D 일 때는 옛 그림 해달·그림 친구를 어떤 경우에도 그리지 않는다
- * (모델을 못 불러오면 해달 없이 둔다). 빌드 환경 변수 VITE_OTTER_3D=false 로 끄거나, 브라우저에서 주소에
- * ?otter2d 를 붙였을 때만 그림 해달을 그린다
- */
-function isOtter3dEnabled(): boolean {
-  return (
-    import.meta.env.VITE_OTTER_3D !== 'false' &&
-    !new URLSearchParams(window.location.search).has('otter2d')
-  );
-}
-
 // 해달이 설원에 앉아 물웅덩이에서 물고기를 낚는 장면 (캔버스). CATCH_INTERVAL_SECONDS 마다 스스로 잡고,
 // 탭하면 바로 한 마리 잡는다 (탭은 연출만 하고 catchLabel 은 띄우지 않는다). 해먹이 가득 차면 잡지 않는다.
 export function OtterScene({
@@ -110,7 +95,6 @@ export function OtterScene({
   const [size, setSize] = useState<SceneSize | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const area = useFishingArea(canvasRef, fishingAreaProps !== undefined);
-  const [otter3dEnabled] = useState(isOtter3dEnabled);
   const engineRef = useRef<SceneEngine | null>(null);
   // 엔진은 한 번만 만들므로, 만들 때 쓸 최신 값을 ref 로 들고 있는다
   const catchLabelRef = useRef(catchLabel);
@@ -173,16 +157,13 @@ export function OtterScene({
     if (!canvas) return;
     const engine = createSceneEngine(canvas, {
       sprites: {
-        otter: OTTER_FISHING_FRAMES,
-        full: OTTER_FULL_SPRITE,
         fish: FISH_SPRITES,
         background: SNOW_BACKGROUND_SPRITE,
         puddle: PUDDLE_SPRITE,
-        friend: OTTER_FRIEND_FISHING_FRAMES,
       },
       reducedMotion: window.matchMedia(REDUCED_MOTION_QUERY).matches,
-      otterModelUrl: otter3dEnabled ? OTTER_3D_MODEL : null,
-      friendModelUrl: otter3dEnabled ? SNOWMAN_3D_MODEL : null,
+      otterModelUrl: OTTER_3D_MODEL,
+      friendModelUrl: SNOWMAN_3D_MODEL,
     });
     engineRef.current = engine;
     engine.setCatchLabel(catchLabelRef.current);
@@ -195,11 +176,9 @@ export function OtterScene({
       engine.destroy();
       engineRef.current = null;
     };
-    // otter3dEnabled 는 처음 정한 뒤 바뀌지 않아, 엔진은 한 번만 만든다
-  }, [otter3dEnabled]);
+  }, []);
 
-  // 말풍선은 3D 눈사람 머리 위에만 띄운다 (그림 친구는 자리와 키가 다르다)
-  const bubble = friendBubble && otter3dEnabled && size ? bubblePlacement(size) : null;
+  const bubble = friendBubble && size ? bubblePlacement(size) : null;
 
   return (
     <div ref={rootRef} className={cn('relative w-full overflow-hidden', className)}>
@@ -215,11 +194,7 @@ export function OtterScene({
         }}
       >
         {/* 3D 해달은 가로로 끌어 돌리므로, 브라우저는 세로 스크롤만 맡게 한다 */}
-        <canvas
-          ref={canvasRef}
-          aria-hidden
-          className={cn('block h-full w-full', otter3dEnabled && 'touch-pan-y')}
-        />
+        <canvas ref={canvasRef} aria-hidden className="block h-full w-full touch-pan-y" />
       </button>
       {fishingAreaProps && area && (
         <span

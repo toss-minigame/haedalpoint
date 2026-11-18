@@ -39,25 +39,19 @@ type Drag = { pointerId: number; startX: number; startYaw: number; moved: boolea
 
 export type SceneEngineOptions = {
   sprites: {
-    /** 해달 프레임 (0 = 기다리는 모습, 마지막 = 잡은 모습) */
-    otter: readonly string[];
-    /** 해먹이 가득 찼을 때 해달 */
-    full: string;
     fish: Record<FishKind, string>;
     background: string;
     puddle: string;
-    /** 해달 친구 프레임 (해달 프레임과 같은 순서) */
-    friend: readonly string[];
   };
   /** '동작 줄이기' 설정 사용자: 애니메이션 없이 정지 장면만 그리고, 탭하면 잡은 모습만 잠깐 보인다 */
   reducedMotion: boolean;
   /**
-   * 3D 해달 모델(glb) 주소. 주면 three.js 를 따로 불러와 해달을 3D 로 그린다.
-   * 주면 그림 해달·그림 친구는 쓰지 않는다 (불러오기 전이나 못 불러오면 해달 없이 둔다)
+   * 3D 해달 모델(glb) 주소. three.js 를 따로 불러와 해달을 3D 로 그린다
+   * (불러오기 전이나 끝내 못 불러오면 해달 없이 둔다)
    */
-  otterModelUrl?: string | null;
-  /** 해달 친구로 그릴 3D 눈사람 모델(glb) 주소. 3D 해달과 함께 쓴다 */
-  friendModelUrl?: string | null;
+  otterModelUrl: string;
+  /** 해달 친구로 그릴 3D 눈사람 모델(glb) 주소 */
+  friendModelUrl: string;
 };
 
 export type SceneEngine = {
@@ -139,15 +133,13 @@ export function createSceneEngine(
   let holdTimer: ReturnType<typeof setTimeout> | null = null;
   let destroyed = false;
   let catchLabel: string | null = null;
-  let friendFrames: readonly HTMLImageElement[] | null = null;
   let otterFriendVisible = false;
   let friendCatchLabel: string | null = null;
   let friendMelt = 0;
   let friendBuildStage = 0;
   let friendFrozenAt: number | null = null;
+  // 3D 해달. 아직 못 불러왔으면 null 이고, 그동안은 해달·친구를 그리지 않는다
   let otterModel: OtterModelView | null = null;
-  // 3D 해달을 아직 못 불러왔는지. 그동안은 해달·친구를 그리지 않는다 (끝내 못 불러와도 옛 그림으로 대신하지 않는다)
-  let modelPending = Boolean(options.otterModelUrl);
   let modelRetryTimer: ReturnType<typeof setTimeout> | null = null;
   let drag: Drag | null = null;
   let userYaw = 0;
@@ -173,13 +165,12 @@ export function createSceneEngine(
       catchLabel,
       {
         visible: otterFriendVisible,
-        frames: friendFrames,
         catchLabel: friendCatchLabel,
         melt: friendMelt,
         buildStage: friendBuildStage,
         frozenAt: friendFrozenAt,
       },
-      modelPending ? 'pending' : otterModel,
+      otterModel,
     );
 
   const resize = () => {
@@ -258,42 +249,26 @@ export function createSceneEngine(
   canvas.addEventListener('pointerup', handlePointerEnd);
   canvas.addEventListener('pointercancel', handlePointerEnd);
 
-  // 3D 해달을 쓰면 그림 해달·그림 친구는 내려받지 않는다
-  const usesOtterImages = !options.otterModelUrl;
   Promise.all([
-    Promise.all((usesOtterImages ? options.sprites.otter : []).map(loadImage)),
-    usesOtterImages ? loadImage(options.sprites.full) : null,
     loadFishImages(options.sprites.fish),
     loadImage(options.sprites.background),
     loadImage(options.sprites.puddle),
   ])
-    .then(([otter, full, fish, background, puddle]) => {
-      sprites = { otter, full, fish, background, puddle };
+    .then(([fish, background, puddle]) => {
+      sprites = { fish, background, puddle };
       render();
     })
-    // 이미지를 못 불러와도 단색 하늘·눈밭과 웅덩이·이모지 물고기는 그린다 (해달만 빠짐)
+    // 이미지를 못 불러와도 단색 하늘·눈밭과 웅덩이·이모지 물고기는 그린다
     .catch(() => {});
 
-  // 해달 친구 그림은 따로 불러와, 못 불러와도 장면의 나머지는 그대로 그린다
-  if (usesOtterImages) {
-    Promise.all(options.sprites.friend.map(loadImage))
-      .then((frames) => {
-        friendFrames = frames;
-        render();
-      })
-      .catch(() => {});
-  }
-
   // 3D 해달은 three.js 가 커서 따로 불러온다. 못 불러오면 몇 번 다시 시도하고, 그동안은 해달을 그리지 않는다
-  // (옛 그림 해달로 대신하지 않는다)
-  const modelUrl = options.otterModelUrl;
   const loadModel = (attempt: number) => {
-    if (!modelUrl || destroyed) return;
+    if (destroyed) return;
     import('../otter-3d/otter-model')
       .then(({ createOtterModel }) =>
-        createOtterModel(modelUrl, {
+        createOtterModel(options.otterModelUrl, {
           reducedMotion: options.reducedMotion,
-          friendUrl: options.friendModelUrl ?? '',
+          friendUrl: options.friendModelUrl,
           preloadFriend: otterFriendVisible || friendBuildStage > 0,
           onUpdate: () => {
             if (!destroyed) render();
@@ -307,7 +282,6 @@ export function createSceneEngine(
         }
         otterModel = model;
         model.setUserYaw(userYaw);
-        modelPending = false;
         render();
       })
       .catch(() => {
