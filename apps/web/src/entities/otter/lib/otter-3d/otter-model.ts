@@ -248,6 +248,11 @@ export type OtterModelOptions = {
   preloadFriend: boolean;
   /** 늦게 불러온 모델이 준비돼 다시 그려야 할 때 부른다 */
   onUpdate: () => void;
+  /**
+   * WebGL 컨텍스트를 잃어 더 그릴 수 없게 됐을 때 부른다 (앱을 오래 뒤에 두면 기기가 거둬 갈 수 있다).
+   * 이 모델은 다시 쓸 수 없으니 dispose 하고 새로 만들어야 한다
+   */
+  onContextLost: () => void;
 };
 
 /** 눈사람을 못 불러왔을 때 다시 시도하기까지 기다리는 시간 (ms). 다 써도 못 불러오면 친구 없이 둔다 */
@@ -349,8 +354,9 @@ export async function createOtterModel(
   url: string,
   options: OtterModelOptions,
 ): Promise<OtterModelView> {
+  const canvas = document.createElement('canvas');
   const renderer = new WebGLRenderer({
-    canvas: document.createElement('canvas'),
+    canvas,
     alpha: true,
     antialias: true,
     // 그린 직후 같은 프레임 안에서 장면 캔버스로 복사하므로, 그린 내용을 다음 프레임까지 붙들어 둘 필요가 없다
@@ -359,6 +365,14 @@ export async function createOtterModel(
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const scene = createScene();
   const friend = createFriend(loader, scene, options);
+  /** 캔버스와 WebGL 컨텍스트를 놓아 준다 (다시 만들 때마다 컨텍스트가 쌓이지 않게 바로 놓는다) */
+  const release = () => {
+    // 아래 forceContextLoss 가 내는 webglcontextlost 를 잃은 것으로 알리지 않게 먼저 뗀다
+    canvas.removeEventListener('webglcontextlost', options.onContextLost);
+    friend.dispose();
+    renderer.dispose();
+    renderer.forceContextLoss();
+  };
   try {
     if (options.preloadFriend) friend.preload();
     const gltf = await loader.loadAsync(url);
@@ -418,22 +432,17 @@ export async function createOtterModel(
       };
     };
 
-    const dispose = () => {
-      friend.dispose();
-      renderer.dispose();
-      renderer.forceContextLoss();
-    };
-
     const setUserYaw = (yaw: number) => {
       userYaw = yaw;
     };
 
-    return { draw, hasFriend: friend.isReady, setUserYaw, dispose };
+    // 불러오는 사이에 이미 컨텍스트를 잃었으면 못 불러온 것으로 본다 (그 뒤로는 알림이 오지 않는다)
+    if (renderer.getContext().isContextLost()) throw new Error('WebGL 컨텍스트를 잃었어요');
+    canvas.addEventListener('webglcontextlost', options.onContextLost);
+
+    return { draw, hasFriend: friend.isReady, setUserYaw, dispose: release };
   } catch (error) {
-    friend.dispose();
-    renderer.dispose();
-    // 다시 시도할 때마다 WebGL 컨텍스트가 쌓이지 않게 바로 놓아 준다
-    renderer.forceContextLoss();
+    release();
     throw error;
   }
 }
