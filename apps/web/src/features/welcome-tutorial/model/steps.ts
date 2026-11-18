@@ -65,7 +65,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
   {
     id: 'store-intro',
     target: 'store',
-    message: '양동이가 차면 이 버튼으로 창고에 옮겨요',
+    message: '양동이가 차면\n이 버튼으로 창고에 옮기세요!',
     action: { type: 'info' },
   },
   {
