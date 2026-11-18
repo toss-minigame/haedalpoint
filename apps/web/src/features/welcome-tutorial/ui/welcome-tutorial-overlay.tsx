@@ -6,15 +6,15 @@ type Props = {
   tutorial: WelcomeTutorial;
 };
 
-// 첫 방문 홈 튜토리얼. 오른쪽 위에 건너뛰기를 늘 둔다 (마무리 단계 제외).
+// 첫 방문 홈 튜토리얼. 말풍선 위나 아래에 건너뛰기를 둔다 (마지막 단계 제외).
 export function WelcomeTutorialOverlay({ tutorial }: Props) {
-  const isFinish = tutorial.step.action.type === 'finish';
   return (
     <SpotlightOverlay
       target={tutorial.step.target}
-      isTargetInteractive={tutorial.isTargetInteractive}
+      isTargetInteractive={false}
       bubbleKey={tutorial.step.id}
-      onSkip={isFinish ? undefined : tutorial.skip}
+      bubblePlacement={tutorial.step.bubble}
+      onSkip={tutorial.isLast ? undefined : tutorial.skip}
       label="해달해달 안내"
     >
       <TutorialBubble tutorial={tutorial} />

@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, type RefObject, useEffect, useRef, useState } from 'react';
 import { cn } from '@/shared/lib/utils';
 import {
   FISH_SPRITES,
@@ -11,7 +11,10 @@ import {
   SNOWMAN_3D_MODEL,
 } from '../lib/otter-sprites';
 import { createSceneEngine, type SceneEngine } from '../lib/scene/scene-engine';
-import { snowmanLayout } from '../lib/scene/scene-state';
+import { fishingArea, type Rect, snowmanLayout } from '../lib/scene/scene-state';
+
+/** 해달이 낚시하는 영역에 붙일 속성 (예: 튜토리얼이 비출 곳 표시 data-tutorial) */
+type FishingAreaProps = { [attribute: `data-${string}`]: string };
 
 type Props = {
   className?: string;
@@ -31,6 +34,8 @@ type Props = {
   friendCatchLabel?: string | null;
   /** 해먹이 가득 찼으면 true. 낚시를 멈추고 물고기가 가득한 양동이를 든 모습이 된다 */
   hammockFull?: boolean;
+  /** 주면 해달·낚싯대·웅덩이를 감싸는 보이지 않는 영역을 장면 위에 두고 이 속성을 붙인다 */
+  fishingAreaProps?: FishingAreaProps;
 };
 
 function sceneLabel(withOtterFriend: boolean, hammockFull: boolean): string {
@@ -41,6 +46,24 @@ function sceneLabel(withOtterFriend: boolean, hammockFull: boolean): string {
 }
 
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
+
+/** 캔버스 크기를 따라 해달이 낚시하는 영역을 다시 잰다. enabled 가 false 면 재지 않는다 */
+function useFishingArea(
+  canvasRef: RefObject<HTMLCanvasElement | null>,
+  enabled: boolean,
+): Rect | null {
+  const [area, setArea] = useState<Rect | null>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!enabled || !canvas) return;
+    const observer = new ResizeObserver(() =>
+      setArea(fishingArea({ width: canvas.clientWidth, height: canvas.clientHeight })),
+    );
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, [canvasRef, enabled]);
+  return area;
+}
 
 /** 친구 말풍선: 너비, 장면 가장자리와의 간격, 머리 위로 띄우는 거리 (px) */
 const BUBBLE = { WIDTH: 208, EDGE: 8, GAP: 12, TAIL: 12 } as const;
@@ -77,6 +100,7 @@ export function OtterScene({
   withOtterFriend = false,
   friendCatchLabel = null,
   hammockFull = false,
+  fishingAreaProps,
   friendMelt = 0,
   friendFrozen = false,
   friendBuildStage = 0,
@@ -85,6 +109,7 @@ export function OtterScene({
   const rootRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<SceneSize | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const area = useFishingArea(canvasRef, fishingAreaProps !== undefined);
   const [otter3dEnabled] = useState(isOtter3dEnabled);
   const engineRef = useRef<SceneEngine | null>(null);
   // 엔진은 한 번만 만들므로, 만들 때 쓸 최신 값을 ref 로 들고 있는다
@@ -196,6 +221,14 @@ export function OtterScene({
           className={cn('block h-full w-full', otter3dEnabled && 'touch-pan-y')}
         />
       </button>
+      {fishingAreaProps && area && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute"
+          style={{ left: area.x, top: area.y, width: area.width, height: area.height }}
+          {...fishingAreaProps}
+        />
+      )}
       {/* 장면 버튼 안에 넣지 않는다 (버튼 안의 버튼이 되지 않게). 눈사람 머리 위에 얹는다 */}
       {bubble && (
         <div

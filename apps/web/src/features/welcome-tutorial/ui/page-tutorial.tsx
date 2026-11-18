@@ -136,7 +136,7 @@ function PageTutorial({ steps, seenKey, withPracticeReward }: Props) {
 }
 
 /**
- * 화면 안내를 띄울지: 홈 튜토리얼을 건너뛴 사람에게는 띄우지 않는다 (안내를 원하지 않음).
+ * 화면 안내를 띄울지: 홈 튜토리얼을 건너뛴 사람에게도 띄운다 (연습 보상만 빠진다).
  * 튜토리얼 상태를 못 받았거나 저장소를 쓸 수 없으면 띄우지 않는다
  */
 function useShouldShow(seenKey: string) {
@@ -144,7 +144,7 @@ function useShouldShow(seenKey: string) {
   const [seen] = useState(() => readSeen(seenKey));
   return {
     tutorial,
-    show: seen === false && tutorial !== undefined && tutorial.status !== 'SKIPPED',
+    show: seen === false && tutorial !== undefined,
   };
 }
 
@@ -156,7 +156,7 @@ export function QuizTutorial() {
     <PageTutorial
       steps={QUIZ_TUTORIAL_STEPS}
       seenKey="quiz"
-      withPracticeReward={!tutorial.claimed.QUIZ}
+      withPracticeReward={tutorial.status !== 'SKIPPED' && !tutorial.claimed.QUIZ}
     />
   );
 }

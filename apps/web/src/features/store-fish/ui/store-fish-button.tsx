@@ -12,16 +12,14 @@ type Props = {
   ad: RewardedAd;
   /** 저장한 뒤 넘친 물고기를 다시 잡아올 수 있을 때. 다시 잡아오기 창을 띄웠으면 true */
   onCatchBackAvailable?: (storedFish: number) => boolean;
-  /** 튜토리얼 마지막 저장: 저장 안내 대신 부른다 */
-  onStored?: (storedFish: number) => void;
 };
 
 const LABEL = '광고 보고 창고에 저장하기';
 
 // 광고를 끝까지 봐야만 해먹의 물고기를 창고에 저장한다 (광고 없이 저장하는 경로는 없다).
 // 광고를 쓸 수 없는 환경이면 버튼을 막고, 불러오지 못했으면 다시 불러오기만 할 수 있다 (RewardedAdButton).
-export function StoreFishButton({ canStore, ad, onCatchBackAvailable, onStored }: Props) {
-  const { mutate, isPending } = useStoreFish({ onCatchBackAvailable, onStored });
+export function StoreFishButton({ canStore, ad, onCatchBackAvailable }: Props) {
+  const { mutate, isPending } = useStoreFish({ onCatchBackAvailable });
 
   if (!canStore) {
     return (

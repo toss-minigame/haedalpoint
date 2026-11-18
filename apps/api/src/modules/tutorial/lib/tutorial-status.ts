@@ -45,11 +45,11 @@ export function isClosed(row: TutorialRow): boolean {
 }
 
 /**
- * 그 보상을 지금 줄 수 있는 상태인지. 연습 퀴즈는 홈 튜토리얼을 마친 뒤 퀴즈 화면에서 처음 열 때 받으므로
- * 건너뛰지만 않았으면 준다. 나머지는 홈 튜토리얼 안에서만 받는다
+ * 그 보상을 지금 줄 수 있는 상태인지. 첫 선물은 홈 튜토리얼 안에서만 받는다.
+ * 체험(낚싯대·양동이·연습 퀴즈)은 홈 튜토리얼을 마친 뒤 그 콘텐츠를 처음 누를 때 받으므로 건너뛰지만 않았으면 준다
  */
 export function canClaim(row: TutorialRow, kind: TutorialRewardKind): boolean {
-  return kind === 'QUIZ' ? row.skippedAt === null : !isClosed(row);
+  return kind === 'GIFT' ? !isClosed(row) : row.skippedAt === null;
 }
 
 function statusOf(row: TutorialRow | null): TutorialStatus {

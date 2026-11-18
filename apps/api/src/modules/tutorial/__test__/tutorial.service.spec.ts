@@ -138,13 +138,24 @@ describe('TutorialService', () => {
     });
 
     it.each([
-      ['completed', { completedAt: EARLIER }],
+      ['completed', { giftRewardedAt: EARLIER, completedAt: EARLIER }],
       ['skipped', { skippedAt: EARLIER }],
-    ])('rejects the home rewards once the tutorial is %s (409)', async (_label, overrides) => {
+    ])('rejects the first gift once the tutorial is %s (409)', async (_label, overrides) => {
       repo.lockOrCreate.mockResolvedValue(tutorialRow(overrides));
 
-      await expect(service.claimReward(USER_ID, 'ROD')).rejects.toBeInstanceOf(ConflictException);
-      expect(fishingService.enhanceRod).not.toHaveBeenCalled();
+      await expect(service.claimReward(USER_ID, 'GIFT')).rejects.toBeInstanceOf(ConflictException);
+      expect(fishingService.fillHammock).not.toHaveBeenCalled();
+    });
+
+    it('gives the rod trial when the rod is tapped after the home tutorial is completed', async () => {
+      repo.lockOrCreate.mockResolvedValue(
+        tutorialRow({ giftRewardedAt: EARLIER, completedAt: EARLIER }),
+      );
+
+      await service.claimReward(USER_ID, 'ROD');
+
+      expect(fishingService.enhanceRod).toHaveBeenCalledTimes(1);
+      expect(repo.update).toHaveBeenCalledWith(manager, 'tutorial-1', { rodRewardedAt: NOW });
     });
 
     it('gives the practice quiz reward after the home tutorial is completed', async () => {
@@ -158,12 +169,16 @@ describe('TutorialService', () => {
       expect(repo.update).toHaveBeenCalledWith(manager, 'tutorial-1', { quizRewardedAt: NOW });
     });
 
-    it('rejects the practice quiz reward once the tutorial is skipped (409)', async () => {
-      repo.lockOrCreate.mockResolvedValue(tutorialRow({ skippedAt: EARLIER }));
+    it.each(['ROD', 'HAMMOCK', 'QUIZ'] as const)(
+      'rejects the %s trial once the tutorial is skipped (409)',
+      async (kind) => {
+        repo.lockOrCreate.mockResolvedValue(tutorialRow({ skippedAt: EARLIER }));
 
-      await expect(service.claimReward(USER_ID, 'QUIZ')).rejects.toBeInstanceOf(ConflictException);
-      expect(fishingService.enhanceRod).not.toHaveBeenCalled();
-    });
+        await expect(service.claimReward(USER_ID, kind)).rejects.toBeInstanceOf(ConflictException);
+        expect(fishingService.enhanceRod).not.toHaveBeenCalled();
+        expect(fishingService.expandHammock).not.toHaveBeenCalled();
+      },
+    );
 
     it('does not record the reward when applying it fails', async () => {
       repo.lockOrCreate.mockResolvedValue(tutorialRow());
