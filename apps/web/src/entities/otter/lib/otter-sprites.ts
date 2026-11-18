@@ -6,7 +6,10 @@ import fishBluefish from '@/shared/assets/scene/fish-bluefish.png';
 import fishGoldfish from '@/shared/assets/scene/fish-goldfish.png';
 import puddle from '@/shared/assets/waterSurface/puddle.png';
 
-/** 말풍선에 넣는 해달 얼굴 (활짝 웃으며 손을 든 모습, 투명 배경). 튜토리얼과 첫 안내에서 쓴다 */
+/**
+ * 말풍선에 넣는 해달 얼굴 (활짝 웃으며 손을 든 모습, 투명 배경). 튜토리얼과 첫 안내에서 쓴다.
+ * 화면에 48px 로 나오므로 3배 화면에 맞춰 129×144 로 줄여 두었다. 더 크게 쓰려면 원본에서 다시 만든다
+ */
 export const OTTER_BUBBLE_SPRITE = otterHappy;
 
 /**
