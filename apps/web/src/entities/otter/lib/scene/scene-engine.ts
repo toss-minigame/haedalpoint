@@ -51,6 +51,8 @@ type Drag = { pointerId: number; startX: number; startYaw: number; moved: boolea
 
 export type SceneEngineOptions = {
   sprites: {
+    /** 3D 해달을 찍어 둔 정지 그림. 3D 를 불러오는 동안과 쓸 수 없을 때 대신 그린다 */
+    otterStill: string;
     fish: Record<FishKind, string>;
     background: string;
     puddle: string;
@@ -275,12 +277,14 @@ export function createSceneEngine(
   canvas.addEventListener('pointercancel', handlePointerEnd);
 
   Promise.all([
+    // 정지 그림은 못 불러와도 나머지 장면은 그린다 (해달만 빠진다)
+    loadImage(options.sprites.otterStill).catch(() => null),
     loadFishImages(options.sprites.fish),
     loadImage(options.sprites.background),
     loadImage(options.sprites.puddle),
   ])
-    .then(([fish, background, puddle]) => {
-      sprites = { fish, background, puddle };
+    .then(([otterStill, fish, background, puddle]) => {
+      sprites = { otterStill, fish, background, puddle };
       render();
     })
     // 이미지를 못 불러와도 단색 하늘·눈밭과 웅덩이·이모지 물고기는 그린다

@@ -14,6 +14,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { OtterModelView } from '../scene/scene-render';
 import { isShowingFull, otterLayout, type SceneState, snowmanLayout } from '../scene/scene-state';
 import { FULL_TRANSITION_SECONDS, type OtterPose, otterPose } from './otter-pose';
+import { VIEW, viewRect, viewUnit } from './otter-view';
 import { loadSnowman, SNOWMAN_HEIGHT, type Snowman } from './snowman-model';
 import { type SnowmanView, snowmanPose } from './snowman-pose';
 import { findNodes, stylize } from './toon';
@@ -21,16 +22,9 @@ import { findNodes, stylize } from './toon';
 /**
  * 3D 해달 (otter-3d.glb, design/otter-3d/build_otter.py 로 Blender 에서 만든 모델).
  * 화면에 붙지 않은 WebGL 캔버스에 해달(과 해달 친구인 눈사람)을 그린 뒤, 장면 캔버스에 그림처럼 붙인다.
- * 모델 단위: 발 아래 끝이 0, 해달 몸 가운데가 x = 0, 낚싯대는 왼쪽(-x)으로 뻗는다.
+ * 그리는 자리와 범위는 otter-view.ts 에 있다.
  */
 
-/** 모델 키 (앉았을 때 발 아래 끝 ~ 모자 방울 꼭대기, 모델 단위). 장면의 해달 키(px)에 맞춰 크기를 정한다 */
-const MODEL_HEIGHT = 3.37;
-/**
- * WebGL 캔버스가 담는 모델 범위. 낚싯대를 들어 올려도, 일어서며 뛰어올라도, 끌어서 돌려
- * 낚싯대가 오른쪽을 향해도 잘리지 않게 여유를 두고 좌우를 같은 폭으로 둔다
- */
-const VIEW = { LEFT: -2.8, RIGHT: 2.8, TOP: 4.5, BOTTOM: -0.15 } as const;
 /** 해달이 낚싯대 쪽(왼쪽)으로 살짝 몸을 돌려 앉는다 (3D 느낌이 나도록) */
 const BASE_YAW = -0.22;
 const MAX_PIXEL_RATIO = 2;
@@ -406,17 +400,12 @@ export async function createOtterModel(
 
     const draw = (ctx: CanvasRenderingContext2D, state: SceneState, friendView: SnowmanView) => {
       const layout = otterLayout(state);
-      const unit = layout.bodyHeight / MODEL_HEIGHT; // px / 모델 단위
+      const unit = viewUnit(layout); // px / 모델 단위
       const friendBounds = friend.place(state, friendView, unit);
       const left = Math.min(VIEW.LEFT, friendBounds?.left ?? VIEW.LEFT);
       const top = Math.max(VIEW.TOP, friendBounds?.top ?? VIEW.TOP);
       frame(left, top);
-      const rect = {
-        x: layout.centerX + left * unit,
-        y: layout.bottomY - top * unit,
-        width: (VIEW.RIGHT - left) * unit,
-        height: (top - VIEW.BOTTOM) * unit,
-      };
+      const rect = viewRect(layout, left, top);
       const pose = otterPose(state, trackFull(state));
       applyPose(pose, BASE_YAW + userYaw);
       resize(rect.width, rect.height);

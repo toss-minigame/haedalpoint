@@ -3,6 +3,7 @@ import { cn } from '@/shared/lib/utils';
 import {
   FISH_SPRITES,
   OTTER_3D_MODEL,
+  OTTER_STILL_SPRITE,
   PUDDLE_SPRITE,
   SNOW_BACKGROUND_SPRITE,
   SNOWMAN_3D_MODEL,
@@ -157,6 +158,7 @@ export function OtterScene({
     if (!canvas) return;
     const engine = createSceneEngine(canvas, {
       sprites: {
+        otterStill: OTTER_STILL_SPRITE,
         fish: FISH_SPRITES,
         background: SNOW_BACKGROUND_SPRITE,
         puddle: PUDDLE_SPRITE,
