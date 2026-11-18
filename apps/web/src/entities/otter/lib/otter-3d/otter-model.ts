@@ -14,6 +14,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { OtterModelView } from '../scene/scene-render';
 import { isShowingFull, otterLayout, type SceneState, snowmanLayout } from '../scene/scene-state';
 import { FULL_TRANSITION_SECONDS, type OtterPose, otterPose } from './otter-pose';
+import { VIEW, viewRect, viewUnit } from './otter-view';
 import { loadSnowman, SNOWMAN_HEIGHT, type Snowman } from './snowman-model';
 import { type SnowmanView, snowmanPose } from './snowman-pose';
 import { findNodes, stylize } from './toon';
@@ -21,16 +22,9 @@ import { findNodes, stylize } from './toon';
 /**
  * 3D 해달 (otter-3d.glb, design/otter-3d/build_otter.py 로 Blender 에서 만든 모델).
  * 화면에 붙지 않은 WebGL 캔버스에 해달(과 해달 친구인 눈사람)을 그린 뒤, 장면 캔버스에 그림처럼 붙인다.
- * 모델 단위: 발 아래 끝이 0, 해달 몸 가운데가 x = 0, 낚싯대는 왼쪽(-x)으로 뻗는다.
+ * 그리는 자리와 범위는 otter-view.ts 에 있다.
  */
 
-/** 모델 키 (앉았을 때 발 아래 끝 ~ 모자 방울 꼭대기, 모델 단위). 장면의 해달 키(px)에 맞춰 크기를 정한다 */
-const MODEL_HEIGHT = 3.37;
-/**
- * WebGL 캔버스가 담는 모델 범위. 낚싯대를 들어 올려도, 일어서며 뛰어올라도, 끌어서 돌려
- * 낚싯대가 오른쪽을 향해도 잘리지 않게 여유를 두고 좌우를 같은 폭으로 둔다
- */
-const VIEW = { LEFT: -2.8, RIGHT: 2.8, TOP: 4.5, BOTTOM: -0.15 } as const;
 /** 해달이 낚싯대 쪽(왼쪽)으로 살짝 몸을 돌려 앉는다 (3D 느낌이 나도록) */
 const BASE_YAW = -0.22;
 const MAX_PIXEL_RATIO = 2;
@@ -248,6 +242,11 @@ export type OtterModelOptions = {
   preloadFriend: boolean;
   /** 늦게 불러온 모델이 준비돼 다시 그려야 할 때 부른다 */
   onUpdate: () => void;
+  /**
+   * WebGL 컨텍스트를 잃어 더 그릴 수 없게 됐을 때 부른다 (앱을 오래 뒤에 두면 기기가 거둬 갈 수 있다).
+   * 이 모델은 다시 쓸 수 없으니 dispose 하고 새로 만들어야 한다
+   */
+  onContextLost: () => void;
 };
 
 /** 눈사람을 못 불러왔을 때 다시 시도하기까지 기다리는 시간 (ms). 다 써도 못 불러오면 친구 없이 둔다 */
@@ -349,8 +348,9 @@ export async function createOtterModel(
   url: string,
   options: OtterModelOptions,
 ): Promise<OtterModelView> {
+  const canvas = document.createElement('canvas');
   const renderer = new WebGLRenderer({
-    canvas: document.createElement('canvas'),
+    canvas,
     alpha: true,
     antialias: true,
     // 그린 직후 같은 프레임 안에서 장면 캔버스로 복사하므로, 그린 내용을 다음 프레임까지 붙들어 둘 필요가 없다
@@ -359,6 +359,14 @@ export async function createOtterModel(
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const scene = createScene();
   const friend = createFriend(loader, scene, options);
+  /** 캔버스와 WebGL 컨텍스트를 놓아 준다 (다시 만들 때마다 컨텍스트가 쌓이지 않게 바로 놓는다) */
+  const release = () => {
+    // 아래 forceContextLoss 가 내는 webglcontextlost 를 잃은 것으로 알리지 않게 먼저 뗀다
+    canvas.removeEventListener('webglcontextlost', options.onContextLost);
+    friend.dispose();
+    renderer.dispose();
+    renderer.forceContextLoss();
+  };
   try {
     if (options.preloadFriend) friend.preload();
     const gltf = await loader.loadAsync(url);
@@ -392,17 +400,12 @@ export async function createOtterModel(
 
     const draw = (ctx: CanvasRenderingContext2D, state: SceneState, friendView: SnowmanView) => {
       const layout = otterLayout(state);
-      const unit = layout.bodyHeight / MODEL_HEIGHT; // px / 모델 단위
+      const unit = viewUnit(layout); // px / 모델 단위
       const friendBounds = friend.place(state, friendView, unit);
       const left = Math.min(VIEW.LEFT, friendBounds?.left ?? VIEW.LEFT);
       const top = Math.max(VIEW.TOP, friendBounds?.top ?? VIEW.TOP);
       frame(left, top);
-      const rect = {
-        x: layout.centerX + left * unit,
-        y: layout.bottomY - top * unit,
-        width: (VIEW.RIGHT - left) * unit,
-        height: (top - VIEW.BOTTOM) * unit,
-      };
+      const rect = viewRect(layout, left, top);
       const pose = otterPose(state, trackFull(state));
       applyPose(pose, BASE_YAW + userYaw);
       resize(rect.width, rect.height);
@@ -418,22 +421,17 @@ export async function createOtterModel(
       };
     };
 
-    const dispose = () => {
-      friend.dispose();
-      renderer.dispose();
-      renderer.forceContextLoss();
-    };
-
     const setUserYaw = (yaw: number) => {
       userYaw = yaw;
     };
 
-    return { draw, hasFriend: friend.isReady, setUserYaw, dispose };
+    // 불러오는 사이에 이미 컨텍스트를 잃었으면 못 불러온 것으로 본다 (그 뒤로는 알림이 오지 않는다)
+    if (renderer.getContext().isContextLost()) throw new Error('WebGL 컨텍스트를 잃었어요');
+    canvas.addEventListener('webglcontextlost', options.onContextLost);
+
+    return { draw, hasFriend: friend.isReady, setUserYaw, dispose: release };
   } catch (error) {
-    friend.dispose();
-    renderer.dispose();
-    // 다시 시도할 때마다 WebGL 컨텍스트가 쌓이지 않게 바로 놓아 준다
-    renderer.forceContextLoss();
+    release();
     throw error;
   }
 }

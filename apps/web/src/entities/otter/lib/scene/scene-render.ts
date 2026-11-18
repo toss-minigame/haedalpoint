@@ -1,3 +1,4 @@
+import { stillTip, viewRect } from '../otter-3d/otter-view';
 import type { SnowmanView } from '../otter-3d/snowman-pose';
 import {
   catchLabelOpacity,
@@ -7,6 +8,8 @@ import {
   friendCatchLabelOpacity,
   holeLayout,
   horizonY,
+  isShowingFull,
+  otterLayout,
   type Point,
   SCENE,
   type SceneState,
@@ -17,8 +20,13 @@ import { drawSnowfall } from './snow/snow-render';
 
 export type FishImages = Record<FishKind, HTMLImageElement>;
 
-/** 장면에 그리는 그림 (해달·눈사람은 3D 모델로 그리므로 여기에 없다) */
+/** 장면에 그리는 그림 (해달·눈사람은 3D 모델로 그린다) */
 export type SceneSprites = {
+  /**
+   * 3D 해달을 그대로 찍어 둔 정지 그림. 3D 를 불러오는 동안과 3D 를 쓸 수 없을 때 해달 자리에 그린다.
+   * 못 불러왔으면 null 이고 그때는 해달 없이 둔다
+   */
+  otterStill: HTMLImageElement | null;
   fish: FishImages;
   background: HTMLImageElement;
   puddle: HTMLImageElement;
@@ -303,9 +311,40 @@ function friendView(state: SceneState, friend: SceneFriend): SnowmanView {
   };
 }
 
+/** 낚싯대 끝 tip 에서 드리운 줄과 매달린 물고기, 잡은 양 글자 */
+function drawFishing(
+  ctx: CanvasRenderingContext2D,
+  state: SceneState,
+  tip: Point,
+  sprites: SceneSprites | null,
+  catchLabel: string | null,
+) {
+  const line = fishingLine(state, tip);
+  drawLine(ctx, line);
+  drawHangingFish(ctx, line, sprites?.fish ?? null);
+  if (sprites) drawCatchLabel(ctx, state, line, catchLabel);
+}
+
+/**
+ * 3D 해달 대신 정지 그림을 3D 해달과 같은 자리에 그린다. 그림은 움직이지 않지만 줄과 물고기는 그대로 움직인다.
+ * 양동이가 가득 찼을 때는 낚지 않으므로 줄을 그리지 않는다 (그림은 낚싯대를 쥔 모습 그대로다)
+ */
+function drawOtterStill(
+  ctx: CanvasRenderingContext2D,
+  state: SceneState,
+  sprites: SceneSprites,
+  image: HTMLImageElement,
+  catchLabel: string | null,
+) {
+  const rect = viewRect(otterLayout(state));
+  ctx.drawImage(image, rect.x, rect.y, rect.width, rect.height);
+  if (!isShowingFull(state)) drawFishing(ctx, state, stillTip(rect), sprites, catchLabel);
+}
+
 /**
  * 장면 한 프레임을 그린다. 좌표는 CSS px 기준 (devicePixelRatio 변환은 호출 측에서 설정).
- * otterModel 이 null 이면 3D 모델을 아직 못 불러온 것이라 해달·눈사람과 줄을 그리지 않는다
+ * otterModel 이 null 이면 3D 모델을 아직 못 불러왔거나 쓸 수 없는 것이라, 해달 자리에 정지 그림을 그린다
+ * (눈사람 친구는 그리지 않는다)
  */
 export function drawScene(
   ctx: CanvasRenderingContext2D,
@@ -324,17 +363,14 @@ export function drawScene(
   // 웅덩이는 눈밭에 있으므로 해달들보다 먼저 그린다
   drawPuddle(ctx, state, sprites?.puddle ?? null);
   drawSplash(ctx, state);
-  if (!otterModel) return;
+  if (!otterModel) {
+    if (sprites?.otterStill) drawOtterStill(ctx, state, sprites, sprites.otterStill, catchLabel);
+    return;
+  }
   // 3D 해달은 눈사람 친구와 양동이를 든 모습까지 스스로 그린다. 낚싯대를 쥐고 있는 동안만 낚싯대 끝을 돌려준다
   const tip = otterModel.draw(ctx, state, friendView(state, friend));
-
   // 줄은 낚싯대 끝에서 시작한다. 해먹이 가득 차 양동이를 든 동안은 낚싯대가 없다
-  if (tip) {
-    const line = fishingLine(state, tip);
-    drawLine(ctx, line);
-    drawHangingFish(ctx, line, sprites?.fish ?? null);
-    if (sprites) drawCatchLabel(ctx, state, line, catchLabel);
-  }
+  if (tip) drawFishing(ctx, state, tip, sprites, catchLabel);
   // 눈사람을 아직 못 불러왔으면 친구가 보이지 않으므로 친구 몫 글자도 띄우지 않는다
   if (otterModel.hasFriend()) drawFriendCatchLabel(ctx, state, friend);
 }

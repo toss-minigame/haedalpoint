@@ -21,8 +21,20 @@ const MS_PER_SECOND = 1000;
  * 매 프레임 배경을 다시 칠하는 비용이 그만큼 든다. 3D 해달도 같은 배율까지만 그린다 (otter-model.ts)
  */
 const MAX_PIXEL_RATIO = 2;
-/** 3D 해달을 못 불러왔을 때 다시 시도하기까지 기다리는 시간 (ms). 다 써도 못 불러오면 해달 없이 둔다 */
+/**
+ * 3D 해달을 못 불러왔을 때 다시 시도하기까지 기다리는 시간 (ms). 다 써도 못 불러오면 해달 없이 두고,
+ * 화면으로 돌아올 때 다시 시도한다
+ */
 const MODEL_RETRY_DELAYS_MS = [1000, 2000, 4000, 8000];
+/** WebGL 컨텍스트를 잃은 뒤 3D 해달을 새로 만들기까지 기다리는 시간 (ms). 잃자마자 만들면 또 잃기 쉽다 */
+const CONTEXT_LOST_RELOAD_MS = 1000;
+/**
+ * 컨텍스트를 연달아 잃어 3D 해달을 새로 만드는 횟수의 한도. 넘으면 그만두고 화면으로 돌아올 때 다시 시도한다
+ * (계속 잃는 기기에서 끝없이 새로 만들지 않게)
+ */
+const MAX_CONTEXT_RELOADS = 3;
+/** 새로 만든 3D 해달이 이만큼(ms) 버텼으면 연달아 잃은 것으로 세지 않는다 (오래 켜 둔 화면에서 가끔 잃는 것은 계속 되살린다) */
+const CONTEXT_STABLE_MS = 30_000;
 
 /** 3D 해달을 가로로 끌어 돌리기 */
 const DRAG = {
@@ -39,6 +51,8 @@ type Drag = { pointerId: number; startX: number; startYaw: number; moved: boolea
 
 export type SceneEngineOptions = {
   sprites: {
+    /** 3D 해달을 찍어 둔 정지 그림. 3D 를 불러오는 동안과 쓸 수 없을 때 대신 그린다 */
+    otterStill: string;
     fish: Record<FishKind, string>;
     background: string;
     puddle: string;
@@ -140,7 +154,11 @@ export function createSceneEngine(
   let friendFrozenAt: number | null = null;
   // 3D 해달. 아직 못 불러왔으면 null 이고, 그동안은 해달·친구를 그리지 않는다
   let otterModel: OtterModelView | null = null;
+  // 3D 해달을 불러오는 중이거나 다시 시도하려고 기다리는 중인지
+  let modelLoading = false;
   let modelRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  let contextReloads = 0;
+  let modelLoadedAt = 0;
   let drag: Drag | null = null;
   let userYaw = 0;
   let dragged = false;
@@ -209,7 +227,16 @@ export function createSceneEngine(
     frameId = null;
   };
 
-  const handleVisibility = () => (document.hidden ? stop() : start());
+  const handleVisibility = () => {
+    if (document.hidden) {
+      stop();
+      return;
+    }
+    start();
+    // 뒤에 가 있는 동안 3D 해달을 잃었거나 끝내 못 불러왔으면 돌아왔을 때 다시 불러온다
+    contextReloads = 0;
+    reloadModel(0);
+  };
 
   // 3D 해달을 가로로 끌면 돌아간다 (터치·마우스 모두 pointer 이벤트). 세로로 끌면 화면이 그대로 스크롤된다
   const handlePointerDown = (event: PointerEvent) => {
@@ -250,12 +277,14 @@ export function createSceneEngine(
   canvas.addEventListener('pointercancel', handlePointerEnd);
 
   Promise.all([
+    // 정지 그림은 못 불러와도 나머지 장면은 그린다 (해달만 빠진다)
+    loadImage(options.sprites.otterStill).catch(() => null),
     loadFishImages(options.sprites.fish),
     loadImage(options.sprites.background),
     loadImage(options.sprites.puddle),
   ])
-    .then(([fish, background, puddle]) => {
-      sprites = { fish, background, puddle };
+    .then(([otterStill, fish, background, puddle]) => {
+      sprites = { otterStill, fish, background, puddle };
       render();
     })
     // 이미지를 못 불러와도 단색 하늘·눈밭과 웅덩이·이모지 물고기는 그린다
@@ -263,7 +292,9 @@ export function createSceneEngine(
 
   // 3D 해달은 three.js 가 커서 따로 불러온다. 못 불러오면 몇 번 다시 시도하고, 그동안은 해달을 그리지 않는다
   const loadModel = (attempt: number) => {
+    modelRetryTimer = null;
     if (destroyed) return;
+    modelLoading = true;
     import('../otter-3d/otter-model')
       .then(({ createOtterModel }) =>
         createOtterModel(options.otterModelUrl, {
@@ -273,23 +304,53 @@ export function createSceneEngine(
           onUpdate: () => {
             if (!destroyed) render();
           },
+          onContextLost: handleContextLost,
         }),
       )
       .then((model) => {
+        modelLoading = false;
         if (destroyed) {
           model.dispose();
           return;
         }
         otterModel = model;
+        modelLoadedAt = performance.now();
         model.setUserYaw(userYaw);
         render();
       })
       .catch(() => {
         const delay = MODEL_RETRY_DELAYS_MS[attempt];
-        if (destroyed || delay === undefined) return;
+        if (destroyed || delay === undefined) {
+          modelLoading = false;
+          return;
+        }
         modelRetryTimer = setTimeout(() => loadModel(attempt + 1), delay);
       });
   };
+
+  /** 3D 해달이 없고 불러오는 중도 아니면 delayMs 뒤에 다시 불러온다 */
+  function reloadModel(delayMs: number) {
+    if (destroyed || otterModel || modelLoading) return;
+    modelLoading = true;
+    modelRetryTimer = setTimeout(() => loadModel(0), delayMs);
+  }
+
+  /**
+   * 3D 해달이 WebGL 컨텍스트를 잃었다. 그 모델은 더 그릴 수 없으니 치우고 새로 만든다
+   * (그동안은 처음 불러올 때처럼 해달 없이 둔다). 화면이 뒤에 가 있으면 돌아올 때 만든다
+   */
+  function handleContextLost() {
+    if (destroyed || !otterModel) return;
+    otterModel.dispose();
+    otterModel = null;
+    drag = null;
+    render();
+    if (performance.now() - modelLoadedAt >= CONTEXT_STABLE_MS) contextReloads = 0;
+    if (document.hidden || contextReloads >= MAX_CONTEXT_RELOADS) return;
+    contextReloads += 1;
+    reloadModel(CONTEXT_LOST_RELOAD_MS);
+  }
+
   loadModel(0);
 
   resize();
