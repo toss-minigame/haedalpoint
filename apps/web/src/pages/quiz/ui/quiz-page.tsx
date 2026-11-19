@@ -67,7 +67,9 @@ export function QuizPage() {
       {today && <QuizTutorial />}
 
       <Button asChild variant="ghost" className="h-11 self-start px-3 text-base">
-        <Link to="/">홈으로</Link>
+        <Link to="/" replace>
+          홈으로
+        </Link>
       </Button>
     </main>
   );

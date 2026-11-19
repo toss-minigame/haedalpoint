@@ -19,7 +19,7 @@ const ENTRY_LABEL: Record<WarehouseEntry['type'], string> = {
 function StoredStat({ label, fish }: { label: string; fish: number }) {
   return (
     <div className="flex flex-col gap-1 rounded-lg bg-muted p-4">
-      <dt className="text-sm text-muted-foreground">{label}</dt>
+      <dt className="text-sm text-foreground/75">{label}</dt>
       <dd className="text-lg font-bold">{formatFish(fish)}마리</dd>
     </div>
   );
@@ -90,15 +90,17 @@ export function WarehousePage() {
     <main className="mx-auto flex max-w-xl flex-col gap-6 p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold">내 창고</h1>
-        <p className="text-base text-muted-foreground">양동이에서 저장한 물고기가 모여 있어요.</p>
+        <p className="text-base text-foreground/75">양동이에서 저장한 물고기가 모여 있어요.</p>
       </header>
 
       {isPending && <WarehouseSkeleton />}
       {isError && <p className="text-destructive">{error.message}</p>}
       {warehouse && <WarehouseContent warehouse={warehouse} />}
 
-      <Button asChild variant="ghost" className="h-11 self-start px-3 text-base">
-        <Link to="/">홈으로</Link>
+      <Button asChild variant="outline" className="h-11 self-start px-4 text-base">
+        <Link to="/" replace>
+          홈으로
+        </Link>
       </Button>
     </main>
   );
