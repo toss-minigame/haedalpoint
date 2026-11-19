@@ -1,5 +1,6 @@
 import { http } from '@/shared/api';
 import type {
+  ClaimTossPointResponse,
   FishingAdBoostResponse,
   FishingCatchBackResponse,
   FishingStatus,
@@ -11,6 +12,8 @@ export const fishingApi = {
   getMe: () => http.get<FishingStatus>('/fishing/me'),
   getWarehouse: () => http.get<Warehouse>('/fishing/warehouse'),
   storeFish: () => http.post<StoreFishResponse>('/fishing/store'),
+  // 창고 물고기를 1원 단위로 받을 수 있는 만큼 토스 포인트로 받는다
+  claimTossPoint: () => http.post<ClaimTossPointResponse>('/fishing/claim-toss-point'),
   // 보상형 광고를 끝까지 본 뒤(`userEarnedReward`)에만 호출한다
   adEnhanceRod: () => http.post<FishingAdBoostResponse>('/fishing/ad-enhance-rod'),
   adExpandHammock: () => http.post<FishingAdBoostResponse>('/fishing/ad-expand-hammock'),

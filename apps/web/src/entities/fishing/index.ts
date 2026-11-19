@@ -10,11 +10,13 @@ export { useHammockFull } from './lib/use-hammock-full';
 export { type OtterFriendPhase, useOtterFriendPhase } from './lib/use-otter-friend-phase';
 export { useProjectedHammock } from './lib/use-projected-hammock';
 export type {
+  ClaimTossPointResponse,
   FishingAdBoostResponse,
   FishingCatchBackResponse,
   FishingStatus,
   StoreFishResponse,
   Warehouse,
   WarehouseEntry,
+  WarehouseTossPoint,
 } from './model/types';
 export { HammockGauge } from './ui/hammock-gauge';

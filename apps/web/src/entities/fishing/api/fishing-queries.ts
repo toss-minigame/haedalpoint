@@ -14,7 +14,7 @@ export const fishingQueries = {
       queryFn: fishingApi.getMe,
       refetchInterval: REFETCH_INTERVAL_MS,
     }),
-  // 창고는 저장할 때만 바뀐다. 저장하면 fishingQueries.all() 로 함께 다시 불러온다
+  // 창고는 저장하거나 토스 포인트로 받을 때만 바뀐다. 그때 fishingQueries.all() 로 함께 다시 불러온다
   warehouse: () =>
     queryOptions({
       queryKey: [...fishingQueries.all(), 'warehouse'] as const,
