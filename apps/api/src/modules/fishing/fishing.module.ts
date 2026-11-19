@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { TossPointModule } from '../toss-point/toss-point.module.js';
 import { UsersModule } from '../users/users.module.js';
 import { FishingState } from './entities/fishing-state.entity.js';
 import { WarehouseLedger } from './entities/warehouse-ledger.entity.js';
@@ -8,7 +9,11 @@ import { FishingRepository } from './fishing.repository.js';
 import { FishingService } from './fishing.service.js';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([FishingState, WarehouseLedger]), UsersModule],
+  imports: [
+    TypeOrmModule.forFeature([FishingState, WarehouseLedger]),
+    UsersModule,
+    TossPointModule,
+  ],
   controllers: [FishingController],
   providers: [FishingService, FishingRepository],
   // 다른 모듈에는 Service 만 공개 (Repository/Entity 직접 접근 금지)

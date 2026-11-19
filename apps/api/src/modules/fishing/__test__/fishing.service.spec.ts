@@ -7,6 +7,7 @@ import {
   OTTER_FRIEND_POLICY,
   ROD_POLICY,
 } from '../../../common/globals/index.js';
+import { TossPointService } from '../../toss-point/toss-point.service.js';
 import { UsersService } from '../../users/users.service.js';
 import { FishingRepository } from '../fishing.repository.js';
 import { FishingService } from '../fishing.service.js';
@@ -62,9 +63,18 @@ describe('FishingService', () => {
     updateState: jest.fn(),
     addLedgerEntry: jest.fn(),
     sumStoredFish: jest.fn(),
+    sumLedgerSince: jest.fn(),
     findRecentLedger: jest.fn(),
   };
   const usersService = { findById: jest.fn() };
+  const tossPointService = {
+    isEnabled: jest.fn(),
+    canReceive: jest.fn(),
+    createGrant: jest.fn(),
+    settle: jest.fn(),
+    settlePending: jest.fn(),
+    pendingAmount: jest.fn(),
+  };
   const dataSource = {
     transaction: jest.fn(async (work: (m: EntityManager) => unknown) => work(manager)),
   };
@@ -82,12 +92,20 @@ describe('FishingService', () => {
     repo.findOrCreate.mockReset();
     repo.lockOrCreate.mockReset();
     usersService.findById.mockReset().mockResolvedValue({ id: USER_ID });
+    tossPointService.isEnabled.mockReturnValue(true);
+    tossPointService.canReceive.mockResolvedValue(true);
+    tossPointService.createGrant.mockResolvedValue({ id: 'grant-1' });
+    tossPointService.settle.mockResolvedValue('SUCCESS');
+    tossPointService.pendingAmount.mockResolvedValue(0);
+    repo.sumLedgerSince.mockReset().mockResolvedValue(0);
+    repo.addLedgerEntry.mockResolvedValue('ledger-new');
 
     const moduleRef = await Test.createTestingModule({
       providers: [
         FishingService,
         { provide: FishingRepository, useValue: repo },
         { provide: UsersService, useValue: usersService },
+        { provide: TossPointService, useValue: tossPointService },
         { provide: DataSource, useValue: dataSource },
       ],
     }).compile();
@@ -141,6 +159,38 @@ describe('FishingService', () => {
         recentEntries: [
           { id: 'ledger-1', type: 'STORE', amount: 300_000, createdAt: createdAt.toISOString() },
         ],
+        tossPoint: {
+          enabled: true,
+          fishPerPoint: 48_000,
+          // 5,000,000마리 = 104원
+          claimablePoints: 104,
+          dailyLimit: 200,
+          todayClaimedPoints: 0,
+          pendingPoints: 0,
+        },
+      });
+    });
+
+    it('retries unpaid toss points first and shows what is left of today', async () => {
+      repo.findOrCreate.mockResolvedValue(row({ warehouseMilliFish: 48_000_000 * 300 }));
+      repo.sumStoredFish.mockResolvedValue({ today: 0, month: 0 });
+      repo.findRecentLedger.mockResolvedValue([]);
+      repo.sumLedgerSince.mockResolvedValue(48_000_000 * 150);
+      tossPointService.pendingAmount.mockResolvedValue(3);
+
+      const result = await service.getWarehouse(USER_ID);
+
+      expect(tossPointService.settlePending).toHaveBeenCalledWith(USER_ID);
+      expect(repo.sumLedgerSince).toHaveBeenCalledWith(
+        USER_ID,
+        'TOSS_POINT',
+        new Date('2026-11-01T15:00:00Z'),
+      );
+      expect(tossPointService.pendingAmount).toHaveBeenCalledWith(USER_ID, 'WAREHOUSE');
+      expect(result.tossPoint).toMatchObject({
+        claimablePoints: 50,
+        todayClaimedPoints: 150,
+        pendingPoints: 3,
       });
     });
 
@@ -149,6 +199,97 @@ describe('FishingService', () => {
 
       await expect(service.getWarehouse(USER_ID)).rejects.toBeInstanceOf(NotFoundException);
       expect(repo.findOrCreate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('claimTossPoint', () => {
+    it('takes every whole point from the warehouse and pays it in one go', async () => {
+      // 209,760마리 = 4원 + 17,760마리
+      repo.lockOrCreate.mockResolvedValue(row({ warehouseMilliFish: 209_760_000 }));
+
+      const result = await service.claimTossPoint(USER_ID);
+
+      expect(repo.updateState).toHaveBeenCalledWith(manager, 'state-1', {
+        warehouseMilliFish: 17_760_000,
+      });
+      expect(repo.addLedgerEntry).toHaveBeenCalledWith(manager, {
+        userId: USER_ID,
+        type: 'TOSS_POINT',
+        amountMilliFish: 192_000_000,
+      });
+      expect(tossPointService.createGrant).toHaveBeenCalledWith(manager, {
+        userId: USER_ID,
+        source: 'WAREHOUSE',
+        sourceId: 'ledger-new',
+        amount: 4,
+      });
+      expect(tossPointService.settle).toHaveBeenCalledWith('grant-1');
+      expect(result).toEqual({
+        claimedPoints: 4,
+        usedFish: 192_000,
+        warehouseFish: 17_760,
+        tossPointGrant: 'SUCCESS',
+      });
+    });
+
+    it('counts what was claimed today inside the locked transaction', async () => {
+      repo.lockOrCreate.mockResolvedValue(row({ warehouseMilliFish: 48_000_000 * 10 }));
+      repo.sumLedgerSince.mockResolvedValue(48_000_000 * 197);
+
+      const result = await service.claimTossPoint(USER_ID);
+
+      expect(repo.sumLedgerSince).toHaveBeenCalledWith(
+        USER_ID,
+        'TOSS_POINT',
+        new Date('2026-11-01T15:00:00Z'),
+        manager,
+      );
+      expect(result.claimedPoints).toBe(3);
+    });
+
+    it('returns PENDING when the payment is still processing', async () => {
+      repo.lockOrCreate.mockResolvedValue(row({ warehouseMilliFish: 48_000_000 }));
+      tossPointService.settle.mockResolvedValue('PENDING');
+
+      await expect(service.claimTossPoint(USER_ID)).resolves.toMatchObject({
+        claimedPoints: 1,
+        tossPointGrant: 'PENDING',
+      });
+    });
+
+    it('rejects less than one point of fish', async () => {
+      repo.lockOrCreate.mockResolvedValue(row({ warehouseMilliFish: 47_999_999 }));
+
+      await expect(service.claimTossPoint(USER_ID)).rejects.toThrow(
+        '물고기 48,000마리부터 토스 포인트로 받을 수 있어요',
+      );
+      expect(repo.updateState).not.toHaveBeenCalled();
+    });
+
+    it("rejects once today's limit is used up", async () => {
+      repo.lockOrCreate.mockResolvedValue(row({ warehouseMilliFish: 48_000_000 * 10 }));
+      repo.sumLedgerSince.mockResolvedValue(48_000_000 * 200);
+
+      await expect(service.claimTossPoint(USER_ID)).rejects.toThrow(
+        '토스 포인트는 하루 200원까지 받을 수 있어요',
+      );
+      expect(tossPointService.createGrant).not.toHaveBeenCalled();
+    });
+
+    it('rejects before touching the warehouse when the promotion is not ready', async () => {
+      tossPointService.isEnabled.mockReturnValue(false);
+
+      await expect(service.claimTossPoint(USER_ID)).rejects.toBeInstanceOf(ConflictException);
+      expect(dataSource.transaction).not.toHaveBeenCalled();
+    });
+
+    it('rejects a user who cannot receive toss points without taking fish', async () => {
+      tossPointService.canReceive.mockResolvedValue(false);
+
+      await expect(service.claimTossPoint(USER_ID)).rejects.toThrow(
+        '이 계정은 토스 포인트를 받을 수 없어요',
+      );
+      expect(dataSource.transaction).not.toHaveBeenCalled();
     });
   });
 

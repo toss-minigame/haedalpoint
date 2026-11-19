@@ -2,8 +2,12 @@ import type { TossPointGrantStatus } from '@haedalpoint/shared';
 import { Check, Column, Entity, Index, Unique } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity.js';
 
-/** 토스 포인트를 주는 이유. ATTENDANCE: 출석 1~6일차 (source_id = attendance_logs.id) */
-export type TossPointGrantSource = 'ATTENDANCE';
+/**
+ * 토스 포인트를 주는 이유. 이유마다 프로모션 코드가 다르다.
+ * ATTENDANCE: 출석 1~6일차 (source_id = attendance_logs.id)
+ * WAREHOUSE: 창고 물고기로 받기 (source_id = warehouse_ledger.id)
+ */
+export type TossPointGrantSource = 'ATTENDANCE' | 'WAREHOUSE';
 
 // 토스 포인트 지급 한 건 (프로모션 API). docs/design/toss-point-grant.md
 // users 와 TypeORM 관계를 걸지 않고 user_id 컬럼으로만 참조 (모듈 경계 유지)
