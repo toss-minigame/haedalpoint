@@ -70,9 +70,30 @@ export class FishingRepository {
     await manager.getRepository(FishingState).update({ id }, changes);
   }
 
-  async addLedgerEntry(manager: EntityManager, entry: WarehouseLedgerEntry): Promise<void> {
+  /** 창고 이력을 남기고 그 id 를 돌려준다 */
+  async addLedgerEntry(manager: EntityManager, entry: WarehouseLedgerEntry): Promise<string> {
     const repo = manager.getRepository(WarehouseLedger);
-    await repo.insert(repo.create(entry));
+    const { identifiers } = await repo.insert(repo.create(entry));
+    return identifiers[0].id as string;
+  }
+
+  /** since 이후 그 종류 창고 이력의 합계 (milli-fish). 트랜잭션 안이면 manager 를 넘긴다 */
+  async sumLedgerSince(
+    userId: string,
+    type: WarehouseLedgerType,
+    since: Date,
+    manager: EntityManager = this.stateRepo.manager,
+  ): Promise<number> {
+    const sum = await manager
+      .getRepository(WarehouseLedger)
+      .createQueryBuilder('ledger')
+      .select('COALESCE(SUM(ledger.amountMilliFish), 0)', 'sum')
+      .where('ledger.userId = :userId', { userId })
+      .andWhere('ledger.type = :type', { type })
+      .andWhere('ledger.createdAt >= :since', { since })
+      .getRawOne<{ sum: string }>();
+    // bigint 합계는 문자열로 온다
+    return Number(sum?.sum ?? 0);
   }
 
   /** 오늘·이번 달 창고에 저장한 물고기. dayStart 는 monthStart 이후여야 한다 */

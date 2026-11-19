@@ -7,6 +7,7 @@ export {
   HAMMOCK_EXPAND_POLICY,
   OTTER_FRIEND_POLICY,
   ROD_POLICY,
+  WAREHOUSE_TOSS_POINT_POLICY,
 } from './fishing.policy.js';
 export { QUIZ_POLICY } from './quiz.policy.js';
 export {

@@ -3,10 +3,10 @@ import { Check, Column, Entity, Index } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity.js';
 import { bigintNumberTransformer } from '../../../common/entities/bigint-number.transformer.js';
 
-// STORE: 해먹 → 창고 저장. (후속) CONVERT: 창고 → 토스 포인트 전환
+// STORE: 해먹 → 창고 저장. TOSS_POINT: 창고 → 토스 포인트로 받기 (차감)
 export type WarehouseLedgerType = WarehouseEntryType;
 
-// 창고 적립·차감 이력. 행을 고치지 않고 쌓기만 한다.
+// 창고 적립·차감 이력. 행을 고치지 않고 쌓기만 한다. 수량은 늘 양수이고 방향은 type 으로 정한다.
 // STORE 합계가 매월 콘솔에 보고할 물고기 발행 총액이다 (ADR-0007).
 @Entity('warehouse_ledger')
 @Check('CHK_warehouse_ledger_amount_milli_fish', '"amount_milli_fish" > 0')

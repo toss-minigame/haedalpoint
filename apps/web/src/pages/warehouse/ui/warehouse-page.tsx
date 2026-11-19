@@ -6,14 +6,20 @@ import {
   type Warehouse,
   type WarehouseEntry,
 } from '@/entities/fishing';
+import { ClaimTossPointCard } from '@/features/claim-toss-point';
 import { Button } from '@/shared/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { formatEntryTime } from '../lib/format-entry-time';
 import { WarehouseSkeleton } from './warehouse-skeleton';
 
-// 창고 이력 종류별 문구. 토스 포인트 전환이 생기면 여기에 추가한다
+// 창고 이력 종류별 문구와 수량 부호 (STORE 는 늘고, TOSS_POINT 는 준다)
 const ENTRY_LABEL: Record<WarehouseEntry['type'], string> = {
   STORE: '양동이에서 저장',
+  TOSS_POINT: '토스 포인트로 받음',
+};
+const ENTRY_SIGN: Record<WarehouseEntry['type'], string> = {
+  STORE: '+',
+  TOSS_POINT: '-',
 };
 
 function StoredStat({ label, fish }: { label: string; fish: number }) {
@@ -44,7 +50,10 @@ function EntryList({ entries }: { entries: WarehouseEntry[] }) {
               {formatEntryTime(entry.createdAt)}
             </span>
           </div>
-          <span className="text-base font-bold">+{formatFish(entry.amount)}마리</span>
+          <span className="text-base font-bold">
+            {ENTRY_SIGN[entry.type]}
+            {formatFish(entry.amount)}마리
+          </span>
         </li>
       ))}
     </ul>
@@ -66,6 +75,8 @@ function WarehouseContent({ warehouse }: { warehouse: Warehouse }) {
           </dl>
         </CardContent>
       </Card>
+
+      <ClaimTossPointCard warehouseFish={warehouse.warehouseFish} tossPoint={warehouse.tossPoint} />
 
       <section aria-labelledby="warehouse-history-heading">
         <Card>

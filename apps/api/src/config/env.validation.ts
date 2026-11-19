@@ -95,6 +95,11 @@ class EnvironmentVariables {
   @IsString()
   @IsOptional()
   TOSS_ATTENDANCE_PROMOTION_CODE?: string;
+
+  // 창고 물고기를 토스 포인트로 받는 프로모션 코드 (콘솔 > 프로모션, 자체 포인트). 없으면 창고 화면에서 받기를 막는다
+  @IsString()
+  @IsOptional()
+  TOSS_WAREHOUSE_PROMOTION_CODE?: string;
 }
 
 export type Env = EnvironmentVariables;

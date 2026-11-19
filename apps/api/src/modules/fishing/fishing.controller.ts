@@ -22,6 +22,12 @@ export class FishingController {
     return this.fishingService.storeFish(userId);
   }
 
+  // 창고 물고기를 1원 단위로 받을 수 있는 만큼 토스 포인트로 받는다 (광고 없음)
+  @Post('claim-toss-point')
+  claimTossPoint(@CurrentUserId() userId: string) {
+    return this.fishingService.claimTossPoint(userId);
+  }
+
   // 보상형 광고를 끝까지 본 뒤(`userEarnedReward`)에만 호출한다
   @Post('ad-enhance-rod')
   adEnhanceRod(@CurrentUserId() userId: string) {

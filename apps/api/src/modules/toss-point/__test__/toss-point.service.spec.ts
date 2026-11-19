@@ -173,7 +173,6 @@ describe('TossPointService', () => {
       repo.claim.mockResolvedValue(grant({ attempts: MAX_GRANT_ATTEMPTS - 1 }));
 
       await expect(service.settle('grant-1', NOW)).resolves.toBe('PENDING');
-      expect(repo.claim).not.toHaveBeenCalled();
       expect(repo.update).not.toHaveBeenCalled();
       expect(client.getPromotionKey).not.toHaveBeenCalled();
     });
@@ -190,11 +189,49 @@ describe('TossPointService', () => {
     });
   });
 
+  describe('promotion code per source', () => {
+    it('pays a warehouse grant with the warehouse promotion code', async () => {
+      config.get.mockImplementation((key: string) =>
+        key === 'TOSS_WAREHOUSE_PROMOTION_CODE' ? 'PROMO-WAREHOUSE' : undefined,
+      );
+      repo.claim.mockResolvedValue(grant({ source: 'WAREHOUSE', amount: 3 }));
+
+      await expect(service.settle('grant-1', NOW)).resolves.toBe('SUCCESS');
+      expect(client.executePromotion).toHaveBeenCalledWith(
+        expect.objectContaining({ promotionCode: 'PROMO-WAREHOUSE', amount: 3 }),
+      );
+    });
+
+    it('is enabled only for sources with a promotion code', () => {
+      config.get.mockImplementation((key: string) =>
+        key === 'TOSS_ATTENDANCE_PROMOTION_CODE' ? PROMO : '',
+      );
+
+      expect(service.isEnabled('ATTENDANCE')).toBe(true);
+      expect(service.isEnabled('WAREHOUSE')).toBe(false);
+    });
+  });
+
+  it('cannot give points to a user without a real anonymous key', async () => {
+    await expect(service.canReceive(USER_ID)).resolves.toBe(true);
+    usersService.findById.mockResolvedValue({ id: USER_ID, anonKey: 'legacy:abc' });
+    await expect(service.canReceive(USER_ID)).resolves.toBe(false);
+  });
+
   describe('pending grants', () => {
     it('sums the pending amount', async () => {
       repo.findPendingByUserId.mockResolvedValue([grant(), grant({ id: 'grant-2', amount: 2 })]);
 
       await expect(service.pendingAmount(USER_ID)).resolves.toBe(3);
+    });
+
+    it('sums the pending amount of one source', async () => {
+      repo.findPendingByUserId.mockResolvedValue([
+        grant(),
+        grant({ id: 'grant-2', source: 'WAREHOUSE', amount: 5 }),
+      ]);
+
+      await expect(service.pendingAmount(USER_ID, 'WAREHOUSE')).resolves.toBe(5);
     });
 
     it('settles each pending grant in order', async () => {

@@ -1,18 +1,23 @@
 import type {
+  ClaimTossPointResponse,
   FishingAdBoostResponse,
   FishingCatchBackResponse,
   FishingStatusResponse,
   StoreFishResponse,
   WarehouseResponse,
+  WarehouseTossPoint,
 } from '@haedalpoint/shared';
 import { ConflictException, Injectable } from '@nestjs/common';
 import { DataSource, type EntityManager } from 'typeorm';
 import {
   AD_ROD_POLICY,
   CATCH_BACK_POLICY,
+  FISHING_POLICY,
   HAMMOCK_EXPAND_POLICY,
+  WAREHOUSE_TOSS_POINT_POLICY,
 } from '../../common/globals/index.js';
 import { kstDayStart, kstMonthStart, toKstDateString } from '../../common/utils/kst-date.js';
+import { TossPointService } from '../toss-point/toss-point.service.js';
 import { UsersService } from '../users/users.service.js';
 import type { FishingState } from './entities/fishing-state.entity.js';
 import { FishingRepository, type FishingStateChanges } from './fishing.repository.js';
@@ -43,6 +48,11 @@ import {
   takeAllFish,
 } from './lib/hammock-actions.js';
 import { boostsAt, type HammockState, settleHammock } from './lib/settle-hammock.js';
+import {
+  claimableTossPoints,
+  MILLI_FISH_PER_TOSS_POINT,
+  tossPointsOf,
+} from './lib/warehouse-toss-point.js';
 
 const NOTHING_TO_STORE = '양동이에 저장할 물고기가 없어요';
 const AD_ROD_COOLING_DOWN = `낚싯대는 ${AD_ROD_POLICY.COOLDOWN_MINUTES}분마다 강화할 수 있어요`;
@@ -52,6 +62,10 @@ const NOTHING_TO_CATCH_BACK = '다시 잡아올 물고기가 없어요';
 const FRIEND_NOT_MELTING = '지금은 눈사람 친구를 얼릴 수 없어요';
 const FRIEND_ALREADY_FROZEN = '눈사람 친구는 올 때마다 한 번만 얼릴 수 있어요';
 const CATCH_BACK_LIMIT_REACHED = `넘친 물고기는 하루 ${CATCH_BACK_POLICY.DAILY_LIMIT}번까지 다시 잡아올 수 있어요`;
+const TOSS_POINT_NOT_READY = '토스 포인트 받기를 준비하고 있어요';
+const TOSS_POINT_UNAVAILABLE = '이 계정은 토스 포인트를 받을 수 없어요';
+const NOT_ENOUGH_FISH_FOR_TOSS_POINT = `물고기 ${FISHING_POLICY.FISH_PER_TOSS_POINT.toLocaleString('ko-KR')}마리부터 토스 포인트로 받을 수 있어요`;
+const TOSS_POINT_DAILY_LIMIT_REACHED = `토스 포인트는 하루 ${WAREHOUSE_TOSS_POINT_POLICY.DAILY_LIMIT}원까지 받을 수 있어요`;
 /** 창고 화면에 보여줄 최근 이력 수 */
 const RECENT_LEDGER_LIMIT = 30;
 
@@ -81,6 +95,7 @@ export class FishingService {
   constructor(
     private readonly fishingRepository: FishingRepository,
     private readonly usersService: UsersService,
+    private readonly tossPointService: TossPointService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -93,18 +108,21 @@ export class FishingService {
     return buildFishingStatus(hammock, row, now);
   }
 
-  /** 창고 화면: 창고 수량, 오늘·이번 달(KST) 저장량, 최근 이력. 조회만 한다 */
+  /**
+   * 창고 화면: 창고 수량, 오늘·이번 달(KST) 저장량, 최근 이력, 토스 포인트 받기 현황.
+   * 아직 지급되지 않은 토스 포인트가 있으면 먼저 다시 지급해 본다
+   */
   async getWarehouse(userId: string): Promise<WarehouseResponse> {
     await this.usersService.findById(userId);
+    await this.tossPointService.settlePending(userId);
     const now = new Date();
+    const dayStart = kstDayStart(toKstDateString(now));
     const row = await this.fishingRepository.findOrCreate(userId, now);
-    const [stored, entries] = await Promise.all([
-      this.fishingRepository.sumStoredFish(
-        userId,
-        kstDayStart(toKstDateString(now)),
-        kstMonthStart(now),
-      ),
+    const [stored, entries, claimedToday, pendingPoints] = await Promise.all([
+      this.fishingRepository.sumStoredFish(userId, dayStart, kstMonthStart(now)),
       this.fishingRepository.findRecentLedger(userId, RECENT_LEDGER_LIMIT),
+      this.fishingRepository.sumLedgerSince(userId, 'TOSS_POINT', dayStart),
+      this.tossPointService.pendingAmount(userId, 'WAREHOUSE'),
     ]);
     return {
       serverTime: now.toISOString(),
@@ -117,6 +135,67 @@ export class FishingService {
         amount: amountMilliFish / MILLI_PER_FISH,
         createdAt: createdAt.toISOString(),
       })),
+      tossPoint: this.warehouseTossPoint(row.warehouseMilliFish, claimedToday, pendingPoints),
+    };
+  }
+
+  /**
+   * 창고 물고기를 1원 단위로 받을 수 있는 만큼 모두 토스 포인트로 받는다 (오늘 한도 안에서, 광고 없음).
+   * 창고 차감·이력·지급 건을 한 트랜잭션으로 남기고, 커밋한 뒤 지급한다
+   * (지급이 늦어지거나 실패하면 창고 화면을 열 때 다시 시도한다). 받을 수 없으면 409.
+   */
+  async claimTossPoint(userId: string): Promise<ClaimTossPointResponse> {
+    await this.usersService.findById(userId);
+    if (!this.tossPointService.isEnabled('WAREHOUSE')) {
+      throw new ConflictException(TOSS_POINT_NOT_READY);
+    }
+    // 받을 수 없는 계정이면 물고기를 차감하기 전에 막는다 (지급 건이 바로 FAILED 가 되어 물고기만 잃는다)
+    if (!(await this.tossPointService.canReceive(userId))) {
+      throw new ConflictException(TOSS_POINT_UNAVAILABLE);
+    }
+
+    const claimed = await this.dataSource.transaction(async (manager) => {
+      const now = new Date();
+      // 행을 잠근 뒤 오늘 받은 양을 센다. 연타해도 한 요청씩 처리되어 한도를 넘지 않는다
+      const row = await this.fishingRepository.lockOrCreate(manager, userId, now);
+      const claimedToday = await this.fishingRepository.sumLedgerSince(
+        userId,
+        'TOSS_POINT',
+        kstDayStart(toKstDateString(now)),
+        manager,
+      );
+      const points = claimableTossPoints(row.warehouseMilliFish, tossPointsOf(claimedToday));
+      if (points <= 0) {
+        throw new ConflictException(
+          tossPointsOf(row.warehouseMilliFish) <= 0
+            ? NOT_ENOUGH_FISH_FOR_TOSS_POINT
+            : TOSS_POINT_DAILY_LIMIT_REACHED,
+        );
+      }
+
+      const usedMilliFish = points * MILLI_FISH_PER_TOSS_POINT;
+      const warehouseMilliFish = row.warehouseMilliFish - usedMilliFish;
+      await this.fishingRepository.updateState(manager, row.id, { warehouseMilliFish });
+      const ledgerId = await this.fishingRepository.addLedgerEntry(manager, {
+        userId,
+        type: 'TOSS_POINT',
+        amountMilliFish: usedMilliFish,
+      });
+      const grant = await this.tossPointService.createGrant(manager, {
+        userId,
+        source: 'WAREHOUSE',
+        sourceId: ledgerId,
+        amount: points,
+      });
+      return { grantId: grant.id, points, usedMilliFish, warehouseMilliFish };
+    });
+
+    const tossPointGrant = await this.tossPointService.settle(claimed.grantId);
+    return {
+      claimedPoints: claimed.points,
+      usedFish: claimed.usedMilliFish / MILLI_PER_FISH,
+      warehouseFish: claimed.warehouseMilliFish / MILLI_PER_FISH,
+      tossPointGrant,
     };
   }
 
@@ -187,6 +266,22 @@ export class FishingService {
         hammockFish: next.milliFish / MILLI_PER_FISH,
       };
     });
+  }
+
+  private warehouseTossPoint(
+    warehouseMilliFish: number,
+    claimedTodayMilliFish: number,
+    pendingPoints: number,
+  ): WarehouseTossPoint {
+    const todayClaimedPoints = tossPointsOf(claimedTodayMilliFish);
+    return {
+      enabled: this.tossPointService.isEnabled('WAREHOUSE'),
+      fishPerPoint: FISHING_POLICY.FISH_PER_TOSS_POINT,
+      claimablePoints: claimableTossPoints(warehouseMilliFish, todayClaimedPoints),
+      dailyLimit: WAREHOUSE_TOSS_POINT_POLICY.DAILY_LIMIT,
+      todayClaimedPoints,
+      pendingPoints,
+    };
   }
 
   /** 저장할 때 광고를 보면 다시 잡아올 양. 오늘 횟수를 다 썼거나 너무 적으면 0 */

@@ -1,8 +1,10 @@
+import type { TossPointGrantStatus } from './attendance';
+
 // 해달 낚시 · 해먹 · 창고 API 응답 타입 (FE/BE 공용)
 // 수량은 서버가 시간으로 계산한다. 정책값(속도, 용량 등)도 api 가 응답으로 내려준다.
 // 단위: 물고기 1마리 = 1g, 토스 포인트 1원 = 48,000마리. 수량은 소수 셋째 자리까지 올 수 있고 화면은 정수로 내림한다.
 //
-// 흐름: 해달 낚시 → 해먹(용량 한도) → 창고(영속) → 토스 포인트 (후속 작업)
+// 흐름: 해달 낚시 → 해먹(용량 한도) → 창고(영속) → 토스 포인트
 
 // GET /api/fishing/me
 export interface FishingStatusResponse {
@@ -80,14 +82,31 @@ export interface FishingCatchBackResponse {
 }
 
 // GET /api/fishing/warehouse
-/** 창고 이력 종류. STORE: 해먹 → 창고 저장. (후속) 토스 포인트 전환 이력이 추가된다 */
-export type WarehouseEntryType = 'STORE';
+/** 창고 이력 종류. STORE: 해먹 → 창고 저장 (늘어남), TOSS_POINT: 토스 포인트로 받음 (줄어듦) */
+export type WarehouseEntryType = 'STORE' | 'TOSS_POINT';
 
 export interface WarehouseEntry {
   id: string;
   type: WarehouseEntryType;
+  /** 늘거나 준 물고기 (마리, 항상 양수. 방향은 type 으로 정해진다) */
   amount: number;
   createdAt: string; // ISO 8601
+}
+
+/** 창고 물고기로 토스 포인트 받기 현황 */
+export interface WarehouseTossPoint {
+  /** 받기를 열었는지 (서버에 프로모션 코드가 있을 때만 true). false 면 화면은 준비 중으로 보여준다 */
+  enabled: boolean;
+  /** 토스 포인트 1원에 드는 물고기 (마리) */
+  fishPerPoint: number;
+  /** 지금 받을 수 있는 토스 포인트 (원). 창고 물고기와 오늘 남은 한도 중 작은 쪽 */
+  claimablePoints: number;
+  /** 하루(KST) 최대로 받을 수 있는 토스 포인트 (원) */
+  dailyLimit: number;
+  /** 오늘(KST) 받은 토스 포인트 (원) */
+  todayClaimedPoints: number;
+  /** 받았지만 아직 지급 중인 토스 포인트 (원) */
+  pendingPoints: number;
 }
 
 export interface WarehouseResponse {
@@ -100,4 +119,18 @@ export interface WarehouseResponse {
   monthStoredFish: number;
   /** 최근 이력 (최신순, 최대 개수는 서버가 정한다) */
   recentEntries: WarehouseEntry[];
+  tossPoint: WarehouseTossPoint;
+}
+
+// POST /api/fishing/claim-toss-point
+// 창고 물고기를 1원 단위로 받을 수 있는 만큼 모두 토스 포인트로 받는다 (오늘 한도 안에서)
+export interface ClaimTossPointResponse {
+  /** 이번에 받은 토스 포인트 (원) */
+  claimedPoints: number;
+  /** 이번에 쓴 물고기 (마리) */
+  usedFish: number;
+  /** 받고 남은 창고 물고기 (마리) */
+  warehouseFish: number;
+  /** 지급 결과. PENDING 이면 지급 중이고 창고 화면을 열 때 다시 시도한다 */
+  tossPointGrant: TossPointGrantStatus;
 }

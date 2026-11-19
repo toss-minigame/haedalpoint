@@ -19,6 +19,14 @@ export const FISHING_POLICY = {
   MONTHLY_TOSS_POINT_BUDGET: 5_000,
 } as const;
 
+// 창고 물고기로 토스 포인트 받기 (docs/design/warehouse-toss-point.md): 1원(FISH_PER_TOSS_POINT) 단위로 받을 수 있는 만큼 한 번에 받는다.
+export const WAREHOUSE_TOSS_POINT_POLICY = {
+  /** 한 사람이 하루(KST)에 받을 수 있는 최대 토스 포인트 (원).
+   *  콘솔 창고 프로모션의 '1인 하루 최대 지급 금액'과 같은 값으로 둔다 (다르면 토스가 지급을 거절한다).
+   *  최악의 한 달 적립(fishing-budget.spec.ts, 약 148원)을 하루에 다 받을 수 있게 넉넉히 잡았다 */
+  DAILY_LIMIT: 200,
+} as const;
+
 // 낚싯대 강화: 매일 KST 자정에 0단계로 초기화된다. 하루 최대 단계는 두지 않는다
 // (광고 강화 쿨타임·퀴즈·출석·해먹 넓히기 횟수가 한도 역할을 하고, 월 예산은 fishing-budget.spec.ts 가 지킨다)
 export const ROD_POLICY = {

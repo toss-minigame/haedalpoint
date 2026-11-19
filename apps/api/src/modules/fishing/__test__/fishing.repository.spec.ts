@@ -101,11 +101,37 @@ describe('FishingRepository', () => {
   it('appends a warehouse ledger entry', async () => {
     const manager = mocks.manager as unknown as EntityManager;
     const entry = { userId: USER_ID, type: 'STORE' as const, amountMilliFish: 42 };
+    mocks.ledgerRepo.insert.mockResolvedValue({ identifiers: [{ id: 'ledger-1' }] });
 
-    await repository.addLedgerEntry(manager, entry);
+    await expect(repository.addLedgerEntry(manager, entry)).resolves.toBe('ledger-1');
 
     expect(mocks.manager.getRepository).toHaveBeenCalledWith(WarehouseLedger);
     expect(mocks.ledgerRepo.insert).toHaveBeenCalledWith(entry);
+  });
+
+  describe('sumLedgerSince', () => {
+    const SINCE = new Date('2026-11-01T15:00:00Z');
+
+    it('sums one type of entries since the given time inside the given transaction', async () => {
+      const manager = mocks.manager as unknown as EntityManager;
+      mocks.sumBuilder.getRawOne.mockResolvedValue({ sum: '96000000' });
+
+      await expect(repository.sumLedgerSince(USER_ID, 'TOSS_POINT', SINCE, manager)).resolves.toBe(
+        96_000_000,
+      );
+      expect(mocks.sumBuilder.andWhere).toHaveBeenCalledWith('ledger.type = :type', {
+        type: 'TOSS_POINT',
+      });
+      expect(mocks.sumBuilder.andWhere).toHaveBeenCalledWith('ledger.createdAt >= :since', {
+        since: SINCE,
+      });
+    });
+
+    it('returns zero when there is nothing', async () => {
+      mocks.sumBuilder.getRawOne.mockResolvedValue(undefined);
+
+      await expect(repository.sumLedgerSince(USER_ID, 'TOSS_POINT', SINCE)).resolves.toBe(0);
+    });
   });
 
   describe('sumStoredFish', () => {

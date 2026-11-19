@@ -115,6 +115,33 @@ export function SnowmanIcon(props: IconProps) {
   );
 }
 
+/**
+ * 포인트 동전 (창고 물고기로 토스 포인트 받기). 해달해달 자체 그림이다 (토스 포인트 공식 아이콘 파일을 쓰지 않는다).
+ * 앱 주색(#3082F5) 파란 동전에 P 를 새겼다
+ */
+export function PointCoinIcon(props: IconProps) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 30 30" fill="none" {...props}>
+      <circle cx={15} cy={16} r={12} fill="#2368D1" />
+      <circle cx={15} cy={14.5} r={12} fill="#3082F5" />
+      <circle cx={15} cy={14.5} r={9} fill="#4A93F7" stroke="#2368D1" strokeWidth={1.2} />
+      <path
+        d="M12.4 20V9.5h3.6a3.3 3.3 0 0 1 0 6.6h-3.6"
+        stroke="#fff"
+        strokeWidth={2.4}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8.5 9.2a8 8 0 0 1 3.4-2.6"
+        stroke="#A9CDFB"
+        strokeWidth={1.4}
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 /** 출석체크 카드 머리 (달력 + 체크) */
 export function AttendanceIcon(props: IconProps) {
   return (
