@@ -632,6 +632,51 @@ describe('FishingService', () => {
     });
   });
 
+  describe('warehouseFish', () => {
+    it('returns the fish in the warehouse', async () => {
+      repo.findOrCreate.mockResolvedValue(row({ warehouseMilliFish: 48_500_000 }));
+
+      await expect(service.warehouseFish(USER_ID)).resolves.toBe(48_500);
+    });
+  });
+
+  describe('spendWarehouseFish', () => {
+    it('takes the fish out of the locked warehouse row and records the ledger entry', async () => {
+      repo.lockOrCreate.mockResolvedValue(row({ warehouseMilliFish: 100_000_000 }));
+
+      const left = await service.spendWarehouseFish(USER_ID, 48_000, 'OUTFIT', manager, NOW);
+
+      expect(left).toBe(52_000);
+      expect(repo.lockOrCreate).toHaveBeenCalledWith(manager, USER_ID, NOW);
+      expect(repo.updateState).toHaveBeenCalledWith(manager, 'state-1', {
+        warehouseMilliFish: 52_000_000,
+      });
+      expect(repo.addLedgerEntry).toHaveBeenCalledWith(manager, {
+        userId: USER_ID,
+        type: 'OUTFIT',
+        amountMilliFish: 48_000_000,
+      });
+    });
+
+    it('can spend exactly everything', async () => {
+      repo.lockOrCreate.mockResolvedValue(row({ warehouseMilliFish: 48_000_000 }));
+
+      await expect(
+        service.spendWarehouseFish(USER_ID, 48_000, 'OUTFIT', manager, NOW),
+      ).resolves.toBe(0);
+    });
+
+    it('refuses without changing anything when the warehouse is short', async () => {
+      repo.lockOrCreate.mockResolvedValue(row({ warehouseMilliFish: 47_999_999 }));
+
+      await expect(
+        service.spendWarehouseFish(USER_ID, 48_000, 'OUTFIT', manager, NOW),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(repo.updateState).not.toHaveBeenCalled();
+      expect(repo.addLedgerEntry).not.toHaveBeenCalled();
+    });
+  });
+
   describe('expandHammock', () => {
     it('expands the hammock and the rod without starting the ad cooldown', async () => {
       repo.lockOrCreate.mockResolvedValue(row());

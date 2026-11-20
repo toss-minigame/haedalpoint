@@ -1,8 +1,10 @@
 import { type ReactNode, type RefObject, useEffect, useRef, useState } from 'react';
 import { cn } from '@/shared/lib/utils';
+import type { OutfitCode } from '../lib/otter-outfits';
 import {
   FISH_SPRITES,
   OTTER_3D_MODEL,
+  OTTER_OUTFIT_MODELS,
   OTTER_STILL_SPRITE,
   PUDDLE_SPRITE,
   SNOW_BACKGROUND_SPRITE,
@@ -32,6 +34,8 @@ type Props = {
   friendCatchLabel?: string | null;
   /** 해먹이 가득 찼으면 true. 낚시를 멈추고 물고기가 가득한 양동이를 든 모습이 된다 */
   hammockFull?: boolean;
+  /** 해달이 입은 소품 (같은 부위는 하나만). 없으면 기본 모습(파란 털모자) */
+  outfits?: readonly OutfitCode[];
   /** 주면 해달·낚싯대·웅덩이를 감싸는 보이지 않는 영역을 장면 위에 두고 이 속성을 붙인다 */
   fishingAreaProps?: FishingAreaProps;
 };
@@ -42,6 +46,8 @@ function sceneLabel(withOtterFriend: boolean, hammockFull: boolean): string {
     ? '눈사람 친구와 함께 얼음낚시하는 해달. 누르면 해달이 물고기를 잡아요'
     : '얼음낚시하는 해달. 누르면 해달이 물고기를 잡아요';
 }
+
+const NO_OUTFITS: readonly OutfitCode[] = [];
 
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
@@ -91,6 +97,7 @@ export function OtterScene({
   friendFrozen = false,
   friendBuildStage = 0,
   friendBubble = null,
+  outfits = NO_OUTFITS,
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<SceneSize | null>(null);
@@ -105,6 +112,7 @@ export function OtterScene({
   const friendMeltRef = useRef(friendMelt);
   const friendBuildStageRef = useRef(friendBuildStage);
   const wasFriendFrozenRef = useRef(friendFrozen);
+  const outfitsRef = useRef(outfits);
 
   useEffect(() => {
     catchLabelRef.current = catchLabel;
@@ -136,6 +144,11 @@ export function OtterScene({
     engineRef.current?.setFriendBuildStage(friendBuildStage);
   }, [friendBuildStage]);
 
+  useEffect(() => {
+    outfitsRef.current = outfits;
+    engineRef.current?.setOutfits(outfits);
+  }, [outfits]);
+
   // 방금 얼렸을 때만 연출을 보여 준다 (이미 얼린 채로 화면에 들어왔을 때는 보여 주지 않는다)
   useEffect(() => {
     if (friendFrozen && !wasFriendFrozenRef.current) engineRef.current?.playFriendFreeze();
@@ -166,6 +179,7 @@ export function OtterScene({
       reducedMotion: window.matchMedia(REDUCED_MOTION_QUERY).matches,
       otterModelUrl: OTTER_3D_MODEL,
       friendModelUrl: SNOWMAN_3D_MODEL,
+      outfitModelUrls: OTTER_OUTFIT_MODELS,
     });
     engineRef.current = engine;
     engine.setCatchLabel(catchLabelRef.current);
@@ -174,6 +188,7 @@ export function OtterScene({
     engine.setHammockFull(hammockFullRef.current);
     engine.setFriendMelt(friendMeltRef.current);
     engine.setFriendBuildStage(friendBuildStageRef.current);
+    engine.setOutfits(outfitsRef.current);
     return () => {
       engine.destroy();
       engineRef.current = null;

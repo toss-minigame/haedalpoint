@@ -82,8 +82,11 @@ export interface FishingCatchBackResponse {
 }
 
 // GET /api/fishing/warehouse
-/** 창고 이력 종류. STORE: 해먹 → 창고 저장 (늘어남), TOSS_POINT: 토스 포인트로 받음 (줄어듦) */
-export type WarehouseEntryType = 'STORE' | 'TOSS_POINT';
+/**
+ * 창고 이력 종류. STORE: 해먹 → 창고 저장 (늘어남), TOSS_POINT: 토스 포인트로 받음 (줄어듦),
+ * OUTFIT: 옷장에서 소품을 여는 데 씀 (줄어듦)
+ */
+export type WarehouseEntryType = 'STORE' | 'TOSS_POINT' | 'OUTFIT';
 
 export interface WarehouseEntry {
   id: string;

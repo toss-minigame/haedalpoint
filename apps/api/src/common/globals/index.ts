@@ -9,6 +9,7 @@ export {
   ROD_POLICY,
   WAREHOUSE_TOSS_POINT_POLICY,
 } from './fishing.policy.js';
+export { OUTFIT_POLICY, OUTFIT_SLOTS } from './outfit.policy.js';
 export { QUIZ_POLICY } from './quiz.policy.js';
 export {
   BAIT_TIERS,

@@ -6,6 +6,7 @@ import { AttendanceModule } from './modules/attendance/attendance.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { FishingModule } from './modules/fishing/fishing.module.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { OutfitModule } from './modules/outfit/outfit.module.js';
 import { QuizModule } from './modules/quiz/quiz.module.js';
 import { RouletteModule } from './modules/roulette/roulette.module.js';
 import { TutorialModule } from './modules/tutorial/tutorial.module.js';
@@ -23,6 +24,7 @@ import { UsersModule } from './modules/users/users.module.js';
     AttendanceModule,
     QuizModule,
     FishingModule,
+    OutfitModule,
     RouletteModule,
     TutorialModule,
   ],

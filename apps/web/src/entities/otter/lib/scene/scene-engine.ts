@@ -1,3 +1,4 @@
+import type { OutfitCode } from '../otter-outfits';
 import { isFrameDue } from './frame-pacing';
 import { drawScene, type FishImages, type OtterModelView, type SceneSprites } from './scene-render';
 import {
@@ -66,6 +67,8 @@ export type SceneEngineOptions = {
   otterModelUrl: string;
   /** 해달 친구로 그릴 3D 눈사람 모델(glb) 주소 */
   friendModelUrl: string;
+  /** 해달 소품 3D 모델(glb) 주소. 소품을 처음 입을 때 불러온다 */
+  outfitModelUrls: Record<OutfitCode, string>;
 };
 
 export type SceneEngine = {
@@ -84,6 +87,8 @@ export type SceneEngine = {
   setFriendBuildStage: (stage: number) => void;
   /** 눈사람을 얼리는 연출을 한 번 보여 준다 (얼음 조각이 솟고 만세한다) */
   playFriendFreeze: () => void;
+  /** 해달이 입을 소품 (같은 부위는 하나만) */
+  setOutfits: (codes: readonly OutfitCode[]) => void;
   /**
    * 방금 누른 동작이 3D 해달을 끌어 돌린 것이면 true (한 번 읽으면 지운다).
    * 끌기를 마친 뒤 이어지는 click 을 탭(물고기 잡기)으로 처리하지 않을 때 쓴다
@@ -128,6 +133,7 @@ export function createSceneEngine(
       setFriendMelt: () => {},
       setFriendBuildStage: () => {},
       playFriendFreeze: () => {},
+      setOutfits: () => {},
       consumeDrag: () => false,
       destroy: () => {},
     };
@@ -162,6 +168,7 @@ export function createSceneEngine(
   let drag: Drag | null = null;
   let userYaw = 0;
   let dragged = false;
+  let outfits: readonly OutfitCode[] = [];
 
   const setUserYaw = (yaw: number) => {
     userYaw = yaw;
@@ -300,6 +307,7 @@ export function createSceneEngine(
         createOtterModel(options.otterModelUrl, {
           reducedMotion: options.reducedMotion,
           friendUrl: options.friendModelUrl,
+          outfitUrls: options.outfitModelUrls,
           preloadFriend: otterFriendVisible || friendBuildStage > 0,
           onUpdate: () => {
             if (!destroyed) render();
@@ -316,6 +324,7 @@ export function createSceneEngine(
         otterModel = model;
         modelLoadedAt = performance.now();
         model.setUserYaw(userYaw);
+        model.setOutfits(outfits);
         render();
       })
       .catch(() => {
@@ -425,6 +434,13 @@ export function createSceneEngine(
     if (!destroyed) render();
   };
 
+  const setOutfits = (codes: readonly OutfitCode[]) => {
+    outfits = codes;
+    otterModel?.setOutfits(codes);
+    // 동작 줄이기 모드는 매 프레임 다시 그리지 않으므로 바로 그린다
+    if (!destroyed) render();
+  };
+
   const consumeDrag = () => {
     const wasDrag = dragged;
     dragged = false;
@@ -440,6 +456,7 @@ export function createSceneEngine(
     setFriendMelt,
     setFriendBuildStage,
     playFriendFreeze,
+    setOutfits,
     consumeDrag,
     destroy,
   };

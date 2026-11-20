@@ -51,6 +51,21 @@ export function PailIcon(props: IconProps) {
   );
 }
 
+/** 옷장 (해달 옷 갈아입히기). 문 두 짝이 달린 나무 옷장 */
+export function WardrobeIcon(props: IconProps) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 30 30" fill="none" {...props}>
+      <path d="M8 24.5v2.5M22 24.5v2.5" stroke="#A0703F" strokeWidth={2.2} strokeLinecap="round" />
+      <rect x={4.5} y={3} width={21} height={22} rx={2.5} fill="#D9A566" />
+      <path d="M4.5 5.5A2.5 2.5 0 0 1 7 3h16a2.5 2.5 0 0 1 2.5 2.5V7h-21V5.5Z" fill="#A0703F" />
+      <path d="M15 7v18" stroke="#A0703F" strokeWidth={1.3} />
+      <path d="M7.5 10h5v12h-5zM17.5 10h5v12h-5z" stroke="#BE8A4E" strokeWidth={1.1} />
+      <circle cx={13.3} cy={16} r={1.05} fill="#fff" />
+      <circle cx={16.7} cy={16} r={1.05} fill="#fff" />
+    </svg>
+  );
+}
+
 /** 미끼 룰렛 (미끼 뽑기) */
 export function BaitWheelIcon(props: IconProps) {
   return (

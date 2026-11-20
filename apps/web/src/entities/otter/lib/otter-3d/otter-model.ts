@@ -11,8 +11,10 @@ import {
 } from 'three';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import type { OutfitCode } from '../otter-outfits';
 import type { OtterModelView } from '../scene/scene-render';
 import { isShowingFull, otterLayout, type SceneState, snowmanLayout } from '../scene/scene-state';
+import { createWardrobe } from './otter-outfit';
 import { FULL_TRANSITION_SECONDS, type OtterPose, otterPose } from './otter-pose';
 import { VIEW, viewRect, viewUnit } from './otter-view';
 import { loadSnowman, SNOWMAN_HEIGHT, type Snowman } from './snowman-model';
@@ -238,6 +240,8 @@ export type OtterModelOptions = {
   reducedMotion: boolean;
   /** 해달 친구(눈사람) 모델 주소. 친구가 처음 올 때 불러온다 */
   friendUrl: string;
+  /** 해달 소품 모델 주소. 소품을 처음 입을 때 불러온다 */
+  outfitUrls: Record<OutfitCode, string>;
   /** 눈사람이 이미 보여야 하면(친구가 와 있거나 만드는 중) true. 해달 모델과 동시에 눈사람도 불러온다 */
   preloadFriend: boolean;
   /** 늦게 불러온 모델이 준비돼 다시 그려야 할 때 부른다 */
@@ -359,11 +363,13 @@ export async function createOtterModel(
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const scene = createScene();
   const friend = createFriend(loader, scene, options);
+  let disposeWardrobe = () => {};
   /** 캔버스와 WebGL 컨텍스트를 놓아 준다 (다시 만들 때마다 컨텍스트가 쌓이지 않게 바로 놓는다) */
   const release = () => {
     // 아래 forceContextLoss 가 내는 webglcontextlost 를 잃은 것으로 알리지 않게 먼저 뗀다
     canvas.removeEventListener('webglcontextlost', options.onContextLost);
     friend.dispose();
+    disposeWardrobe();
     renderer.dispose();
     renderer.forceContextLoss();
   };
@@ -375,6 +381,14 @@ export async function createOtterModel(
     scene.add(model);
     const nodes: Nodes = findNodes(model, NODE_NAMES);
     const applyPose = createPoser(nodes);
+    const wardrobe = createWardrobe(
+      loader,
+      model,
+      { head: nodes.head, torso: nodes.torso, armL: nodes.armL, armR: nodes.armR },
+      options.outfitUrls,
+      options.onUpdate,
+    );
+    disposeWardrobe = wardrobe.dispose;
     const trackFull = createFullTracker(options.reducedMotion);
     const camera = createCamera();
     const tip = new Vector3();
@@ -429,7 +443,13 @@ export async function createOtterModel(
     if (renderer.getContext().isContextLost()) throw new Error('WebGL 컨텍스트를 잃었어요');
     canvas.addEventListener('webglcontextlost', options.onContextLost);
 
-    return { draw, hasFriend: friend.isReady, setUserYaw, dispose: release };
+    return {
+      draw,
+      hasFriend: friend.isReady,
+      setUserYaw,
+      setOutfits: wardrobe.wear,
+      dispose: release,
+    };
   } catch (error) {
     release();
     throw error;

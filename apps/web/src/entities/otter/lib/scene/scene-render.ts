@@ -1,5 +1,6 @@
 import { stillTip, viewRect } from '../otter-3d/otter-view';
 import type { SnowmanView } from '../otter-3d/snowman-pose';
+import type { OutfitCode } from '../otter-outfits';
 import {
   catchLabelOpacity,
   type FishingLine,
@@ -42,6 +43,8 @@ export type OtterModelView = {
   hasFriend: () => boolean;
   /** 사용자가 끌어서 돌린 각도 (rad, 0 = 원래 방향). 다음 draw 부터 반영한다 */
   setUserYaw: (yaw: number) => void;
+  /** 해달이 입을 소품. 처음 입는 소품은 불러온 뒤에 보인다 */
+  setOutfits: (codes: readonly OutfitCode[]) => void;
   dispose: () => void;
 };
 
