@@ -30,6 +30,10 @@ MATERIALS = {
     "PrintNavy": ("#2D4A7D", "#243C66"),
     "SantaRed": ("#D8343B", "#B5262E"),
     "SantaFur": ("#FFFDF8", "#E3DED3"),
+    "DeerBrown": ("#B07A4A", "#93623A"),
+    "DeerBelly": ("#F5E6C8", "#E0CDA8"),
+    "Antler": ("#C89A66", "#A87C4C"),
+    "RudolphNose": ("#E8343F", "#C3262F"),
 }
 
 # build_otter.py 의 몸 치수 (Body, Belly, 어깨, 손 자리)
@@ -433,7 +437,26 @@ def build_santa_suit(b):
     p.flush()
 
 
+def build_rudolph_suit(b):
+    """루돌프 옷: 갈색 옷에 크림색 배와 소매 단, 등의 점무늬, 빨간 목걸이와 금색 방울. 루돌프 뿔·코와 한 벌"""
+    torso = b.attach("OutfitTorso")
+    build_shell(b, "DeerBrown")
+    build_sleeves(b, "DeerBrown", trim="DeerBelly", trim_size=(0.03, 0.09))
+    p = Print(b)
+    p.at(FRONT, 0.72).add(ellipse(0, 0, 0.36, 0.34, 0, 28), "DeerBelly")
+    # 등의 점무늬 (아기 사슴처럼)
+    for du, dv, radius in ((-0.22, 0.2, 0.07), (0.2, 0.26, 0.06), (0.02, 0.02, 0.075), (-0.26, -0.14, 0.055), (0.27, -0.1, 0.065)):
+        p.at(BACK, 0.85).add(ellipse(du, dv, radius, radius * 0.85, 0, 12), "DeerBelly")
+    p.ring(NECK_Z - 0.09, NECK_Z + 0.012, "ClothRed")
+    p.flush()
+
+    bell = cloth_point(FRONT, NECK_Z - 0.13, 0.06)
+    b.ell("Bell", bell, (0.085, 0.075, 0.085), "CapGold", torso, seg=16, rings=10)
+    b.ell("BellSlit", bell + Vector((0, -0.068, -0.03)), (0.05, 0.015, 0.014), "PrintBlack", torso, seg=8, rings=4)
+
+
 OUTFITS = {
+    "rudolph-suit": build_rudolph_suit,
     "santa-suit": build_santa_suit,
     "aquarium-tee": build_aquarium_tee,
     "busan-tee": build_busan_tee,

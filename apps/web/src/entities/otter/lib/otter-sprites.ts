@@ -6,6 +6,9 @@ import outfitAlohaShirt from '@/shared/assets/otter/outfits/outfit-aloha-shirt.g
 import outfitAquariumTee from '@/shared/assets/otter/outfits/outfit-aquarium-tee.glb?url';
 import outfitBusanTee from '@/shared/assets/otter/outfits/outfit-busan-tee.glb?url';
 import outfitCaptainHat from '@/shared/assets/otter/outfits/outfit-captain-hat.glb?url';
+import outfitRudolphAntlers from '@/shared/assets/otter/outfits/outfit-rudolph-antlers.glb?url';
+import outfitRudolphNose from '@/shared/assets/otter/outfits/outfit-rudolph-nose.glb?url';
+import outfitRudolphSuit from '@/shared/assets/otter/outfits/outfit-rudolph-suit.glb?url';
 import outfitSailorTop from '@/shared/assets/otter/outfits/outfit-sailor-top.glb?url';
 import outfitSantaBeard from '@/shared/assets/otter/outfits/outfit-santa-beard.glb?url';
 import outfitSantaHat from '@/shared/assets/otter/outfits/outfit-santa-hat.glb?url';
@@ -52,6 +55,9 @@ export const OTTER_OUTFIT_MODELS: Record<OutfitCode, string> = {
   santa_hat: outfitSantaHat,
   santa_suit: outfitSantaSuit,
   santa_beard: outfitSantaBeard,
+  rudolph_antlers: outfitRudolphAntlers,
+  rudolph_nose: outfitRudolphNose,
+  rudolph_suit: outfitRudolphSuit,
 };
 
 /** 물웅덩이에서 튀어 오르는 물고기 (긴 변 128px, 투명 배경, 모두 왼쪽을 바라봄) */

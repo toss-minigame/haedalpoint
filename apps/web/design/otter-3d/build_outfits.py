@@ -284,7 +284,48 @@ def build_santa_beard(b):
         )
 
 
+# ---- 루돌프 뿔 · 코 -------------------------------------------------------------
+
+
+def taper(b, name, start, end, r0, r1, mat, parent):
+    """start 에서 end 로 뻗으며 가늘어지는, 양 끝이 둥근 막대 (뿔 가지)"""
+    start, end = Vector(start), Vector(end)
+    reach = end - start
+    bm = bmesh.new()
+    bmesh.ops.create_uvsphere(bm, u_segments=12, v_segments=8, radius=1)
+    for v in bm.verts:
+        t = (v.co.z + 1) / 2
+        radius = r0 + (r1 - r0) * t
+        v.co = Vector((v.co.x * radius, v.co.y * radius, t * reach.length + v.co.z * radius * 0.9))
+    rot = Vector((0, 0, 1)).rotation_difference(reach.normalized()).to_euler()
+    return b.mesh(name, bm, [mat], parent, start, rot=rot)
+
+
+def build_rudolph_antlers(b):
+    """루돌프 뿔: 빨간 머리띠에 달린, 가지가 둘씩 난 뿔 한 쌍. 루돌프 코·옷과 한 벌"""
+    root = b.head()
+    # 머리띠: 귀에서 귀까지 머리 위를 넘는다 (양 끝은 귀 뒤로 들어간다)
+    band = []
+    for k in range(9):
+        a = math.radians(20 + 140 * k / 8)
+        band.append((0.9 * math.cos(a), 0.0, 1.9 + 0.73 * math.sin(a)))
+    b.curve("AntlerBand", band, "ClothRed", root, 0.04)
+    for side, sx in (("L", -1), ("R", 1)):
+        taper(b, f"Antler{side}", (0.36 * sx, 0, 2.5), (0.66 * sx, 0.02, 3.12), 0.085, 0.05, "Antler", root)
+        taper(b, f"AntlerIn{side}", (0.47 * sx, 0, 2.74), (0.22 * sx, -0.06, 2.98), 0.06, 0.04, "Antler", root)
+        taper(b, f"AntlerOut{side}", (0.57 * sx, 0.01, 2.94), (0.92 * sx, 0, 3.1), 0.055, 0.038, "Antler", root)
+
+
+def build_rudolph_nose(b):
+    """루돌프 코: 해달 코를 덮는 크고 빨간 코와 반짝임"""
+    root = b.head()
+    b.ell("RudolphNose", (0, -0.8, 1.85), (0.155, 0.14, 0.145), "RudolphNose", root, seg=20, rings=12)
+    b.ell("RudolphNoseShine", (0.05, -0.925, 1.91), (0.04, 0.015, 0.03), "White", root, seg=8, rings=4)
+
+
 OUTFITS = {
+    "rudolph-antlers": build_rudolph_antlers,
+    "rudolph-nose": build_rudolph_nose,
     "santa-beard": build_santa_beard,
     "santa-hat": build_santa_hat,
     "straw-hat": build_straw_hat,
