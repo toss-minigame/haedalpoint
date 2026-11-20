@@ -16,6 +16,7 @@ import {
 import { CheckInSection } from '@/features/check-in';
 import { FriendFreezeBubble } from '@/features/fishing-ad-boosts';
 import { TodayBoost } from '@/features/today-boost';
+import { useWardrobe, WardrobePanel, WardrobeTile } from '@/features/wardrobe';
 import {
   ContentGuideOverlay,
   tutorialTarget,
@@ -57,6 +58,8 @@ function catchLabelsOf(
   };
 }
 
+const WARDROBE_PANEL_ID = 'wardrobe-panel';
+
 export function HomePage() {
   // 같은 광고 그룹은 한 번에 하나만 미리 불러올 수 있어, 홈의 보상형 광고 버튼이 모두 이 광고를 함께 쓴다
   const rewardedAd = useRewardedAd(env.rewardedAdGroupId);
@@ -68,13 +71,15 @@ export function HomePage() {
   const { data: attendance } = useQuery(attendanceQueries.me());
   const catchLabels = catchLabelsOf(fishingStatus, hammockFull, friend.isHere);
   const tutorial = useWelcomeTutorial();
+  // 옷장: 연 소품을 입히고, 여는 동안은 잠긴 소품도 입어 본다
+  const wardrobe = useWardrobe();
   // 홈 튜토리얼이 끝난 뒤 출석·낚싯대·양동이를 처음 누르면 한 번 안내한다
   const guides = useContentGuides(tutorial === null);
   // 친구가 없을 때는 출석으로 만드는 중인 눈사람을 보여 준다 (7일마다 완성돼 친구가 된다)
   const friendBuildStage = friend.isHere ? 0 : (attendance?.friendCycleDay ?? 0);
-  // 녹는 동안에만 얼려 달라는 말풍선을 띄운다. 튜토리얼 안내 중에는 가리지 않게 숨긴다
+  // 녹는 동안에만 얼려 달라는 말풍선을 띄운다. 튜토리얼 안내 중과 옷장을 연 동안에는 가리지 않게 숨긴다
   const friendBubble =
-    fishingStatus && friend.isFreezable && !tutorial ? (
+    fishingStatus && friend.isFreezable && !tutorial && !wardrobe.isOpen ? (
       <FriendFreezeBubble status={fishingStatus} ad={rewardedAd} />
     ) : null;
 
@@ -95,6 +100,7 @@ export function HomePage() {
           friendFrozen={fishingStatus?.otterFriendFrozen ?? false}
           friendBuildStage={friendBuildStage}
           friendBubble={friendBubble}
+          outfits={wardrobe.worn}
         />
         {/* 빈 곳을 누르면 아래 장면으로 전달돼 해달이 물고기를 잡는다 */}
         <div className="pointer-events-none relative mx-auto flex w-full max-w-xl flex-col gap-3 px-4 pt-3">
@@ -105,7 +111,22 @@ export function HomePage() {
             </div>
           </div>
           <RewardTiles className="pointer-events-auto" rewardedAd={rewardedAd} guides={guides} />
+          {/* 리워드 아이콘 줄 바로 아래 맨 오른쪽 칸. 튜토리얼 안내 중에는 숨긴다 */}
+          {!tutorial && (
+            <div className="pointer-events-none -mx-3 grid grid-cols-[repeat(4,minmax(4.25rem,1fr))]">
+              <div className="pointer-events-auto col-start-4">
+                <WardrobeTile wardrobe={wardrobe} panelId={WARDROBE_PANEL_ID} />
+              </div>
+            </div>
+          )}
         </div>
+        {/* 옷장: 장면 왼쪽에 네모난 창을 띄운다 (해달은 오른쪽에 있다). 위로는 리워드 아이콘 줄 아래까지,
+            아래로는 아래 카드 바로 위까지 (카드가 장면에 24px 겹쳐 올라온다) */}
+        <WardrobePanel
+          id={WARDROBE_PANEL_ID}
+          wardrobe={wardrobe}
+          className="absolute bottom-8 left-3 max-h-[calc(100%-13.25rem)]"
+        />
       </div>
       {/* 아래: 양동이 카드 + 출석체크. 위로 끌면 카드가 통째로 올라와 출석 현황이 보인다.
           출석 첫 안내 동안에는 펼쳐 둔다 */}
