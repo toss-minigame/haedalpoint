@@ -12,14 +12,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { formatEntryTime } from '../lib/format-entry-time';
 import { WarehouseSkeleton } from './warehouse-skeleton';
 
-// 창고 이력 종류별 문구와 수량 부호 (STORE 는 늘고, TOSS_POINT 는 준다)
+// 창고 이력 종류별 문구와 수량 부호 (STORE 는 늘고, TOSS_POINT·OUTFIT 은 준다)
 const ENTRY_LABEL: Record<WarehouseEntry['type'], string> = {
   STORE: '양동이에서 저장',
   TOSS_POINT: '토스 포인트로 받음',
+  OUTFIT: '옷장에서 소품을 엶',
 };
 const ENTRY_SIGN: Record<WarehouseEntry['type'], string> = {
   STORE: '+',
   TOSS_POINT: '-',
+  OUTFIT: '-',
 };
 
 function StoredStat({ label, fish }: { label: string; fish: number }) {

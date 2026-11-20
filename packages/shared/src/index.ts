@@ -3,6 +3,7 @@ export * from './api';
 export * from './attendance';
 export * from './auth';
 export * from './fishing';
+export * from './outfit';
 export * from './quiz';
 export * from './roulette';
 export * from './tutorial';

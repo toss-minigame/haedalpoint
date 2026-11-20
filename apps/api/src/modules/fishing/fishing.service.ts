@@ -20,6 +20,7 @@ import { kstDayStart, kstMonthStart, toKstDateString } from '../../common/utils/
 import { TossPointService } from '../toss-point/toss-point.service.js';
 import { UsersService } from '../users/users.service.js';
 import type { FishingState } from './entities/fishing-state.entity.js';
+import type { WarehouseLedgerType } from './entities/warehouse-ledger.entity.js';
 import { FishingRepository, type FishingStateChanges } from './fishing.repository.js';
 import {
   catchBackMilliFish,
@@ -65,6 +66,7 @@ const CATCH_BACK_LIMIT_REACHED = `넘친 물고기는 하루 ${CATCH_BACK_POLICY
 const TOSS_POINT_NOT_READY = '토스 포인트 받기를 준비하고 있어요';
 const TOSS_POINT_UNAVAILABLE = '이 계정은 토스 포인트를 받을 수 없어요';
 const NOT_ENOUGH_FISH_FOR_TOSS_POINT = `물고기 ${FISHING_POLICY.FISH_PER_TOSS_POINT.toLocaleString('ko-KR')}마리부터 토스 포인트로 받을 수 있어요`;
+const NOT_ENOUGH_WAREHOUSE_FISH = '창고 물고기가 모자라요';
 const TOSS_POINT_DAILY_LIMIT_REACHED = `토스 포인트는 하루 ${WAREHOUSE_TOSS_POINT_POLICY.DAILY_LIMIT}원까지 받을 수 있어요`;
 /** 창고 화면에 보여줄 최근 이력 수 */
 const RECENT_LEDGER_LIMIT = 30;
@@ -106,6 +108,34 @@ export class FishingService {
     const row = await this.fishingRepository.findOrCreate(userId, now);
     const hammock = settleHammock(toHammockState(row), now);
     return buildFishingStatus(hammock, row, now);
+  }
+
+  /** 창고의 물고기 (마리). 다른 모듈(옷장)이 화면에 보여 줄 때 쓴다 */
+  async warehouseFish(userId: string): Promise<number> {
+    const row = await this.fishingRepository.findOrCreate(userId, new Date());
+    return row.warehouseMilliFish / MILLI_PER_FISH;
+  }
+
+  /**
+   * 창고 물고기를 fish 마리 쓰고 이력(type)을 남긴 뒤, 남은 물고기(마리)를 돌려준다. 모자라면 409.
+   * 호출하는 쪽(옷장)의 트랜잭션 안에서 실행한다. 창고 행을 잠그므로 같은 사용자의 요청은 하나씩 처리된다.
+   */
+  async spendWarehouseFish(
+    userId: string,
+    fish: number,
+    type: Exclude<WarehouseLedgerType, 'STORE'>,
+    manager: EntityManager,
+    now: Date,
+  ): Promise<number> {
+    const amountMilliFish = Math.round(fish * MILLI_PER_FISH);
+    const row = await this.fishingRepository.lockOrCreate(manager, userId, now);
+    if (row.warehouseMilliFish < amountMilliFish) {
+      throw new ConflictException(NOT_ENOUGH_WAREHOUSE_FISH);
+    }
+    const warehouseMilliFish = row.warehouseMilliFish - amountMilliFish;
+    await this.fishingRepository.updateState(manager, row.id, { warehouseMilliFish });
+    await this.fishingRepository.addLedgerEntry(manager, { userId, type, amountMilliFish });
+    return warehouseMilliFish / MILLI_PER_FISH;
   }
 
   /**
