@@ -1,5 +1,5 @@
 import { CheckIcon, FishIcon, LockIcon, XIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { formatFish } from '@/entities/fishing';
 import { OUTFITS, type OutfitItem, type OutfitSlot } from '@/entities/otter';
 import { cn } from '@/shared/lib/utils';
@@ -79,8 +79,14 @@ function UnlockButton({ outfit, warehouseFish, isUnlocking, isBusy, onUnlock }: 
   const name = OUTFITS[outfit.code].name;
   const short = shortFish(outfit.priceFish, warehouseFish);
   const isAffordable = short === 0;
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  // 소품이 많은 칸에서는 목록이 창 안에서 스크롤된다. 맨 아래 소품을 입어 봐도 여는 버튼이 보이게 한다
+  useEffect(() => {
+    buttonRef.current?.scrollIntoView({ block: 'nearest' });
+  }, []);
   return (
     <button
+      ref={buttonRef}
       type="button"
       disabled={!isAffordable || isBusy}
       aria-label={
