@@ -46,7 +46,8 @@ export function todayBoostRows(
   return [
     {
       key: 'rod',
-      title: '낚싯대 강화',
+      // 홈의 낚싯대 타일 이름과 같게 적는다
+      title: '빨리 잡기',
       detail: rodDetail(status.rodLevel, otherRodBonus, hammockRodBonus),
       value: `+${rodBonus}%`,
       isActive: rodBonus > 0,

@@ -12,7 +12,7 @@ type Props = {
   className?: string;
 };
 
-// 홈 위쪽 리워드 아이콘 줄: 낚싯대 강화 · 해먹 넓히기 · O/X 퀴즈 · 미끼 룰렛 (출석은 아래 출석체크 카드).
+// 홈 위쪽 리워드 아이콘 줄: 낚싯대 강화(빨리 잡기) · 해먹 넓히기(양동이 키우기) · O/X 퀴즈 · 미끼 룰렛 (출석은 아래 출석체크 카드).
 // 받을 수 있는 보상이 있으면 아이콘에 빨간 점을 붙인다.
 // 낚싯대·해먹은 낚시 현황(fishingQueries.me)이 있어야 그린다 (불러오는 중·실패는 아래 해먹 카드가 알려준다).
 export function RewardTiles({ rewardedAd, guides, className }: Props) {

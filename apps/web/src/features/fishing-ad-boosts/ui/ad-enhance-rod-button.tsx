@@ -14,7 +14,8 @@ type Props = {
   ad: RewardedAd;
 };
 
-const TITLE = '낚싯대 강화';
+// 화면에는 하는 일(낚시가 빨라진다)로 적는다. 양동이 타일의 '양동이 키우기' 와 같은 말투다
+const TITLE = '빨리 잡기';
 const ICON = <RodIcon />;
 
 // 쿨타임마다 광고를 보고 낚싯대를 한 단계 강화한다. 강화는 오늘 자정까지 유지된다.
@@ -42,7 +43,7 @@ export function AdEnhanceRodButton({ status, receivedAt, ad }: Props) {
     <RewardedAdButton
       ad={ad}
       label={`광고 ${bonus}`}
-      accessibleLabel={`광고 보고 낚싯대 강화하기 (${bonus})`}
+      accessibleLabel={`${TITLE}, 광고 보고 낚싯대 강화하기 (${bonus})`}
       incompleteMessage="광고를 끝까지 보면 낚싯대를 강화할 수 있어요"
       variant="ghost"
       compact
