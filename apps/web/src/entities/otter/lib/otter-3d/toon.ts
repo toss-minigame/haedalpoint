@@ -12,7 +12,7 @@ import {
 
 /**
  * 3D 모델(해달·눈사람)을 그림처럼 보이게 칠한다: 밝은 면·어두운 면 두 단계 명암 + 테두리.
- * 재질 이름은 Blender 스크립트(design/otter-3d/build_otter.py, build_snowman.py)와 같다.
+ * 재질 이름은 Blender 스크립트(design/otter-3d/build_otter.py, build_outfits.py, build_snowman.py)와 같다.
  */
 
 /** 재질 이름 → 색. 만화처럼 밝은 면·어두운 면 두 단계로 칠한다 */
@@ -30,6 +30,28 @@ const TOON_COLORS: Record<string, string> = {
   Bucket: '#4A80C8',
   Goldfish: '#F7B64A',
   Bluefish: '#8CC4EE',
+  // 해달 소품 (build_outfits.py)
+  Straw: '#F4D98F',
+  StrawBand: '#DE4B4E',
+  CapWhite: '#FBF8F1',
+  CapNavy: '#33507F',
+  CapGold: '#F2C14E',
+  Shades: '#3A4160',
+  ShirtWhite: '#FBFAF6',
+  ShirtAqua: '#62CBD6',
+  ShirtCoral: '#F27B63',
+  TrimAqua: '#3DAEBF',
+  TrimCoral: '#F9A48E',
+  ClothNavy: '#33507F',
+  ClothRed: '#DE4B4E',
+  PrintWhite: '#FFFFFF',
+  PrintBlack: '#2B2B36',
+  PrintRed: '#E8343F',
+  PrintYellow: '#FFD95A',
+  PrintGreen: '#4FA66B',
+  PrintNavy: '#2D4A7D',
+  SantaRed: '#D8343B',
+  SantaFur: '#FFFDF8',
   // 눈사람
   Snow: '#FBFAF8',
   SnowHat: '#F2C14E',
@@ -53,6 +75,7 @@ const FLAT_COLORS: Record<string, string> = {
   Cheek: '#F7D3CE',
   MouthIn: '#E8837C',
   Tongue: '#F6AFA6',
+  ShadesFrame: '#23263A',
 };
 
 const OTTER_OUTLINE = '#9A6644';
@@ -68,6 +91,19 @@ const OUTLINES: Record<string, { width: number; color: string }> = {
   Bucket: { width: 0.028, color: OTTER_OUTLINE },
   Goldfish: { width: 0.016, color: OTTER_OUTLINE },
   Bluefish: { width: 0.016, color: OTTER_OUTLINE },
+  Straw: { width: 0.03, color: '#A9803F' },
+  StrawBand: { width: 0.016, color: '#A63438' },
+  CapWhite: { width: 0.03, color: '#8E97AD' },
+  CapNavy: { width: 0.028, color: '#1F3257' },
+  CapGold: { width: 0.014, color: '#B8862B' },
+  Shades: { width: 0.028, color: '#1B1E2E' },
+  ShirtWhite: { width: 0.03, color: '#8E97AD' },
+  ShirtAqua: { width: 0.03, color: '#2C8794' },
+  ShirtCoral: { width: 0.03, color: '#B24B38' },
+  TrimAqua: { width: 0.02, color: '#2C8794' },
+  ClothRed: { width: 0.016, color: '#A63438' },
+  SantaRed: { width: 0.03, color: '#8E1F26' },
+  SantaFur: { width: 0.028, color: '#A9A294' },
   Snow: { width: 0.032, color: '#8094B8' },
   SnowHat: { width: 0.03, color: '#C8953A' },
   SnowHatGroove: { width: 0.03, color: '#C8953A' },
