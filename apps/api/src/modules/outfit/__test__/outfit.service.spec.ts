@@ -60,7 +60,7 @@ describe('OutfitService', () => {
       const result = await service.getOutfits(USER_ID);
 
       expect(result.warehouseFish).toBe(100_000);
-      expect(result.outfits).toHaveLength(10);
+      expect(result.outfits).toHaveLength(13);
       expect(result.outfits.find((outfit) => outfit.code === 'straw_hat')).toMatchObject({
         owned: true,
         equipped: true,

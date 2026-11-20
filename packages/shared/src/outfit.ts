@@ -11,7 +11,10 @@ export type OutfitCode =
   | 'aloha_shirt'
   | 'santa_hat'
   | 'santa_suit'
-  | 'santa_beard';
+  | 'santa_beard'
+  | 'rudolph_antlers'
+  | 'rudolph_nose'
+  | 'rudolph_suit';
 
 /** 입는 부위. 같은 부위에는 하나만 입는다 (머리 소품은 기본 털모자를, 몸 소품은 기본 목도리를 대신한다) */
 export type OutfitSlot = 'head' | 'face' | 'body';

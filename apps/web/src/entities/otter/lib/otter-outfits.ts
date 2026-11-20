@@ -19,6 +19,9 @@ export const OUTFITS: Record<OutfitCode, { name: string; slot: OutfitSlot }> = {
   santa_hat: { name: '산타 모자', slot: 'head' },
   santa_suit: { name: '산타 옷', slot: 'body' },
   santa_beard: { name: '산타 수염', slot: 'face' },
+  rudolph_antlers: { name: '루돌프 뿔', slot: 'head' },
+  rudolph_nose: { name: '루돌프 코', slot: 'face' },
+  rudolph_suit: { name: '루돌프 옷', slot: 'body' },
 };
 
 export const OUTFIT_CODES = Object.keys(OUTFITS) as OutfitCode[];

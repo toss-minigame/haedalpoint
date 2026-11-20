@@ -16,6 +16,9 @@ export const OUTFIT_SLOTS = {
   santa_hat: 'head',
   santa_suit: 'body',
   santa_beard: 'face',
+  rudolph_antlers: 'head',
+  rudolph_nose: 'face',
+  rudolph_suit: 'body',
 } as const satisfies Record<OutfitCode, OutfitSlot>;
 
 export const OUTFIT_POLICY = {
